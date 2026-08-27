@@ -1,0 +1,28 @@
+# 环境变量与密钥（务必通过微信云托管控制台的"环境变量"功能注入，不要打包进镜像）
+.env
+.env.*
+!.env.example
+wxcloudrun*.env.json
+
+# 版本控制与 IDE
+.git
+.gitignore
+.vscode
+
+# Python 运行产物
+__pycache__/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# 本地数据目录：容器磁盘不持久化，运行时会自动重建，无需打包旧数据
+data/chroma/*
+data/uploads/*
+
+# 测试与文档
+tests/
+sql/
+scripts/
+*.md

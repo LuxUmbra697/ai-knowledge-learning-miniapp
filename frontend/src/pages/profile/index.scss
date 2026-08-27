@@ -1,0 +1,258 @@
+.profile-page {
+  min-height: 100vh;
+  background: var(--bg-primary, #f6f4ef);
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+.profile-content {
+  padding: 0 32px 120px;
+}
+
+.avatar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 0 32px;
+
+  .avatar-btn {
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    border: none;
+    line-height: 1;
+    margin-bottom: 20px;
+
+    &::after {
+      display: none;
+    }
+  }
+
+  .avatar-img {
+    width: 128px;
+    height: 128px;
+    border-radius: 50%;
+    border: 2px solid #f1d7c0;
+  }
+
+  .avatar-placeholder {
+    width: 128px;
+    height: 128px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ff7a2f, #ffb347);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .avatar-emoji {
+    font-size: 56px;
+    color: #fff;
+  }
+
+  .nickname {
+    font-size: 36px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 8px;
+  }
+
+  .nickname-input {
+    font-size: 36px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 8px;
+    text-align: center;
+    border-bottom: 2px solid #ff7a2f;
+    padding: 4px 16px;
+  }
+
+  .slogan {
+    font-size: 26px;
+    color: #999;
+  }
+}
+
+.stats-row {
+  display: flex;
+  justify-content: space-around;
+  background: #fff;
+  border-radius: 24px;
+  padding: 32px 16px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .stat-num {
+    font-size: 40px;
+    font-weight: 700;
+    color: #ff7a2f;
+    margin-bottom: 8px;
+  }
+
+  .stat-label {
+    font-size: 24px;
+    color: #999;
+  }
+}
+
+.xp-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  border-radius: 24px;
+  padding: 24px 32px;
+  margin-bottom: 32px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+
+  .xp-label {
+    font-size: 28px;
+    font-weight: 600;
+    color: #1a1a1a;
+  }
+
+  .xp-value-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 20px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #ff8a45 0%, #ff6f27 100%);
+  }
+
+  .xp-value {
+    font-size: 30px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .xp-star {
+    font-size: 28px;
+  }
+}
+
+.section-title {
+  display: block;
+  font-size: 30px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 20px;
+}
+
+.knowledge-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  border-radius: 24px;
+  padding: 28px 32px;
+  margin-bottom: 32px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+
+  &:active {
+    background: #faf7f2;
+  }
+
+  .knowledge-entry-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .knowledge-entry-icon {
+    font-size: 32px;
+  }
+
+  .knowledge-entry-text {
+    font-size: 28px;
+    font-weight: 600;
+    color: #1a1a1a;
+  }
+
+  .knowledge-entry-arrow {
+    font-size: 36px;
+    color: #ccc;
+  }
+}
+
+.empty-history {
+  background: #fff;
+  border-radius: 24px;
+  padding: 48px 32px;
+  text-align: center;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+
+  .empty-text {
+    font-size: 26px;
+    color: #999;
+  }
+}
+
+.history-list {
+  background: #fff;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28px 32px;
+  border-bottom: 1px solid #f0ede6;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:active {
+    background: #faf7f2;
+  }
+}
+
+.history-left {
+  flex: 1;
+  min-width: 0;
+
+  .history-title {
+    display: block;
+    font-size: 28px;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin-bottom: 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .history-meta {
+    font-size: 24px;
+    color: #999;
+  }
+}
+
+.history-arrow {
+  font-size: 36px;
+  color: #ccc;
+  margin-left: 16px;
+}
+
+.load-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+
+  .load-more-text {
+    font-size: 26px;
+    color: #ff7a2f;
+    font-weight: 600;
+  }
+}

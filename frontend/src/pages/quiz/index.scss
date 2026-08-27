@@ -1,0 +1,269 @@
+/* 答题页样式 - 完全匹配 UI 原型 */
+
+.quiz-page {
+  min-height: 100vh;
+  padding: 16px 32px 60px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(255, 154, 96, 0.2), transparent 30%),
+    linear-gradient(180deg, #fffdfa 0%, #fff6ef 100%);
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-top: 200px;
+  font-size: 32px;
+  color: var(--muted);
+}
+
+/* 顶部栏 */
+.quiz-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.close-btn {
+  font-size: 48px;
+  color: #647380;
+  font-weight: 300;
+  padding: 10px;
+}
+
+.question-num {
+  font-size: 26px;
+  color: #647380;
+  font-weight: 700;
+}
+
+.coin-badge-small {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  color: #fff;
+  background: linear-gradient(90deg, #ff8a45 0%, #ff6f27 100%);
+  font-size: 24px;
+  font-weight: 800;
+}
+
+/* 进度条 */
+.quiz-progress {
+  margin: 12px 0 20px;
+}
+
+.progress-track {
+  height: 16px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #f3e5d8;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #ff9f60, #ffd7b7);
+  transition: width 0.3s ease;
+}
+
+.progress-meta {
+  margin-top: 12px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.meta-text {
+  color: #647380;
+  font-size: 24px;
+}
+
+/* 题干 */
+.quiz-title {
+  display: block;
+  margin-top: 28px;
+  margin-bottom: 12px;
+  font-size: 44px;
+  font-weight: 800;
+  line-height: 1.3;
+  color: #2b3340;
+}
+
+/* 题目配图 */
+.question-image-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+  border-radius: 28px;
+  overflow: hidden;
+  border: 2px solid #f0e2d6;
+  background: #fffdfa;
+}
+
+.question-image {
+  width: 100%;
+  height: 360px;
+}
+
+/* 选项列表 */
+.options-list {
+  margin-top: 12px;
+}
+
+.option {
+  width: 100%;
+  min-height: 104px;
+  border: 2px solid #e7d6c6;
+  margin-top: 20px;
+  border-radius: 32px;
+  font-size: 30px;
+  font-weight: 800;
+  color: #33424d;
+  background: #fffdfa;
+  box-shadow: 0 4px 0 rgba(216, 197, 179, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 20px 28px;
+  box-sizing: border-box;
+  word-break: break-all;
+}
+
+.option.selected {
+  border-color: #ff7a2f;
+  background: var(--orange-soft);
+  color: #df5f1f;
+}
+
+.option.correct {
+  color: #29986d;
+  background: var(--green-soft);
+  border-color: #9fd8bd;
+}
+
+.option.wrong {
+  color: #c0453a;
+  background: var(--red-soft);
+  border-color: #f5b0a9;
+}
+
+.check-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #2fb778;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.cross-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #ff6f5d;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.option-text {
+  flex: 1;
+}
+
+/* 提交按钮 */
+.submit-btn {
+  margin-top: 32px;
+}
+
+/* 结果提示 */
+.result-tip {
+  margin-top: 24px;
+  border-radius: 24px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 26px;
+  font-weight: 800;
+
+  &.is-correct {
+    border: 2px solid #a8ddc3;
+    background: var(--green-soft);
+    color: #217f5b;
+  }
+
+  &.is-wrong {
+    border: 2px solid #f5b0a9;
+    background: var(--red-soft);
+    color: #b64f40;
+  }
+}
+
+/* 讲解区 */
+.explain-box {
+  margin-top: 20px;
+  border-radius: 28px;
+  border: 2px solid #f0b98e;
+  background: #fff1e4;
+  padding: 22px;
+  color: #5b4331;
+  font-size: 28px;
+  line-height: 1.65;
+  box-shadow: 0 12px 28px rgba(207, 126, 61, 0.12);
+}
+
+.explain-title {
+  color: #bb571f;
+  font-weight: 800;
+}
+
+.explain-content {
+  display: block;
+  margin-top: 8px;
+}
+
+/* 导航按钮 */
+.nav-buttons {
+  margin-top: 32px;
+  display: flex;
+  gap: 20px;
+}
+
+.prev-btn,
+.next-btn {
+  flex: 1;
+  height: 84px;
+  border-radius: 999px;
+  font-size: 28px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.prev-btn {
+  border: 2px solid #e5ddd4;
+  color: #6a7783;
+  background: #fff;
+}
+
+.next-btn {
+  border: 2px solid #f0d9c6;
+  color: #cb6227;
+  background: #fff7f0;
+}

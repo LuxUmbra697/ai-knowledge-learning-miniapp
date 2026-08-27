@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LuxUmbra AI 闯关学习 - 扩展功能原型（重构版）</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* 主色调 - 温暖活力 */
+            --primary: #FF6B35;
+            --primary-hover: #FF5722;
+            --primary-light: #FF8C61;
+            --primary-lighter: #FFCC80;
+
+            /* 中性色 - 高可读性 */
+            --text-primary: #1F2937;
+            --text-secondary: #4B5563;
+            --text-muted: #6B7280;
+            --border: #E5E7EB;
+            --bg-page: #F9FAFB;
+            --bg-card: #FFFFFF;
+            --bg-subtle: #F3F4F6;
+
+            /* 功能色 */
+            --success: #10B981;
+            --success-light: #D1FAE5;
+            --error: #EF4444;
+            --error-light: #FEE2E2;
+            --warning: #F59E0B;
+            --warning-light: #FEF3C7;
+            --info: #3B82F6;
+            --info-light: #DBEAFE;
+
+            /* 阴影 */
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+            --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+            --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.15);
+
+            /* 渐变 */
+            --gradient-primary: linear-gradient(135deg, #FF6B35 0%, #FF8C61 100%);
+            --gradient-hero: linear-gradient(135deg, #FF6B35 0%, #FFA559 100%);
+
+            /* 字体 */
+            --font-sans: "Noto Sans SC", -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+
+            /* 间距 */
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 12px;
+            --spacing-lg: 16px;
+            --spacing-xl: 20px;
+            --spacing-2xl: 24px;
+            --spacing-3xl: 32px;
+
+            /* 特殊颜色 */
+            --gold: #FFD700;
+            --silver: #C0C0C0;
+            --bronze: #CD7F32;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg-page);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: var(--spacing-3xl) var(--spacing-lg);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: var(--spacing-3xl);
+        }
+
+        .header h1 {
+            font-size: var(--text-4xl);
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .header p {
+            font-size: var(--text-lg);
+            color: var(--text-secondary);
+        }
+
+        /* 三列布局 */
+        .prototype-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-2xl);
+        }
+
+        /* 手机框架 */
+        .phone-frame {
+            background: var(--text-primary);
+            border-radius: 40px;
+            padding: 12px;
+            box-shadow: var(--shadow-xl);
+            position: relative;
+        }
+
+        .phone-frame::before {
+            content: '';
+            position: absolute;
+            top: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 24px;
+            background: var(--text-primary);
+            border-radius: 20px;
+            z-index: 10;
+        }
+
+        .phone-screen {
+            background: var(--bg-page);
+            border-radius: 32px;
+            height: 680px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* 页面容器 */
+        .page {
+            height: 100%;
+            padding: 50px 20px 20px;
+            overflow-y: auto;
+        }
+
+        /* 卡片 */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: var(--spacing-lg);
+            margin-bottom: var(--spacing-lg);
+            box-shadow: var(--shadow-sm);
+            transition: all 0.2s ease;
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .card-subtle {
+            background: var(--bg-subtle);
+            border: none;
+        }
+
+        /* 按钮 */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-lg) var(--spacing-xl);
+            border: none;
+            border-radius: 12px;
+            font-size: var(--text-base);
+            font-weight: 600;
+            font-family: var(--font-sans);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+
+        .btn-primary {
+            background: var(--gradient-primary);
+            color: white;
+            box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(255, 107, 53, 0.4);
+        }
+
+        .btn-secondary {
+            background: white;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-secondary:hover {
+            background: var(--primary-lighter);
+        }
+
+        /* ========== 页面 1: 个人中心 ========== */
+        .profile-header {
+            text-align: center;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .avatar-container {
+            position: relative;
+            display: inline-block;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .avatar {
+            width: 80px;
+            height: 80px;
+            background: var(--gradient-primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            position: relative;
+            box-shadow: var(--shadow-lg);
+            border: 3px solid white;
+        }
+
+        .level-badge-small {
+            position: absolute;
+            bottom: -4px;
+            right: -4px;
+            background: var(--primary);
+            color: white;
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border-radius: 12px;
+            font-size: var(--text-xs);
+            font-weight: 700;
+            border: 2px solid white;
+        }
+
+        .user-name {
+            font-size: var(--text-xl);
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .user-title {
+            font-size: var(--text-sm);
+            color: var(--text-secondary);
+        }
+
+        .streak-badge {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--spacing-sm);
+            background: linear-gradient(135deg, #EF4444, #F59E0B);
+            color: white;
+            padding: var(--spacing-md);
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: var(--text-sm);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .stat-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: var(--spacing-md);
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+
+        .stat-item:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .stat-value {
+            font-size: var(--text-2xl);
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .stat-label {
+            font-size: var(--text-xs);
+            color: var(--text-secondary);
+        }
+
+        .section-title {
+            font-size: var(--text-base);
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-md);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+
+        .history-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: var(--spacing-md);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .history-item:hover {
+            border-color: var(--primary);
+            transform: translateX(4px);
+        }
+
+        .history-info {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+        }
+
+        .history-icon {
+            width: 36px;
+            height: 36px;
+            background: var(--primary-lighter);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .history-details {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .history-name {
+            font-size: var(--text-sm);
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .history-rating {
+            display: flex;
+            gap: 2px;
+            margin-top: 2px;
+        }
+
+        .star {
+            color: var(--warning);
+            font-size: 12px;
+        }
+
+        .star.empty {
+            color: var(--border);
+        }
+
+        .history-time {
+            font-size: var(--text-xs);
+            color: var(--text-muted);
+        }
+
+        /* ========== 页面 2: 排行榜 ========== */
+        .leaderboard-header {
+            text-align: center;
+            padding: var(--spacing-xl);
+            background: var(--gradient-hero);
+            border-radius: 16px;
+            margin-bottom: var(--spacing-xl);
+            color: white;
+        }
+
+        .leaderboard-header h2 {
+            font-size: var(--text-2xl);
+            font-weight: 700;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .tab-switch {
+            display: flex;
+            background: var(--bg-subtle);
+            border-radius: 12px;
+            padding: var(--spacing-xs);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .tab-item {
+            flex: 1;
+            padding: var(--spacing-sm);
+            text-align: center;
+            border-radius: 10px;
+            font-size: var(--text-sm);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: var(--text-secondary);
+        }
+
+        .tab-item.active {
+            background: white;
+            color: var(--primary);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .leaderboard-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+
+        .leaderboard-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: var(--spacing-md) var(--spacing-lg);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .leaderboard-item:hover {
+            border-color: var(--primary);
+            transform: scale(1.02);
+        }
+
+        .leaderboard-item.current-user {
+            background: var(--primary-lighter);
+            border-color: var(--primary);
+        }
+
+        .rank {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: var(--text-sm);
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .rank.gold {
+            background: var(--gold);
+            color: white;
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.4);
+        }
+
+        .rank.silver {
+            background: var(--silver);
+            color: white;
+            box-shadow: 0 4px 12px rgba(192, 192, 192, 0.4);
+        }
+
+        .rank.bronze {
+            background: var(--bronze);
+            color: white;
+            box-shadow: 0 4px 12px rgba(205, 127, 50, 0.4);
+        }
+
+        .rank.normal {
+            background: var(--bg-subtle);
+            color: var(--text-secondary);
+        }
+
+        .player-avatar {
+            width: 40px;
+            height: 40px;
+            background: var(--gradient-primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            border: 2px solid white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .player-info {
+            flex: 1;
+        }
+
+        .player-name {
+            font-size: var(--text-sm);
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 2px;
+        }
+
+        .player-xp {
+            font-size: var(--text-xs);
+            color: var(--text-secondary);
+        }
+
+        .xp-value {
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        /* ========== 页面 3: 分享海报 ========== */
+        .poster-preview {
+            background: var(--gradient-hero);
+            border-radius: 16px;
+            padding: var(--spacing-xl);
+            color: white;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .poster-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .poster-title {
+            font-size: var(--text-xl);
+            font-weight: 700;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .poster-achievement {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .poster-achievement h3 {
+            font-size: var(--text-base);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .poster-stats {
+            display: flex;
+            justify-content: center;
+            gap: var(--spacing-lg);
+            font-size: var(--text-sm);
+        }
+
+        .poster-quote {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            padding: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
+            position: relative;
+        }
+
+        .poster-quote::before {
+            content: '"';
+            position: absolute;
+            top: 8px;
+            left: 12px;
+            font-size: 32px;
+            opacity: 0.5;
+            font-family: Georgia, serif;
+        }
+
+        .quote-text {
+            font-size: var(--text-sm);
+            font-style: italic;
+            line-height: 1.6;
+        }
+
+        .qr-placeholder {
+            width: 120px;
+            height: 120px;
+            background: white;
+            border-radius: 12px;
+            margin: 0 auto var(--spacing-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            font-size: var(--text-xs);
+            border: 2px dashed rgba(255, 255, 255, 0.5);
+        }
+
+        .poster-cta {
+            font-size: var(--text-sm);
+            font-weight: 600;
+        }
+
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .color-option {
+            aspect-ratio: 1;
+            border-radius: 10px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .color-option:hover {
+            transform: scale(1.05);
+        }
+
+        .color-option.selected {
+            border-color: var(--primary);
+        }
+
+        .action-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-md);
+        }
+
+        /* 页面标签 */
+        .page-label {
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--primary);
+            color: white;
+            padding: var(--spacing-xs) var(--spacing-md);
+            border-radius: 20px;
+            font-size: var(--text-xs);
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        /* SVG 定义 */
+        .svg-defs {
+            position: absolute;
+            width: 0;
+            height: 0;
+        }
+
+        /* Icon */
+        .icon {
+            width: 20px;
+            height: 20px;
+        }
+
+        .icon-sm {
+            width: 16px;
+            height: 16px;
+        }
+
+        .icon-lg {
+            width: 24px;
+            height: 24px;
+        }
+
+        /* 响应式 */
+        @media (max-width: 1200px) {
+            .prototype-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .prototype-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: var(--text-3xl);
+            }
+        }
+
+        /* 浮动动画 */
+        @keyframes float-gentle {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        .float-animation {
+            animation: float-gentle 3s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <!-- SVG 定义 -->
+    <svg class="svg-defs">
+        <defs>
+            <linearGradient id="robotGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color: #FF8C61" />
+                <stop offset="100%" style="stop-color: #FF6B35" />
+            </linearGradient>
+        </defs>
+    </svg>
+
+    <!-- SVG 图标定义 -->
+    <svg style="display: none;">
+        <!-- 学习机器人 "小智" -->
+        <symbol id="mascot-robot" viewBox="0 0 100 100">
+            <rect x="25" y="40" width="50" height="40" rx="8" fill="url(#robotGradient)"/>
+            <rect x="20" y="15" width="60" height="35" rx="10" fill="url(#robotGradient)"/>
+            <circle cx="38" cy="32" r="6" fill="white"/>
+            <circle cx="62" cy="32" r="6" fill="white"/>
+            <circle cx="38" cy="32" r="3" fill="#1F2937"/>
+            <circle cx="62" cy="32" r="3" fill="#1F2937"/>
+            <line x1="50" y1="15" x2="50" y2="5" stroke="#FF6B35" stroke-width="3"/>
+            <circle cx="50" cy="5" r="4" fill="#FFCC80"/>
+            <rect x="15" y="48" width="12" height="25" rx="6" fill="#FF8C61"/>
+            <rect x="73" y="48" width="12" height="25" rx="6" fill="#FF8C61"/>
+            <path d="M 40 42 Q 50 48 60 42" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/>
+        </symbol>
+
+        <!-- 奖杯图标 -->
+        <symbol id="icon-trophy" viewBox="0 0 24 24">
+            <path d="M12 2l3 6h6l-5 4 2 6-6-4-6 4 2-6-5-4h6l3-6z" fill="currentColor"/>
+        </symbol>
+
+        <!-- 火焰图标 -->
+        <symbol id="icon-fire" viewBox="0 0 24 24">
+            <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" fill="currentColor"/>
+        </symbol>
+
+        <!-- 星星图标 -->
+        <symbol id="icon-star" viewBox="0 0 24 24">
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="currentColor"/>
+        </symbol>
+
+        <!-- 历史记录图标 -->
+        <symbol id="icon-history" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/>
+            <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
+        </symbol>
+
+        <!-- 排行榜图标 -->
+        <symbol id="icon-leaderboard" viewBox="0 0 24 24">
+            <path d="M12 2l3 6h6l-5 4 2 6-6-4-6 4 2-6-5-4h6l3-6z" fill="currentColor"/>
+        </symbol>
+
+        <!-- 分享图标 -->
+        <symbol id="icon-share" viewBox="0 0 24 24">
+            <circle cx="18" cy="5" r="3" stroke="currentColor" stroke-width="2" fill="none"/>
+            <circle cx="6" cy="12" r="3" stroke="currentColor" stroke-width="2" fill="none"/>
+            <circle cx="18" cy="19" r="3" stroke="currentColor" stroke-width="2" fill="none"/>
+            <path d="M8.5 12.5l8.5-6M8.5 11.5l8.5 6" stroke="currentColor" stroke-width="2" fill="none"/>
+        </symbol>
+
+        <!-- 刷新图标 -->
+        <symbol id="icon-refresh" viewBox="0 0 24 24">
+            <path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </symbol>
+
+        <!-- 保存图标 -->
+        <symbol id="icon-save" viewBox="0 0 24 24">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor" stroke-width="2" fill="none"/>
+            <path d="M17 21v-8H7v8M7 3v5h8" stroke="currentColor" stroke-width="2" fill="none"/>
+        </symbol>
+    </svg>
+
+    <div class="container">
+        <header class="header">
+            <h1>🏆 LuxUmbra AI 闯关学习</h1>
+            <p>高可读性配色 + SVG 卡通吉祥物 - 扩展功能</p>
+        </header>
+
+        <div class="prototype-grid">
+            <!-- 页面 1: 个人中心 -->
+            <div class="phone-frame">
+                <div class="page-label">个人中心</div>
+                <div class="phone-screen">
+                    <div class="page">
+                        <div class="profile-header">
+                            <div class="avatar-container">
+                                <div class="avatar float-animation">
+                                    <svg width="48" height="48" style="color: white;">
+                                        <use href="#mascot-robot"/>
+                                    </svg>
+                                </div>
+                                <div class="level-badge-small">Lv.5</div>
+                            </div>
+                            <h2 class="user-name">LuxUmbra同学</h2>
+                            <p class="user-title">AI 学习达人</p>
+                        </div>
+
+                        <div class="streak-badge">
+                            <svg class="icon" style="color: white;">
+                                <use href="#icon-fire"/>
+                            </svg>
+                            连续学习 5 天
+                        </div>
+
+                        <div class="card">
+                            <div class="section-title">
+                                <svg class="icon">
+                                    <use href="#icon-history"/>
+                                </svg>
+                                学习数据统计
+                            </div>
+                            <div class="stats-grid">
+                                <div class="stat-item">
+                                    <div class="stat-value">28</div>
+                                    <div class="stat-label">累计闯关</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value">76%</div>
+                                    <div class="stat-label">平均正确率</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value">1,280</div>
+                                    <div class="stat-label">收获金币 💰</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value">4,520</div>
+                                    <div class="stat-label">总经验值 ⭐</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="section-title">📁 我的知识闯关记录</div>
+                            <div class="history-list">
+                                <div class="history-item">
+                                    <div class="history-info">
+                                        <div class="history-icon">🤖</div>
+                                        <div class="history-details">
+                                            <div class="history-name">RAG 入门</div>
+                                            <div class="history-rating">
+                                                <span class="star">⭐</span>
+                                                <span class="star">⭐</span>
+                                                <span class="star">⭐</span>
+                                                <span class="star">⭐</span>
+                                                <span class="star empty">⭐</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="history-time">昨天</div>
+                                </div>
+
+                                <div class="history-item">
+                                    <div class="history-info">
+                                        <div class="history-icon">🐍</div>
+                                        <div class="history-details">
+                                            <div class="history-name">Python 装饰器</div>
+                                            <div class="history-rating">
+                                                <span class="star">⭐</span>
+                                                <span class="star">⭐</span>
+                                                <span class="star">⭐</span>
+                                                <span class="star empty">⭐</span>
+                                                <span class="star empty">⭐</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="history-time">3天前</div>
+                                </div>
+
+                                <div class="history-item">
+                                    <div class="history-info">
+                                        <div class="history-icon">🎨</div>
+                                        <div class="history-details">
+                                            <div class="history-name">AI 绘画基础</div>
+                                            <div class="history-rating">
+                                                <span class="star">⭐</span>
+                                                <span class="star">⭐</span>
+                                                <span class="star">⭐</span>
+                                                <span class="star">⭐</span>
+                                                <span class="star">⭐</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="history-time">5天前</div>
+                                </div>
+
+                                <div class="history-item">
+                                    <div class="history-info">
+                                        <div class="history-icon">⚛️</div>
+                                        <div class="history-details">
+                                            <div class="history-name">React Hooks</div>
+                                            <div class="history-rating">
+                                                <span class="star">⭐</span>
+                                                <span class="star">⭐</span>
+                                                <span class="star">⭐</span>
+                                                <span class="star">⭐</span>
+                                                <span class="star empty">⭐</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="history-time">1周前</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 页面 2: 排行榜 -->
+            <div class="phone-frame">
+                <div class="page-label">全服排行榜</div>
+                <div class="phone-screen">
+                    <div class="page">
+                        <div class="leaderboard-header">
+                            <svg width="40" height="40" style="color: white; margin-bottom: var(--spacing-sm);">
+                                <use href="#icon-trophy"/>
+                            </svg>
+                            <h2>全服排行榜</h2>
+                            <p>本周 XP 榜单</p>
+                        </div>
+
+                        <div class="tab-switch">
+                            <div class="tab-item active">本周</div>
+                            <div class="tab-item">本月</div>
+                            <div class="tab-item">总榜</div>
+                        </div>
+
+                        <div class="leaderboard-list">
+                            <div class="leaderboard-item">
+                                <div class="rank gold">1</div>
+                                <div class="player-avatar">💻</div>
+                                <div class="player-info">
+                                    <div class="player-name">码农小王</div>
+                                    <div class="player-xp"><span class="xp-value">12,580</span> XP</div>
+                                </div>
+                            </div>
+
+                            <div class="leaderboard-item">
+                                <div class="rank silver">2</div>
+                                <div class="player-avatar">😄</div>
+                                <div class="player-info">
+                                    <div class="player-name">阿衰粉丝</div>
+                                    <div class="player-xp"><span class="xp-value">11,200</span> XP</div>
+                                </div>
+                            </div>
+
+                            <div class="leaderboard-item">
+                                <div class="rank bronze">3</div>
+                                <div class="player-avatar">📚</div>
+                                <div class="player-info">
+                                    <div class="player-name">学习使我快乐</div>
+                                    <div class="player-xp"><span class="xp-value">10,850</span> XP</div>
+                                </div>
+                            </div>
+
+                            <div class="leaderboard-item current-user">
+                                <div class="rank normal">4</div>
+                                <div class="player-avatar">🎓</div>
+                                <div class="player-info">
+                                    <div class="player-name">LuxUmbra同学</div>
+                                    <div class="player-xp"><span class="xp-value">9,320</span> XP</div>
+                                </div>
+                            </div>
+
+                            <div class="leaderboard-item">
+                                <div class="rank normal">5</div>
+                                <div class="player-avatar">🤖</div>
+                                <div class="player-info">
+                                    <div class="player-name">AI先锋</div>
+                                    <div class="player-xp"><span class="xp-value">8,900</span> XP</div>
+                                </div>
+                            </div>
+
+                            <div class="leaderboard-item">
+                                <div class="rank normal">6</div>
+                                <div class="player-avatar">🎨</div>
+                                <div class="player-info">
+                                    <div class="player-name">创意画师</div>
+                                    <div class="player-xp"><span class="xp-value">8,450</span> XP</div>
+                                </div>
+                            </div>
+
+                            <div class="leaderboard-item">
+                                <div class="rank normal">7</div>
+                                <div class="player-avatar">🔥</div>
+                                <div class="player-info">
+                                    <div class="player-name">代码狂人</div>
+                                    <div class="player-xp"><span class="xp-value">7,890</span> XP</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 页面 3: 分享海报 -->
+            <div class="phone-frame">
+                <div class="page-label">分享海报预览</div>
+                <div class="phone-screen">
+                    <div class="page">
+                        <div class="leaderboard-header" style="padding: var(--spacing-lg);">
+                            <svg width="32" height="32" style="color: white; margin-bottom: var(--spacing-sm);">
+                                <use href="#icon-share"/>
+                            </svg>
+                            <h2 style="font-size: var(--text-xl);">分享海报</h2>
+                            <p style="font-size: var(--text-sm);">生成你的学习成就海报</p>
+                        </div>
+
+                        <div class="poster-preview">
+                            <div class="poster-content">
+                                <div class="poster-title">🎮 LuxUmbra AI 闯关学习</div>
+
+                                <div class="poster-achievement">
+                                    <svg width="32" height="32" style="color: white; margin-bottom: var(--spacing-sm);">
+                                        <use href="#icon-trophy"/>
+                                    </svg>
+                                    <h3>我完成了《RAG 入门》闯关！</h3>
+                                    <div class="poster-stats">
+                                        <div>正确率：<strong>80%</strong></div>
+                                        <div>获得：<strong>200 金币</strong></div>
+                                    </div>
+                                </div>
+
+                                <div class="poster-quote">
+                                    <div class="quote-text">"把知识做成关卡，记忆会更深。"</div>
+                                </div>
+
+                                <div class="qr-placeholder">
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 32px;">📱</div>
+                                        <div>小程序码</div>
+                                    </div>
+                                </div>
+
+                                <div class="poster-cta">
+                                    扫码加入，一起快乐闯关！
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="section-title">🎨 海报样式</div>
+                            <div class="color-grid">
+                                <div class="color-option selected" style="background: linear-gradient(135deg, #FF6B35, #FF8C61);"></div>
+                                <div class="color-option" style="background: linear-gradient(135deg, #EF4444, #F59E0B);"></div>
+                                <div class="color-option" style="background: linear-gradient(135deg, #10B981, #34D399);"></div>
+                                <div class="color-option" style="background: linear-gradient(135deg, #3B82F6, #60A5FA);"></div>
+                                <div class="color-option" style="background: linear-gradient(135deg, #8B5CF6, #A78BFA);"></div>
+                                <div class="color-option" style="background: linear-gradient(135deg, #EC4899, #F472B6);"></div>
+                            </div>
+                        </div>
+
+                        <div class="action-buttons">
+                            <button class="btn btn-secondary">
+                                <svg class="icon-sm">
+                                    <use href="#icon-refresh"/>
+                                </svg>
+                                重新生成
+                            </button>
+                            <button class="btn btn-primary">
+                                <svg class="icon-sm">
+                                    <use href="#icon-save"/>
+                                </svg>
+                                保存到相册
+                            </button>
+                        </div>
+
+                        <button class="btn btn-primary" style="margin-top: var(--spacing-md);">
+                            <svg class="icon-sm">
+                                <use href="#icon-share"/>
+                            </svg>
+                            分享给好友
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 标签切换效果
+        document.querySelectorAll('.tab-item').forEach(tab => {
+            tab.addEventListener('click', function() {
+                this.parentElement.querySelectorAll('.tab-item').forEach(t => {
+                    t.classList.remove('active');
+                });
+                this.classList.add('active');
+            });
+        });
+
+        // 颜色选择效果
+        document.querySelectorAll('.color-option').forEach(option => {
+            option.addEventListener('click', function() {
+                this.parentElement.querySelectorAll('.color-option').forEach(o => {
+                    o.classList.remove('selected');
+                });
+                this.classList.add('selected');
+            });
+        });
+
+        // 历史记录点击效果
+        document.querySelectorAll('.history-item').forEach(item => {
+            item.addEventListener('click', function() {
+                this.style.transform = 'scale(0.98)';
+                setTimeout(() => {
+                    this.style.transform = '';
+                }, 150);
+            });
+        });
+
+        // 按钮点击效果
+        document.querySelectorAll('.btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                this.style.transform = 'scale(0.98)';
+                setTimeout(() => {
+                    this.style.transform = '';
+                }, 150);
+            });
+        });
+
+        // 统计卡片悬停效果
+        document.querySelectorAll('.stat-item').forEach(stat => {
+            stat.addEventListener('mouseenter', function() {
+                this.querySelector('.stat-value').style.transform = 'scale(1.1)';
+                this.querySelector('.stat-value').style.transition = 'transform 0.3s ease';
+            });
+            stat.addEventListener('mouseleave', function() {
+                this.querySelector('.stat-value').style.transform = '';
+            });
+        });
+    </script>
+</body>
+</html>

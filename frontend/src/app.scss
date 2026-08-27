@@ -1,0 +1,81 @@
+/* 全局样式 - 基于 UI 原型设计系统 */
+
+/* 设计令牌 */
+page {
+  --bg: #f6f4ef;
+  --panel: rgba(255, 255, 255, 0.92);
+  --text: #1f2d37;
+  --muted: #6c7b87;
+  --orange: #ff7a2f;
+  --orange-deep: #df5f1f;
+  --orange-soft: #fff1e6;
+  --green: #2e9e71;
+  --green-soft: #eff9f3;
+  --red: #ff6f5d;
+  --red-soft: #ffefec;
+  --blue: #4b9dff;
+  --blue-soft: #ebf4ff;
+  --line: #ecdccc;
+
+  font-family: 'PingFang SC', 'Noto Sans SC', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  font-size: 28px;
+  line-height: 1.6;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+view, text, image, button, input, textarea, scroll-view, swiper, navigator {
+  box-sizing: border-box;
+}
+
+/* 全局按钮重置 */
+button {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+
+  &::after {
+    display: none;
+  }
+}
+
+/* 通用组件样式 */
+.btn-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 88px;
+  border-radius: 28px;
+  color: #fff;
+  background: linear-gradient(180deg, #ff944f, #ff6f27);
+  box-shadow: 0 20px 40px rgba(255, 122, 47, 0.24);
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.btn-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 88px;
+  border-radius: 28px;
+  border: 2px solid #f0dbc9;
+  color: #cb6227;
+  background: #fff7f0;
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.card {
+  border-radius: 28px;
+  border: 2px solid #ede4da;
+  background: #fff;
+  padding: 24px;
+}

@@ -1,0 +1,42 @@
+.git/
+
+# OS files
+Thumbs.db
+Desktop.ini
+
+# Editor files
+.vscode/
+.idea/
+
+# Playwright MCP
+.playwright-mcp/
+
+# Logs
+*.log
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+
+# Backend runtime data (uploaded files, vector store)
+backend/data/
+
+# 微信云托管环境变量导入文件（含真实密钥，切勿提交）
+wxcloudrun*.env.json
+backend/backend.zip
+backend/.env
+backend/wxcloudrun.env.json
+
+
+# Node
+node_modules/
+dist/
+build/
+.swc/
+
+# WeChat
+project.private.config.json
+temp_debug.png

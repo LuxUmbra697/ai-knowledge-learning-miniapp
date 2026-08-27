@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LuxUmbra AI 闯关学习 · 核心流程原型</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f6f4ef;
+      --panel: rgba(255, 255, 255, 0.92);
+      --text: #1f2d37;
+      --muted: #6c7b87;
+      --orange: #ff7a2f;
+      --orange-soft: #fff1e6;
+      --orange-card: #fff6ef;
+      --green: #2e9e71;
+      --green-soft: #eff9f3;
+      --line: #ecdccc;
+      --shadow: 0 20px 55px rgba(44, 30, 9, 0.14);
+      --phone-width: 390px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Noto Sans SC", "Plus Jakarta Sans", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 8%, rgba(255, 164, 112, 0.4), transparent 16%),
+        radial-gradient(circle at 90% 12%, rgba(255, 122, 47, 0.2), transparent 18%),
+        linear-gradient(180deg, #fcfaf6 0%, #f5f1ea 100%);
+    }
+
+    .page { padding: 26px 18px 42px; }
+
+    .board {
+      max-width: 1340px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(280px, 1fr));
+      gap: 22px;
+    }
+
+    .phone {
+      max-width: var(--phone-width);
+      margin: 0 auto;
+      padding: 12px;
+      border-radius: 40px;
+      position: relative;
+      border: 1.5px solid rgba(232, 95, 27, 0.22);
+      background: linear-gradient(180deg, #fff8f3 0%, #fdf3ea 100%);
+      box-shadow: var(--shadow);
+    }
+
+    .phone::before {
+      content: "";
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 106px;
+      height: 20px;
+      border-radius: 999px;
+      background: #2b2b34;
+    }
+
+    .screen {
+      min-height: 820px;
+      border-radius: 28px;
+      overflow: hidden;
+      border: 1px solid rgba(232, 95, 27, 0.15);
+      background: var(--panel);
+      padding: 20px 16px 22px;
+      position: relative;
+    }
+
+    .screen.has-tab { padding-bottom: 84px; }
+
+    .statusbar,
+    .toolbar,
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .statusbar {
+      margin-bottom: 14px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #647380;
+    }
+
+    .toolbar {
+      padding: 8px 10px;
+      margin-bottom: 12px;
+      border-radius: 18px;
+      border: 1px solid #f0e2d6;
+      background: #fffdfb;
+    }
+
+    .hello-user {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: #7f6347;
+      font-weight: 800;
+    }
+
+    .hello-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: #fff0e4;
+      border: 1px solid #f1d7c0;
+      color: #cc6326;
+      font-size: 12px;
+    }
+
+    .coin {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      color: #fff;
+      background: linear-gradient(90deg, #ff8a45 0%, #ff6f27 100%);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    h2 {
+      margin: 0;
+      font-family: "Plus Jakarta Sans", "Noto Sans SC", sans-serif;
+      font-size: 26px;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      position: relative;
+      z-index: 1;
+    }
+
+    .subtitle {
+      margin: 8px 0 10px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.65;
+      position: relative;
+      z-index: 1;
+    }
+
+    .home-hero {
+      margin-top: 4px;
+      margin-bottom: 10px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px dashed #f0cfae;
+      background: #fff8f1;
+      display: grid;
+      grid-template-columns: 1fr 54px;
+      align-items: center;
+      gap: 8px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .home-hero p {
+      margin: 0;
+      color: #7b664f;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .quick-input { margin: 10px 0 14px; position: relative; z-index: 1; }
+
+    .quick-input-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .quick-input label {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 0 12px;
+      border-radius: 10px;
+      border: 1px solid #f0d3bc;
+      background: #fff7ef;
+      box-shadow: 0 2px 0 rgba(231, 201, 176, 0.45);
+      font-size: 13px;
+      font-weight: 800;
+      color: #8a5a37;
+      letter-spacing: 0.01em;
+    }
+
+    .mini-mascot {
+      width: 44px;
+      height: 44px;
+      flex: 0 0 44px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      border: 1px solid #f0d3bc;
+      background: linear-gradient(180deg, #fff8f0 0%, #ffe8d5 100%);
+      box-shadow: 0 6px 14px rgba(218, 156, 111, 0.16);
+    }
+
+    .quick-input textarea {
+      width: 100%;
+      min-height: 72px;
+      border-radius: 16px;
+      border: 1px solid #e8d5c5;
+      background: linear-gradient(180deg, #fffefd 0%, #fff9f5 100%);
+      padding: 12px 14px;
+      resize: none;
+      font: inherit;
+      color: #465762;
+      font-size: 13px;
+      line-height: 1.75;
+      outline: none;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 3px 10px rgba(233, 214, 197, 0.28);
+    }
+
+    .quick-input textarea::placeholder {
+      color: #8b97a2;
+    }
+
+    .home-actions {
+      display: flex;
+      justify-content: center;
+      margin-top: 12px;
+    }
+
+    .home-btn {
+      min-height: 46px;
+      border-radius: 14px;
+      border: none;
+      cursor: pointer;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 800;
+      padding: 0 22px;
+    }
+
+    .home-btn.primary {
+      width: min(100%, 220px);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: #fff;
+      background: linear-gradient(180deg, #ff944f, #ff6f27);
+      box-shadow: 0 10px 20px rgba(255, 122, 47, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    }
+
+    .home-btn.primary svg {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2.2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .home-btn.secondary { color: #c5632a; background: #fff4ea; border: 1px solid #f0dbc9; }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 6px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .quiz-card {
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: #fffdfb;
+      min-height: 58px;
+      padding: 10px;
+      display: grid;
+      grid-template-columns: 18px 1fr;
+      gap: 8px;
+      align-items: start;
+    }
+
+    .quiz-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: #fff0e4;
+      color: #cb6326;
+      border: 1px solid #f0d7c2;
+      font-size: 11px;
+      font-weight: 800;
+      margin-top: 1px;
+    }
+
+    .quiz-name {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.2;
+      font-weight: 800;
+      font-family: "Plus Jakarta Sans", "Noto Sans SC", sans-serif;
+    }
+
+    .quiz-meta { margin-top: 4px; color: #80909e; font-size: 11px; }
+
+    .list-title {
+      margin: 12px 0 10px;
+      font-size: 17px;
+      font-weight: 800;
+      position: relative;
+      z-index: 1;
+    }
+
+    .item {
+      display: grid;
+      grid-template-columns: 56px 1fr 60px;
+      align-items: center;
+      gap: 12px;
+      padding: 11px;
+      border-radius: 20px;
+      border: 1px solid #ede4da;
+      background: #fff;
+      margin-bottom: 10px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: #fff4ea;
+      border: 1px solid #f2ddcd;
+    }
+
+    .item h4 { margin: 0; font-size: 16px; font-weight: 800; }
+    .item p { margin: 4px 0 0; color: #8a98a5; font-size: 13px; }
+
+    .ring {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 14px;
+      font-weight: 800;
+      color: #ff7a2f;
+      background: conic-gradient(#ff7a2f 0 62%, #ece7de 62% 100%);
+      position: relative;
+    }
+
+    .ring::before {
+      content: "";
+      position: absolute;
+      inset: 7px;
+      background: #fff;
+      border-radius: 50%;
+    }
+
+    .ring span { position: relative; z-index: 1; }
+
+    .fixed-tabbar {
+      position: absolute;
+      left: 12px;
+      right: 12px;
+      bottom: 12px;
+      border-radius: 18px;
+      border: 1px solid #eddccd;
+      padding: 7px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      background: #fffbf8;
+      z-index: 2;
+    }
+
+    .tab {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      text-align: center;
+      padding: 8px 4px;
+      border-radius: 14px;
+      color: #9b7d60;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .tab svg {
+      width: 14px;
+      height: 14px;
+      display: block;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .tab.active { background: var(--orange-soft); color: #df5f1f; }
+
+    .screen.quiz {
+      background:
+        radial-gradient(circle at 100% 0%, rgba(255, 154, 96, 0.2), transparent 30%),
+        linear-gradient(180deg, #fffdfa 0%, #fff6ef 100%);
+      border-color: rgba(232, 95, 27, 0.16);
+      color: var(--text);
+    }
+
+    .quiz-progress { margin: 6px 0 10px; position: relative; z-index: 1; }
+    .quiz-progress .track {
+      height: 8px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: #f3e5d8;
+    }
+    .quiz-progress .track span {
+      display: block;
+      height: 100%;
+      width: 60%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #ff9f60, #ffd7b7);
+    }
+    .quiz-progress .meta {
+      margin-top: 6px;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      color: #647380;
+      font-size: 12px;
+    }
+
+    .quiz-title {
+      margin-top: 14px;
+      margin-bottom: 6px;
+      font-size: 24px;
+      line-height: 1.3;
+      color: #2b3340;
+    }
+
+    .option {
+      width: 100%;
+      min-height: 52px;
+      border: 1px solid #e7d6c6;
+      margin-top: 14px;
+      border-radius: 16px;
+      font-size: 16px;
+      letter-spacing: 0.02em;
+      font-weight: 800;
+      cursor: pointer;
+      color: #33424d;
+      background: #fffdfa;
+      box-shadow: 0 2px 0 rgba(216, 197, 179, 0.55);
+      font-family: "Plus Jakarta Sans", "Noto Sans SC", sans-serif;
+    }
+
+    .option.right {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: #29986d;
+      background: var(--green-soft);
+      border-color: #9fd8bd;
+    }
+
+    .result-tip {
+      margin-top: 12px;
+      border-radius: 12px;
+      border: 1px solid #a8ddc3;
+      background: var(--green-soft);
+      color: #217f5b;
+      font-size: 13px;
+      font-weight: 800;
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .explain-box {
+      margin-top: 10px;
+      border-radius: 14px;
+      border: 1px solid #f0b98e;
+      background: #fff1e4;
+      padding: 11px;
+      color: #5b4331;
+      font-size: 14px;
+      line-height: 1.65;
+      box-shadow: 0 6px 14px rgba(207, 126, 61, 0.12);
+    }
+
+    .explain-box strong { color: #bb571f; }
+
+    .answer-note {
+      margin: 10px 0 6px;
+      text-align: center;
+      color: #4a5b68;
+      font-size: 13px;
+    }
+
+    .next {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .prev-btn,
+    .next-btn {
+      height: 42px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+      padding: 0 14px;
+    }
+
+    .prev-btn {
+      border: 1px solid #e5ddd4;
+      color: #6a7783;
+      background: #fff;
+    }
+
+    .next-btn {
+      border: 1px solid #f0d9c6;
+      color: #cb6227;
+      background: #fff7f0;
+    }
+
+    .note-card,
+    .sticker {
+      border-radius: 22px;
+      border: 1px solid #f0e2d6;
+      background: #fff;
+      padding: 13px;
+      margin-top: 12px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .note-card h3,
+    .sticker h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .note-card p {
+      margin: 0;
+      color: #6d7c88;
+      line-height: 1.7;
+      font-size: 14px;
+    }
+
+    .comic-row {
+      display: grid;
+      grid-template-columns: 70px 1fr;
+      gap: 10px;
+      align-items: center;
+      margin-top: 12px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .comic-bubble {
+      border-radius: 16px;
+      background: #fff6ee;
+      border: 1px solid #f3dec9;
+      padding: 10px 12px;
+      color: #7a6044;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    button:focus-visible,
+    input:focus-visible,
+    textarea:focus-visible {
+      outline: 3px solid rgba(255, 122, 47, 0.45);
+      outline-offset: 2px;
+    }
+
+    @media (max-width: 1100px) {
+      .board { grid-template-columns: repeat(2, minmax(280px, 1fr)); }
+    }
+
+    @media (max-width: 760px) {
+      .page { padding: 14px 8px 28px; }
+      .board { grid-template-columns: 1fr; }
+      .screen { min-height: auto; }
+      .cards { grid-template-columns: 1fr; }
+      .quiz-title { font-size: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="board">
+      <article class="phone">
+        <div class="screen has-tab">
+          <div class="statusbar"><span>09:41</span><span>4G · 100%</span></div>
+          <div class="toolbar">
+            <div class="hello-user">
+              <span class="hello-avatar" aria-hidden="true">鱼</span>
+              <span>你好，小皮</span>
+            </div>
+            <span class="coin">
+              602
+              <svg width="18" height="18" viewBox="0 0 32 32" aria-hidden="true">
+                <circle cx="16" cy="16" r="15" fill="#ffd36e" stroke="#ffb124" stroke-width="2" />
+                <path d="M16 9L18 14L23 14L19 17L21 22L16 19L11 22L13 17L9 14L14 14Z" fill="#ff8a2b" />
+              </svg>
+            </span>
+          </div>
+
+          <h2>今天想闯哪一关？</h2>
+
+          <div class="quick-input">
+            <div class="quick-input-head">
+              <label for="topic-input">输入你想学的内容</label>
+              <div class="mini-mascot" aria-hidden="true">
+                <svg width="28" height="28" viewBox="0 0 64 64">
+                  <circle cx="32" cy="32" r="28" fill="#fff1e2" stroke="#ffd4b4" stroke-width="2" />
+                  <circle cx="24" cy="28" r="4" fill="#2f324a" />
+                  <circle cx="40" cy="28" r="4" fill="#2f324a" />
+                  <path d="M23 40C26 44 38 44 41 40" stroke="#2f324a" stroke-width="4" fill="none" stroke-linecap="round" />
+                  <path d="M19 20L24 16" stroke="#ff9a56" stroke-width="3" stroke-linecap="round" />
+                  <path d="M45 20L40 16" stroke="#ff9a56" stroke-width="3" stroke-linecap="round" />
+                </svg>
+              </div>
+            </div>
+            <textarea id="topic-input" rows="3" placeholder="例如：RAG 和传统搜索有什么区别？&#10;我想顺便搞懂向量数据库是怎么配合工作的。&#10;最好通过闯关题帮我记住重点。"></textarea>
+            <div class="home-actions">
+              <button class="home-btn primary">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12H19"/><path d="M13 6L19 12L13 18"/></svg>
+                <span>开始生成题目</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="cards" aria-label="关键词关卡列表">
+            <div class="quiz-card">
+              <span class="quiz-dot" aria-hidden="true">✓</span>
+              <div class="quiz-body">
+                <p class="quiz-name">RAG 基础概念</p>
+                <p class="quiz-meta">关键词：检索 / 向量库 / 生成</p>
+              </div>
+            </div>
+
+            <div class="quiz-card">
+              <span class="quiz-dot" aria-hidden="true">✓</span>
+              <div class="quiz-body">
+                <p class="quiz-name">提示词工程</p>
+                <p class="quiz-meta">关键词：角色 / 约束 / 输出格式</p>
+              </div>
+            </div>
+
+
+          </div>
+
+          <p class="list-title">未完成关卡</p>
+
+          <div class="item">
+            <div class="avatar">
+              <svg width="36" height="36" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="#8a7bff" /><path d="M10 23L20 11L30 23V30H10Z" fill="#ffd36e" /></svg>
+            </div>
+            <div>
+              <h4>数学闯关</h4>
+              <p>20 题</p>
+            </div>
+            <div class="ring"><span>60%</span></div>
+          </div>
+
+          <div class="item">
+            <div class="avatar">
+              <svg width="36" height="36" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="#5eb5ff" /><path d="M10 28L16 18L21 28Z" fill="#ff7a5f" /><path d="M20 28L25 14L31 28Z" fill="#f7db63" /></svg>
+            </div>
+            <div>
+              <h4>科学闯关</h4>
+              <p>20 题</p>
+            </div>
+            <div class="ring" style="color:#47a4ff;background:conic-gradient(#47a4ff 0 40%, #ece7de 40% 100%);"><span>40%</span></div>
+          </div>
+
+          <div class="fixed-tabbar" aria-label="底部导航">
+            <div class="tab active">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11L12 4L21 11"/><path d="M6 10V20H18V10"/></svg>
+              <span>闯关</span>
+            </div>
+            <div class="tab">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9H16"/><path d="M8 13H16"/></svg>
+              <span>题库</span>
+            </div>
+            <div class="tab">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3"/><path d="M5 20C5 16 8 14 12 14C16 14 19 16 19 20"/></svg>
+              <span>勋章</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="phone">
+        <div class="screen quiz">
+          <div class="statusbar"><span>×</span><span>第 12 / 20 题</span><span class="coin">602</span></div>
+
+          <div class="quiz-progress" aria-label="答题关卡进度">
+            <div class="track"><span></span></div>
+            <div class="meta"><span>第 3 关 / 共 5 关</span><span>答对 8 题</span></div>
+          </div>
+
+          <h2 class="quiz-title">玩具总动员里的牛仔叫什么？</h2>
+
+          <button class="option" aria-label="选项 史密斯">史密斯</button>
+          <button class="option right" aria-label="选项 伍迪">
+            <svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#2fb778" /><path d="M6.8 12.5L10.2 16L17.2 8.7" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            伍迪
+          </button>
+          <button class="option" aria-label="选项 杰克">杰克</button>
+
+          <div class="result-tip">
+            <span style="display:inline-flex; align-items:center; gap:6px;"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" style="stroke:currentColor;fill:none;stroke-width:2;"><circle cx="12" cy="12" r="9"/><path d="M8 12L11 15L16 9"/></svg>答对啦</span>
+            <span style="display:inline-flex; align-items:center; gap:5px;"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" style="stroke:currentColor;fill:none;stroke-width:2;"><circle cx="12" cy="12" r="9"/><path d="M9 12H15"/></svg>+10 金币</span>
+          </div>
+
+          <div class="explain-box">
+            <strong>解析：</strong>《玩具总动员》里的牛仔主角是伍迪。先记“牛仔帽 + 伍迪”这个强绑定，下次同类题能秒答。
+          </div>
+
+          <div class="next">
+            <button class="prev-btn" aria-label="上一题">上一题</button>
+            <button class="next-btn" aria-label="下一题">继续 →</button>
+          </div>
+        </div>
+      </article>
+
+      <article class="phone">
+        <div class="screen has-tab">
+          <div class="statusbar"><span>09:49</span><span>通关报告</span></div>
+          <div class="toolbar">
+            <strong style="font-size:14px;color:#7f6347;">RAG 入门</strong>
+            <span class="coin">+20 XP</span>
+          </div>
+
+          <h2 style="font-size:30px;">你这局学得很稳</h2>
+          <p class="subtitle">先看结果，再看错因，最后给你下一步建议。</p>
+
+          <div class="row" style="justify-content:flex-start; gap:8px; margin-top:8px; margin-bottom:2px;">
+            <span style="display:inline-flex; align-items:center; gap:4px; font-size:12px; color:#ca6329; background:#fff2e7; border:1px solid #f1dcc8; border-radius:999px; padding:5px 9px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true" style="stroke:currentColor;fill:none;stroke-width:2;"><path d="M12 3L14.6 8.2L20 9L16 13L17 19L12 16L7 19L8 13L4 9L9.4 8.2Z"/></svg>
+              掌握度 +1
+            </span>
+            <span style="display:inline-flex; align-items:center; gap:4px; font-size:12px; color:#2b8c69; background:#ecf8f1; border:1px solid #b5dfc9; border-radius:999px; padding:5px 9px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true" style="stroke:currentColor;fill:none;stroke-width:2;"><path d="M4 20L4 10"/><path d="M10 20L10 6"/><path d="M16 20L16 13"/><path d="M3 20H21"/></svg>
+              错题 -2
+            </span>
+          </div>
+
+          <div class="note-card">
+            <h3><span style="display:inline-flex; align-items:center; gap:6px;"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" style="stroke:#cb6326;fill:none;stroke-width:2;"><circle cx="12" cy="12" r="9"/><path d="M12 7V12L15 14"/></svg>掌握度</span></h3>
+            <div class="row" style="margin-top:6px;">
+              <div style="width:88px;height:88px;border-radius:50%;display:grid;place-items:center;font-size:22px;font-weight:800;color:#cb6227;background:conic-gradient(#ff7a2f 0 78%, #ece7de 78% 100%);position:relative;">
+                <span style="position:relative;z-index:1;">78%</span>
+                <span style="position:absolute;inset:10px;border-radius:50%;background:#fff;"></span>
+              </div>
+              <div style="flex:1;">
+                <p style="margin:0;color:#637582;line-height:1.7;font-size:14px;">检索流程理解不错，边界条件还要多练。</p>
+                <div style="margin-top:10px;height:8px;border-radius:999px;background:#ede8e2;overflow:hidden;"><span style="display:block;height:100%;width:78%;background:linear-gradient(90deg,#ff7a2f,#ff9958);"></span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="note-card">
+            <h3><span style="display:inline-flex; align-items:center; gap:6px;"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" style="stroke:#cb6326;fill:none;stroke-width:2;"><path d="M12 3L21 19H3Z"/><path d="M12 9V13"/><circle cx="12" cy="16.5" r="0.6"/></svg>最该补的 2 点</span></h3>
+            <p>1. 召回率和准确率不是同一件事。<br />2. 有检索也不等于不幻觉。</p>
+          </div>
+
+          <div class="sticker">
+            <h3><span style="display:inline-flex; align-items:center; gap:6px;"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" style="stroke:#cb6326;fill:none;stroke-width:2;"><circle cx="18" cy="5" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="18" cy="19" r="2"/><path d="M8 11L16 6"/><path d="M8 13L16 18"/></svg>分享海报</span></h3>
+            <div style="border-radius:16px; padding:14px; border:1px dashed #f2cdaf; background:#fff8f2; position:relative; min-height:112px;">
+              <p style="margin:0; max-width:180px; color:#6f583e; line-height:1.65;">今天我把 RAG 关键点刷明白了，下一关继续冲！</p>
+              <div style="position:absolute; right:12px; bottom:12px; width:62px; height:62px; border-radius:12px; border:1px solid #e9d8ca; background: repeating-linear-gradient(45deg, #2a2a34 0 4px, #fff 4px 8px);"></div>
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:14px; gap:10px;">
+            <button style="flex:1; min-height:46px; border:0; border-radius:16px; font-weight:800; background:linear-gradient(180deg,#ff8d4b,#ff6f27); color:#fff;">再来一组</button>
+            <button style="flex:1; min-height:46px; border:1px solid #f0dbc8; border-radius:16px; font-weight:800; background:#fff7f0; color:#cb6227;">生成海报</button>
+          </div>
+
+          <div class="fixed-tabbar" aria-label="底部导航">
+            <div class="tab">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11L12 4L21 11"/><path d="M6 10V20H18V10"/></svg>
+              <span>闯关</span>
+            </div>
+            <div class="tab">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9H16"/><path d="M8 13H16"/></svg>
+              <span>题库</span>
+            </div>
+            <div class="tab active">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3"/><path d="M5 20C5 16 8 14 12 14C16 14 19 16 19 20"/></svg>
+              <span>我的</span>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>

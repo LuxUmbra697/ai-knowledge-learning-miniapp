@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LuxUmbra AI 闯关学习 · 设计系统板</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;800&family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f9f4ed;
+      --panel: rgba(255, 255, 255, 0.92);
+      --text: #202d37;
+      --muted: #697987;
+      --orange: #ff7a2f;
+      --orange-deep: #df5f1f;
+      --orange-soft: #fff1e7;
+      --blue: #4e9fff;
+      --blue-soft: #edf5ff;
+      --green: #38b987;
+      --green-soft: #ebfbf4;
+      --red: #ff6f5d;
+      --red-soft: #ffefec;
+      --line: #ece2d8;
+      --shadow: 0 20px 55px rgba(70, 42, 12, 0.13);
+      --radius-xl: 34px;
+      --radius-lg: 22px;
+      --phone-width: 390px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Noto Sans SC", "Plus Jakarta Sans", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 8%, rgba(255, 168, 114, 0.38), transparent 16%),
+        radial-gradient(circle at 88% 10%, rgba(78, 159, 255, 0.18), transparent 18%),
+        linear-gradient(180deg, #fefbf7 0%, #f8f2ea 100%);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(74, 51, 22, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(74, 51, 22, 0.02) 1px, transparent 1px);
+      background-size: 100% 34px, 34px 100%;
+      opacity: 0.34;
+    }
+
+    .page { padding: 26px 18px 42px; position: relative; }
+
+    .board {
+      max-width: 1340px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(280px, 1fr));
+      gap: 22px;
+    }
+
+    .phone {
+      max-width: var(--phone-width);
+      margin: 0 auto;
+      border-radius: 40px;
+      padding: 12px;
+      border: 1.5px solid rgba(223, 95, 31, 0.22);
+      background: linear-gradient(180deg, #fff8f2 0%, #fdf2e7 100%);
+      box-shadow: var(--shadow);
+      position: relative;
+    }
+
+    .phone::before {
+      content: "";
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 106px;
+      height: 20px;
+      border-radius: 999px;
+      background: #2b2b34;
+    }
+
+    .screen {
+      min-height: 835px;
+      border-radius: 28px;
+      border: 1px solid rgba(223, 95, 31, 0.14);
+      background: var(--panel);
+      padding: 20px 16px 22px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .screen::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(circle at 100% 0%, rgba(255, 122, 47, 0.16), transparent 32%);
+    }
+
+    .statusbar,
+    .toolbar,
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .statusbar {
+      margin-bottom: 14px;
+      font-size: 13px;
+      color: #6a7a86;
+      font-weight: 700;
+    }
+
+    .toolbar {
+      margin-bottom: 12px;
+      border-radius: 18px;
+      border: 1px solid #f0e1d4;
+      background: #fffdfb;
+      padding: 8px 10px;
+    }
+
+    h2 {
+      margin: 0;
+      font-family: "Plus Jakarta Sans", "Noto Sans SC", sans-serif;
+      font-size: 30px;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+      position: relative;
+      z-index: 1;
+    }
+
+    .subtitle {
+      margin: 10px 0 14px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.7;
+      position: relative;
+      z-index: 1;
+    }
+
+    .section {
+      border-radius: var(--radius-lg);
+      border: 1px solid #eee2d8;
+      background: #fff;
+      padding: 14px;
+      margin-top: 12px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .section h3 {
+      margin: 0 0 10px;
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .tokens,
+    .chips,
+    .timing {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .token,
+    .chip {
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid #eee2d8;
+      background: #fff;
+      font-size: 12px;
+      color: #7a654f;
+      font-weight: 700;
+    }
+
+    .swatches {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 9px;
+    }
+
+    .swatch {
+      border-radius: 14px;
+      border: 1px solid #efe3d8;
+      background: #fffdfb;
+      padding: 10px;
+      min-height: 84px;
+    }
+
+    .dot {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      margin-bottom: 6px;
+      border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .swatch strong {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 2px;
+    }
+
+    .swatch span {
+      color: #7a8a97;
+      font-size: 11px;
+      line-height: 1.6;
+    }
+
+    .btn,
+    .btn-soft,
+    .btn-ghost,
+    .btn-danger {
+      width: 100%;
+      min-height: 44px;
+      border-radius: 15px;
+      border: none;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+      margin-bottom: 8px;
+    }
+
+    .btn { color: #fff; background: linear-gradient(180deg, #ff8d4a, #ff6f27); }
+    .btn-soft { color: #2f79c7; background: var(--blue-soft); }
+    .btn-ghost { color: #c1622a; background: var(--orange-soft); }
+    .btn-danger { color: #b64f40; background: var(--red-soft); }
+
+    .input {
+      min-height: 86px;
+      border-radius: 16px;
+      border: 1px solid #ebdfd4;
+      background: #fefbf8;
+      padding: 12px;
+      font-size: 13px;
+      line-height: 1.7;
+      color: #687886;
+    }
+
+    .state {
+      border-radius: 14px;
+      border: 1px solid #ece2d8;
+      padding: 10px;
+      margin-top: 8px;
+      font-size: 12px;
+      line-height: 1.65;
+    }
+
+    .state.info { background: var(--blue-soft); }
+    .state.good { background: var(--green-soft); }
+    .state.bad { background: var(--red-soft); }
+
+    .metric {
+      flex: 1 1 30%;
+      min-width: 86px;
+      border-radius: 14px;
+      border: 1px solid #ede2d8;
+      background: #fffdfb;
+      text-align: center;
+      padding: 10px 6px;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 18px;
+      color: var(--orange-deep);
+      font-family: "Plus Jakarta Sans", "Noto Sans SC", sans-serif;
+    }
+
+    .metric span {
+      color: #7b8a96;
+      font-size: 11px;
+    }
+
+    .motion {
+      margin-top: 10px;
+      height: 10px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: #ece5dd;
+    }
+
+    .motion span {
+      display: block;
+      height: 100%;
+      width: 72%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #ff7a2f, #4e9fff, #38b987);
+      animation: sweep 2s ease-in-out infinite alternate;
+    }
+
+    .comic {
+      margin-top: 12px;
+      border-radius: 18px;
+      border: 1px solid #f0dfcf;
+      background: linear-gradient(180deg, #fff8f3 0%, #fff4ea 100%);
+      padding: 10px;
+      display: grid;
+      grid-template-columns: 58px 1fr;
+      align-items: center;
+      gap: 10px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .comic p {
+      margin: 0;
+      color: #785f45;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    @keyframes sweep {
+      from { transform: translateX(-8%); }
+      to { transform: translateX(9%); }
+    }
+
+    button:focus-visible {
+      outline: 3px solid rgba(255, 122, 47, 0.5);
+      outline-offset: 2px;
+    }
+
+    @media (max-width: 1100px) {
+      .board { grid-template-columns: repeat(2, minmax(280px, 1fr)); }
+    }
+
+    @media (max-width: 760px) {
+      .page { padding: 14px 8px 28px; }
+      .board { grid-template-columns: 1fr; }
+      .screen { min-height: auto; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .motion span { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="board">
+      <article class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>10:20</span><span>颜色 / 字体</span></div>
+          <div class="toolbar">
+            <span class="chip" style="background:var(--orange-soft); color:#ca6329;">基础令牌</span>
+            <span style="font-size:12px; color:#7a8996;">橙色主轴 + 冷色辅助</span>
+          </div>
+
+          <h2>颜色与字体</h2>
+          <p class="subtitle">把可读性、识别度、情绪强度拆开，用在不同层级。</p>
+
+          <div class="section">
+            <h3>颜色令牌</h3>
+            <div class="swatches">
+              <div class="swatch"><div class="dot" style="background:var(--orange);"></div><strong>主色 Orange</strong><span>主按钮、进度、重要 CTA</span></div>
+              <div class="swatch"><div class="dot" style="background:var(--blue);"></div><strong>信息 Blue</strong><span>提示、次级路径</span></div>
+              <div class="swatch"><div class="dot" style="background:var(--green);"></div><strong>成功 Green</strong><span>答对反馈、正向状态</span></div>
+              <div class="swatch"><div class="dot" style="background:var(--red);"></div><strong>风险 Red</strong><span>答错和告警提示</span></div>
+            </div>
+          </div>
+
+          <div class="section">
+            <h3>字体系统</h3>
+            <div class="tokens">
+              <span class="token">Title: Plus Jakarta Sans</span>
+              <span class="token">Body: Noto Sans SC</span>
+              <span class="token">数字: SemiBold + 等宽视觉</span>
+            </div>
+          </div>
+
+          <div class="comic">
+            <svg width="56" height="56" viewBox="0 0 64 64" aria-hidden="true">
+              <circle cx="32" cy="32" r="30" fill="#ffe9d7" stroke="#ffd1b1" />
+              <rect x="16" y="17" width="32" height="30" rx="8" fill="#ff8741" />
+              <circle cx="25" cy="29" r="3" fill="#fff" /><circle cx="39" cy="29" r="3" fill="#fff" />
+              <path d="M24 39C28 43 36 43 40 39" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" />
+            </svg>
+            <p>阿衰感不是“丑”，是“有梗”: 主体克制，点睛表情要大胆。</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>10:22</span><span>组件规范</span></div>
+          <div class="toolbar">
+            <span class="chip" style="background:var(--blue-soft); color:#2f79c7;">按钮 / 表单 / 状态</span>
+            <span style="font-size:12px; color:#7a8996;">移动端优先</span>
+          </div>
+
+          <h2>基础组件</h2>
+          <p class="subtitle">按钮最小触达区 44px，所有反馈都要可一眼辨认。</p>
+
+          <div class="section">
+            <h3>按钮体系</h3>
+            <button class="btn">开始闯关</button>
+            <button class="btn-soft">查看解析</button>
+            <button class="btn-ghost">生成海报</button>
+            <button class="btn-danger">清空错题</button>
+          </div>
+
+          <div class="section">
+            <h3>输入与反馈</h3>
+            <div class="input">在这里粘贴一段内容，AI 会自动拆解出可刷题的知识点。</div>
+            <div class="state info"><strong>处理中:</strong> 正在生成题目，请稍等。</div>
+            <div class="state good"><strong>答对了:</strong> 恭喜，关键点已经掌握。</div>
+            <div class="state bad"><strong>答错了:</strong> 先看错因，再刷一题巩固。</div>
+          </div>
+
+          <div class="section">
+            <h3>标签与快捷入口</h3>
+            <div class="chips">
+              <span class="chip">AI 基础</span>
+              <span class="chip">面试冲刺</span>
+              <span class="chip">复习计划</span>
+              <span class="chip">好友 PK</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>10:24</span><span>交互节奏</span></div>
+          <div class="toolbar">
+            <span class="chip" style="background:var(--green-soft); color:#2a986f;">反馈与动效</span>
+            <span style="font-size:12px; color:#7a8996;">快而不吵</span>
+          </div>
+
+          <h2>动效与节奏</h2>
+          <p class="subtitle">动效只服务信息确认，不抢学习注意力。</p>
+
+          <div class="section">
+            <h3>推荐时长</h3>
+            <div class="timing">
+              <div class="metric"><strong>0.2s</strong><span>按钮反馈</span></div>
+              <div class="metric"><strong>0.3s</strong><span>状态切换</span></div>
+              <div class="metric"><strong>1.0s</strong><span>奖励动画</span></div>
+            </div>
+            <div class="motion"><span></span></div>
+          </div>
+
+          <div class="section">
+            <h3>必备交互</h3>
+            <div class="tokens">
+              <span class="token">可见 Focus Ring</span>
+              <span class="token">禁用态按钮</span>
+              <span class="token">错误贴近输入区</span>
+              <span class="token">支持 reduced motion</span>
+            </div>
+          </div>
+
+          <div class="comic">
+            <svg width="56" height="56" viewBox="0 0 64 64" aria-hidden="true">
+              <circle cx="32" cy="32" r="30" fill="#ffe9d7" stroke="#ffd1b1" />
+              <circle cx="23" cy="28" r="4" fill="#2f324a" />
+              <circle cx="41" cy="28" r="4" fill="#2f324a" />
+              <path d="M20 41C24 46 40 46 44 41" stroke="#2f324a" stroke-width="4" fill="none" stroke-linecap="round" />
+              <path d="M16 20L24 23" stroke="#2f324a" stroke-width="3" stroke-linecap="round" />
+              <path d="M40 23L48 20" stroke="#2f324a" stroke-width="3" stroke-linecap="round" />
+            </svg>
+            <p>节奏像阿衰剧情: 快速抛梗、立刻反馈、马上进入下一格。</p>
+          </div>
+        </div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>
