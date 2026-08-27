@@ -21,10 +21,10 @@ __pycache__/
 venv/
 .env
 
-# Backend runtime data (uploaded files, vector store)
+# Backend runtime data
 backend/data/
 
-# 微信云托管环境变量导入文件（含真实密钥，切勿提交）
+# Environment files and local export artifacts
 wxcloudrun*.env.json
 backend/backend.zip
 backend/.env
@@ -46,5 +46,5 @@ build/
 project.private.config.json
 temp_debug.png
 
-
+# GitHub metadata
 .github/
