@@ -30,6 +30,11 @@ backend/backend.zip
 backend/.env
 backend/wxcloudrun.env.json
 
+# Project docs and design assets
+docs/
+openspec/
+prototypes/
+
 
 # Node
 node_modules/
