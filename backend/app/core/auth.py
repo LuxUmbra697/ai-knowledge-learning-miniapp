@@ -7,7 +7,7 @@ from typing import Optional
 
 import jwt
 import structlog
-from fastapi import Depends, Request
+from fastapi import Request
 
 from app.core.config import get_settings
 from app.core.exceptions import AuthenticationError
@@ -33,7 +33,11 @@ def decode_token(token: str) -> dict:
     """解析 JWT token，失败时抛出 AuthenticationError。"""
     settings = get_settings()
     try:
-        return jwt.decode(token, settings.jwt_secret, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, settings.jwt_secret, algorithms=[ALGORITHM],
+                             options={"require": ["exp", "user_id"]})
+        if type(payload["user_id"]) is not int or payload["user_id"] <= 0:
+            raise AuthenticationError("无效的登录凭证")
+        return payload
     except jwt.ExpiredSignatureError:
         raise AuthenticationError("登录已过期，请重新登录")
     except jwt.InvalidTokenError:

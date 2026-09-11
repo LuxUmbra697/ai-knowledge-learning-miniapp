@@ -6,10 +6,39 @@ import json
 from typing import Optional
 
 import structlog
+from fastapi import HTTPException
 
 from app.core.db import get_mysql_pool
 
 logger = structlog.get_logger()
+
+
+async def complete_quiz(quiz_id: str, user_id: int, records: list, score: dict, report: dict) -> dict:
+    pool = get_mysql_pool()
+    if pool is None:
+        raise HTTPException(503, "学习记录暂时不可用")
+    async with pool.acquire() as conn:
+        await conn.begin()
+        try:
+            async with conn.cursor() as cur:
+                await cur.execute("SELECT quiz_id FROM quiz_sessions WHERE quiz_id=%s AND user_id=%s FOR UPDATE", (quiz_id, user_id))
+                if await cur.fetchone() is None:
+                    raise HTTPException(404, "练习不存在")
+                await cur.execute("SELECT report_json FROM reports WHERE quiz_id=%s AND user_id=%s", (quiz_id, user_id))
+                previous = await cur.fetchone()
+                if previous:
+                    await conn.rollback()
+                    return json.loads(previous[0]) if isinstance(previous[0], str) else previous[0]
+                await cur.execute("INSERT INTO answer_records (quiz_id,user_id,records_json,total_questions,correct_count,accuracy) VALUES (%s,%s,%s,%s,%s,%s)",
+                                  (quiz_id,user_id,json.dumps(records, ensure_ascii=False),score["total"],score["correct"],score["accuracy"]))
+                await cur.execute("INSERT INTO reports (quiz_id,user_id,report_json) VALUES (%s,%s,%s)",
+                                  (quiz_id,user_id,json.dumps(report, ensure_ascii=False)))
+                await cur.execute("UPDATE users SET total_xp=total_xp+%s WHERE id=%s", (10 + score["correct"] * 2, user_id))
+                await conn.commit()
+                return report
+        except BaseException:
+            await conn.rollback()
+            raise
 
 
 async def save_quiz_session(

@@ -228,11 +228,11 @@ class TestQuizHistoryAPI:
 
 
 @pytest.mark.asyncio
-class TestQuizWithOptionalAuth:
-    """确保出题接口在有/无 token 时都正常工作"""
+class TestQuizAuthentication:
+    """Costly generation requires a verified identity."""
 
     async def test_quiz_generate_without_token(self):
-        """匿名模式应正常工作"""
+        """Anonymous requests must not invoke a paid model."""
         from app.models.quiz import QuizOutput, Question, QuestionOption
 
         mock_output = QuizOutput(
@@ -253,15 +253,15 @@ class TestQuizWithOptionalAuth:
             "app.services.quiz_service.generate_quiz",
             new_callable=AsyncMock,
             return_value=mock_output,
-        ):
+        ) as model:
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 resp = await client.post(
                     "/api/v1/quiz/generate",
                     json={"user_input": "Python basic", "question_count": 3, "difficulty": "easy"},
                 )
-            assert resp.status_code == 200
-            assert resp.json()["code"] == 0
+            assert resp.status_code == 401
+            model.assert_not_awaited()
 
     async def test_quiz_generate_with_token(self, auth_header):
         """有 token 时应正常工作且落库"""
@@ -319,16 +319,12 @@ class TestReportWithOptionalAuth:
             "app.services.report_service.generate_report",
             new_callable=AsyncMock,
             return_value=mock_output,
-        ), patch(
-            "app.services.report_service.quiz_repository.save_answer_record",
-            new_callable=AsyncMock,
-        ) as mock_save_ar, patch(
-            "app.services.report_service.quiz_repository.save_report",
-            new_callable=AsyncMock,
-        ) as mock_save_rp, patch(
-            "app.services.report_service.user_repository.add_user_xp",
-            new_callable=AsyncMock,
-        ) as mock_add_xp:
+        ), patch("app.services.report_service.quiz_repository.get_quiz_detail", new_callable=AsyncMock,
+                 return_value={"title": sample_report_request["topic"], "questions": sample_report_request["questions"]}), \
+             patch("app.services.report_service.get_attempts", new_callable=AsyncMock,
+                   return_value=sample_report_request["answer_records"]), \
+             patch("app.services.report_service.quiz_repository.complete_quiz", new_callable=AsyncMock,
+                   side_effect=lambda quiz_id, user_id, records, score, report: report) as complete:
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 resp = await client.post(
@@ -337,7 +333,7 @@ class TestReportWithOptionalAuth:
                     headers=auth_header,
                 )
             assert resp.status_code == 200
-            mock_save_ar.assert_called_once()
-            mock_save_rp.assert_called_once()
-            # XP = 10 + correct_count * 2 = 10 + 4 * 2 = 18
-            mock_add_xp.assert_called_once_with(1, 18)
+            complete.assert_awaited_once()
+            assert complete.call_args.args[1] == 1
+            assert complete.call_args.args[3]["correct"] == 4
+            assert resp.json()["data"]["accuracy"] == 80

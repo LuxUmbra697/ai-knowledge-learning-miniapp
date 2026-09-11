@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from app.models.user import QuizHistoryItem, QuizHistoryList, QuizDetailResponse
 from app.repositories import quiz_repository
+from app.services.grading_service import get_attempts, public_quiz
 
 
 async def get_quiz_history(user_id: int, page: int = 1, page_size: int = 10) -> QuizHistoryList:
@@ -22,4 +23,7 @@ async def get_quiz_detail(quiz_id: str, user_id: int) -> QuizDetailResponse | No
     detail = await quiz_repository.get_quiz_detail(quiz_id, user_id)
     if detail is None:
         return None
+    attempts = detail.get("answer_records") or await get_attempts(quiz_id, user_id)
+    detail = public_quiz(detail, {record["question_id"] for record in attempts})
+    detail["answer_records"] = attempts
     return QuizDetailResponse(**detail)

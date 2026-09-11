@@ -8,6 +8,12 @@ from httpx import ASGITransport, AsyncClient
 from app.main import app
 from app.models.quiz import QuizOutput, Question, QuestionOption
 from app.models.report import ReportOutput
+from app.core.auth import create_token
+
+
+@pytest.fixture
+def authenticated_headers():
+    return {"Authorization": "Bearer " + create_token(1, "test-user")}
 
 
 @pytest.fixture
@@ -121,14 +127,14 @@ class TestHealthAPI:
 
 @pytest.mark.asyncio
 class TestQuizAPI:
-    async def test_generate_quiz_success(self, mock_quiz_output):
+    async def test_generate_quiz_success(self, mock_quiz_output, authenticated_headers):
         with patch(
             "app.services.quiz_service.generate_quiz",
             new_callable=AsyncMock,
             return_value=mock_quiz_output,
         ):
             transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
+            async with AsyncClient(transport=transport, base_url="http://test", headers=authenticated_headers) as client:
                 resp = await client.post(
                     "/api/v1/quiz/generate",
                     json={
@@ -141,19 +147,20 @@ class TestQuizAPI:
             body = resp.json()
             assert body["code"] == 0
             assert len(body["data"]["questions"]) == 5
+            assert all("answer" not in q and "explanation" not in q for q in body["data"]["questions"])
 
-    async def test_generate_quiz_empty_input(self):
+    async def test_generate_quiz_empty_input(self, authenticated_headers):
         transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
+        async with AsyncClient(transport=transport, base_url="http://test", headers=authenticated_headers) as client:
             resp = await client.post(
                 "/api/v1/quiz/generate",
                 json={"user_input": "", "question_count": 5, "difficulty": "mixed"},
             )
         assert resp.status_code == 422
 
-    async def test_generate_quiz_blocked_content(self):
+    async def test_generate_quiz_blocked_content(self, authenticated_headers):
         transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
+        async with AsyncClient(transport=transport, base_url="http://test", headers=authenticated_headers) as client:
             resp = await client.post(
                 "/api/v1/quiz/generate",
                 json={
@@ -170,15 +177,20 @@ class TestQuizAPI:
 @pytest.mark.asyncio
 class TestReportAPI:
     async def test_generate_report_success(
-        self, mock_report_output, sample_report_request
+        self, mock_report_output, sample_report_request, authenticated_headers
     ):
         with patch(
             "app.services.report_service.generate_report",
             new_callable=AsyncMock,
             return_value=mock_report_output,
-        ):
+        ), patch("app.services.report_service.quiz_repository.get_quiz_detail", new_callable=AsyncMock,
+                 return_value={"title": sample_report_request["topic"], "questions": sample_report_request["questions"]}), \
+             patch("app.services.report_service.get_attempts", new_callable=AsyncMock,
+                   return_value=sample_report_request["answer_records"]), \
+             patch("app.services.report_service.quiz_repository.complete_quiz", new_callable=AsyncMock,
+                   side_effect=lambda quiz_id, user_id, records, score, report: report):
             transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
+            async with AsyncClient(transport=transport, base_url="http://test", headers=authenticated_headers) as client:
                 resp = await client.post(
                     "/api/v1/report/generate",
                     json=sample_report_request,

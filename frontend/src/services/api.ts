@@ -5,8 +5,8 @@ declare const API_BASE_URL: string
 
 const BASE_URL = API_BASE_URL
 
-const TOKEN_KEY = 'token'
-const USER_KEY = 'userInfo'
+const TOKEN_KEY = 'ai-learn:v1:token'
+const USER_KEY = 'ai-learn:v1:user'
 
 /* ---- 登录就绪机制：确保页面在登录完成后再请求需要鉴权的接口 ---- */
 let _loginResolve: () => void
@@ -81,13 +81,13 @@ export async function request<T = any>(
   const body = res.data as ApiResponse<T>
 
   // 401 未认证 — 清除本地凭证
-  if (body.code === 4010) {
+  if (res.statusCode === 401 || body.code === 4010) {
     clearToken()
-    throw new Error('登录已过期，请重新进入小程序')
+    throw new Error('登录已过期，请重新登录')
   }
 
   if (body.code !== 0) {
-    throw new Error(body.message || '请求失败')
+    throw new Error(body.message || (typeof res.data?.detail === 'string' ? res.data.detail : '请求失败'))
   }
 
   return body.data
@@ -175,8 +175,14 @@ export function generateReport(params: {
 }) {
   return request<ReportData>('/report/generate', {
     method: 'POST',
-    data: params,
+    data: { quiz_id: params.quiz_id },
     timeout: 600000,
+  })
+}
+
+export function submitAnswer(quizId: string, questionId: string, selectedAnswers: string[], durationMs: number) {
+  return request<{record: AnswerRecord; question: Question; replayed: boolean}>(`/quiz/${quizId}/answer`, {
+    method: 'POST', data: { question_id: questionId, selected_answers: selectedAnswers, duration_ms: durationMs },
   })
 }
 
@@ -282,8 +288,8 @@ export interface Question {
   type: 'single' | 'multiple' | 'judge'
   stem: string
   options: QuestionOption[]
-  answer: string[]
-  explanation: string
+  answer?: string[]
+  explanation?: string
   knowledge_point: string
   difficulty: 'easy' | 'medium' | 'hard'
   image_url?: string | null

@@ -53,15 +53,15 @@ async def update_task_status(
             )
 
 
-async def get_task(task_id: str) -> Optional[dict]:
+async def get_task(task_id: str, user_id: int) -> Optional[dict]:
     pool = get_mysql_pool()
     if pool is None:
         return None
     async with pool.acquire() as conn:
         async with conn.cursor(aiomysql.DictCursor) as cur:
             await cur.execute(
-                "SELECT task_id, status, result_json, error_message FROM quiz_tasks WHERE task_id = %s",
-                (task_id,),
+                "SELECT task_id, status, result_json, error_message FROM quiz_tasks WHERE task_id = %s AND user_id = %s",
+                (task_id, user_id),
             )
             row = await cur.fetchone()
             if row and row.get("result_json"):

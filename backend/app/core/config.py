@@ -1,6 +1,8 @@
 """LuxUmbra-AI闯关学习小程序 - 后端配置"""
 
 from functools import lru_cache
+import os
+from pathlib import Path
 
 from pydantic_settings import BaseSettings
 
@@ -72,7 +74,7 @@ class Settings(BaseSettings):
     mysql_charset: str = "utf8mb4"
     mysql_pool_minsize: int = 1
     mysql_pool_maxsize: int = 10
-    mysql_auto_init: bool = True
+    mysql_auto_init: bool = False
 
     # Log
     log_level: str = "INFO"
@@ -82,4 +84,5 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    filename = os.getenv("AI_LEARN_ENV_FILE", str(Path(__file__).resolve().parents[2] / ".env"))
+    return Settings(_env_file=filename or None)

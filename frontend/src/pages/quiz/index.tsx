@@ -1,15 +1,15 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { View, Text, Image } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import type { Question, AnswerRecord, QuizData } from '../../services/api'
-import { getCachedUser } from '../../services/api'
+import { getCachedUser, submitAnswer } from '../../services/api'
 import './index.scss'
 
 export default function QuizPage() {
   const router = useRouter()
 
   // 从路由参数解析题库数据
-  const quizData: QuizData | null = useMemo(() => {
+  const initialQuizData: QuizData | null = useMemo(() => {
     try {
       const raw = router.params.quizData
       return raw ? JSON.parse(decodeURIComponent(raw)) : null
@@ -17,6 +17,8 @@ export default function QuizPage() {
       return null
     }
   }, [router.params.quizData])
+  const [quizData, setQuizData] = useState(initialQuizData)
+  const submitting = useRef(false)
 
   // Bug 13: 动态设置导航栏标题
   useEffect(() => {
@@ -36,6 +38,7 @@ export default function QuizPage() {
   const [correctCount, setCorrectCount] = useState(0)
 
   const currentQuestion: Question | undefined = questions[currentIndex]
+  const correctAnswers = currentQuestion?.answer || []
 
   // 处理选项点击
   const handleOptionClick = (key: string) => {
@@ -53,25 +56,23 @@ export default function QuizPage() {
   }
 
   // 提交当前题目答案
-  const handleSubmit = () => {
-    if (selectedAnswers.length === 0 || !currentQuestion) return
-
-    const isCorrect =
-      currentQuestion.answer.length === selectedAnswers.length &&
-      currentQuestion.answer.every((a) => selectedAnswers.includes(a))
-
-    const duration = Date.now() - startTime
-
-    const record: AnswerRecord = {
-      question_id: currentQuestion.id,
-      selected_answers: [...selectedAnswers],
-      is_correct: isCorrect,
-      duration_ms: duration,
+  const handleSubmit = async () => {
+    if (submitting.current || selectedAnswers.length === 0 || !currentQuestion || !quizData) return
+    submitting.current = true
+    try {
+      const { record, question } = await submitAnswer(quizData.quiz_id, currentQuestion.id, selectedAnswers, Date.now() - startTime)
+      setQuizData({...quizData, questions: questions.map(q => q.id === question.id ? question : q)})
+      setAnswerRecords(prev => {
+        const updated = [...prev.filter(r => r.question_id !== record.question_id), record]
+        setCorrectCount(updated.filter(r => r.is_correct).length)
+        return updated
+      })
+      setSubmitted(true)
+    } catch (error) {
+      Taro.showToast({ title: error instanceof Error ? error.message : '提交失败，请重试', icon: 'none' })
+    } finally {
+      submitting.current = false
     }
-
-    setAnswerRecords((prev) => [...prev, record])
-    if (isCorrect) setCorrectCount((prev) => prev + 1)
-    setSubmitted(true)
   }
 
   // 下一题
@@ -126,7 +127,7 @@ export default function QuizPage() {
     if (!submitted) {
       return selectedAnswers.includes(key) ? 'option selected' : 'option'
     }
-    const isCorrectAnswer = currentQuestion.answer.includes(key)
+    const isCorrectAnswer = correctAnswers.includes(key)
     const isSelected = selectedAnswers.includes(key)
     if (isCorrectAnswer) return 'option correct'
     if (isSelected && !isCorrectAnswer) return 'option wrong'
@@ -135,8 +136,8 @@ export default function QuizPage() {
 
   const isCurrentCorrect =
     submitted &&
-    currentQuestion.answer.length === selectedAnswers.length &&
-    currentQuestion.answer.every((a) => selectedAnswers.includes(a))
+    correctAnswers.length === selectedAnswers.length &&
+    correctAnswers.every((a) => selectedAnswers.includes(a))
 
   return (
     <View className='quiz-page'>
@@ -182,10 +183,10 @@ export default function QuizPage() {
             className={getOptionClass(opt.key)}
             onClick={() => handleOptionClick(opt.key)}
           >
-            {submitted && currentQuestion.answer.includes(opt.key) && (
+            {submitted && correctAnswers.includes(opt.key) && (
               <View className='check-icon'>✓</View>
             )}
-            {submitted && selectedAnswers.includes(opt.key) && !currentQuestion.answer.includes(opt.key) && (
+            {submitted && selectedAnswers.includes(opt.key) && !correctAnswers.includes(opt.key) && (
               <View className='cross-icon'>✗</View>
             )}
             <Text className='option-text'>{opt.key}. {opt.text}</Text>

@@ -5,6 +5,7 @@ import uuid
 from typing import Optional
 
 import structlog
+from fastapi import HTTPException
 
 from app.core.security import check_content
 from app.core.exceptions import QuizGenerationError, ContentFilterError, KnowledgeBaseError
@@ -217,11 +218,11 @@ async def _run_quiz_task(
         )
 
 
-async def get_quiz_task_status(task_id: str) -> QuizTaskStatusResponse:
+async def get_quiz_task_status(task_id: str, user_id: int) -> QuizTaskStatusResponse:
     """查询任务状态"""
-    row = await task_repository.get_task(task_id)
+    row = await task_repository.get_task(task_id, user_id)
     if row is None:
-        raise QuizGenerationError("任务不存在")
+        raise HTTPException(status_code=404, detail="任务不存在")
 
     result = None
     if row["status"] == "completed" and row.get("result_json"):
