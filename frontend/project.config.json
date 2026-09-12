@@ -1,5 +1,5 @@
 {
-  "miniprogramRoot": "dist/",
+  "miniprogramRoot": "dist/weapp/",
   "projectname": "frontend",
   "description": "LuxUmbra-AI闯关学习小程序",
   "appid": "wxe75e6433459ffc7a",

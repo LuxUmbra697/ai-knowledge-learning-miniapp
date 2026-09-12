@@ -1,0 +1,51 @@
+import { test, expect } from '@playwright/test'
+import { execFileSync } from 'node:child_process'
+import path from 'node:path'
+
+test('three question types use server grading, resume and isolate accounts', async ({ page, request }) => {
+  const response = await request.post('api/v1/user/account/register', { data: { username: `e2e_${Date.now()}`, password: 'Local-E2E-Only-1976', nickname: '练习验收同学' } })
+  expect(response.status()).toBe(200)
+  const identity = (await response.json()).data
+  const python = process.env.E2E_PYTHON || path.resolve('../backend/venv/Scripts/python.exe')
+  const output = execFileSync(python, [path.resolve('../scripts/seed_e2e.py'), '--user-id', String(identity.user.id)], { encoding: 'utf8' })
+  const quizId = output.trim().split(/\r?\n/).find(line => line.startsWith('quiz_e2e_'))!
+  expect(quizId).toBeTruthy()
+  await page.goto('pages/login/index')
+  await page.evaluate(user => {
+    localStorage.setItem('ai-learn:v1:token', JSON.stringify({ data: user.token }))
+    localStorage.setItem('ai-learn:v1:user', JSON.stringify({ data: user.user }))
+  }, identity)
+  await page.goto(`pages/quiz/index?quizId=${quizId}`)
+  await expect(page.locator('.answer-option')).toHaveCount(2)
+  await expect(page.locator('.companion')).toHaveCount(0)
+  await expect(page.getByText('参考答案', { exact: false })).toHaveCount(0)
+  await page.locator('.answer-option').nth(1).click()
+  await page.reload()
+  await expect(page.locator('.answer-option.selected')).toHaveCount(1)
+  await page.getByText('确认答案', { exact: true }).click()
+  await expect(page.getByText('再理解一次', { exact: true })).toBeVisible()
+  await page.screenshot({ path: '../docs/screenshots/h5/06-answer-analysis.png', fullPage: true })
+  await page.reload()
+  await expect(page.locator('.answer-option')).toHaveCount(3)
+  await page.locator('.answer-option').nth(0).click()
+  await page.locator('.answer-option').nth(1).click()
+  await page.getByText('确认答案', { exact: true }).click()
+  await expect(page.getByText('回答正确', { exact: true })).toBeVisible()
+  await page.getByText('上一题', { exact: true }).click()
+  await expect(page.getByText('再理解一次', { exact: true })).toBeVisible()
+  await page.getByText('下一题', { exact: true }).click()
+  await expect(page.getByText('回答正确', { exact: true })).toBeVisible()
+  await page.getByText('下一题', { exact: true }).click()
+  await page.screenshot({ path: '../docs/screenshots/h5/05-practice.png', fullPage: true })
+  await page.locator('.answer-option').nth(1).click()
+  await page.getByText('确认答案', { exact: true }).click()
+  await expect(page.getByText('回答正确', { exact: true })).toBeVisible()
+  await page.getByText('查看学习报告', { exact: true }).click()
+  await expect(page.getByText('67%', { exact: true })).toBeVisible()
+  const stranger = await request.post('api/v1/user/account/register', { data: { username: `e2e_other_${Date.now()}`, password: 'Local-E2E-Only-1976' } })
+  const other = (await stranger.json()).data
+  const forbidden = await request.get(`api/v1/user/quizzes/${quizId}`, { headers: { Authorization: `Bearer ${other.token}` } })
+  expect(forbidden.status()).toBe(404)
+  const persisted = await request.get(`api/v1/user/quizzes/${quizId}`, { headers: { Authorization: `Bearer ${identity.token}` } })
+  expect((await persisted.json()).data.answer_records).toHaveLength(3)
+})

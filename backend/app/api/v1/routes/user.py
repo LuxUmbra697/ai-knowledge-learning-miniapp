@@ -1,13 +1,27 @@
 """用户路由"""
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
+from fastapi.responses import JSONResponse
 
 from app.core.auth import get_current_user
 from app.models.common import ApiResponse
 from app.models.user import LoginRequest, UpdateProfileRequest
 from app.services import user_service, history_service
+from app.services.account_service import AccountCredentials, authenticate
 
 router = APIRouter(prefix="/user", tags=["user"])
+
+
+@router.post("/account/register", response_model=ApiResponse)
+async def register_account(req: AccountCredentials, request: Request):
+    result = await authenticate(req, True, request.client.host if request.client else "unknown")
+    return ApiResponse.success(data=result.model_dump())
+
+
+@router.post("/account/login", response_model=ApiResponse)
+async def login_account(req: AccountCredentials, request: Request):
+    result = await authenticate(req, False, request.client.host if request.client else "unknown")
+    return ApiResponse.success(data=result.model_dump())
 
 
 @router.post("/login", response_model=ApiResponse)
@@ -48,5 +62,5 @@ async def get_quiz_detail(
 ):
     result = await history_service.get_quiz_detail(quiz_id, user_id)
     if result is None:
-        return ApiResponse.error(code=4004, message="闯关记录不存在")
+        return JSONResponse(status_code=404, content=ApiResponse.error(code=4004, message="闯关记录不存在").model_dump())
     return ApiResponse.success(data=result.model_dump())

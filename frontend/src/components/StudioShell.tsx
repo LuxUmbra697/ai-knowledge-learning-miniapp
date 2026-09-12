@@ -1,0 +1,63 @@
+import { PropsWithChildren, useState } from 'react'
+import { View, Text, Button, Switch } from '@tarojs/components'
+import Taro from '@tarojs/taro'
+import { themes, useStudio } from './StudioProvider'
+import { Icon } from './Icon'
+import Companion from './companion/Companion'
+
+export const navigation = [
+  { key: 'home', label: '学习首页', icon: 'home', path: '/pages/index/index' },
+  { key: 'knowledge', label: '知识书架', icon: 'library', path: '/pages/knowledge/index' },
+  { key: 'profile', label: '学习档案', icon: 'user', path: '/pages/profile/index' },
+]
+export function navigate(path: string) { Taro.reLaunch({ url: path }) }
+
+export function StudioShell({ children, active, title, subtitle, guest = false, focus = false }: PropsWithChildren<{
+  active?: string; title: string; subtitle?: string; guest?: boolean; focus?: boolean
+}>) {
+  const settings = useStudio()
+  const [appearance, setAppearance] = useState(false)
+  return <View className={`studio theme-${settings.theme} ${settings.reducedMotion ? 'reduced-motion' : ''} ${settings.companion && !focus && !guest ? 'has-companion' : ''}`}>
+    <View className='studio-topbar'>
+      <View className='studio-brand' onClick={() => navigate('/pages/index/index')}>
+        <View className='brand-mark'><Icon name='book' size={22} /></View>
+        <View><Text className='brand-name'>星知学园</Text><Text className='brand-english'>AI LEARNING STUDIO</Text></View>
+      </View>
+      <View className='topbar-end'>
+        <Text className='theme-caption'>{themes.find(t => t.id === settings.theme)?.name}</Text>
+        <Button className='icon-button' aria-label='外观设置' onClick={() => setAppearance(true)}><Icon name='settings' /><Text className='tooltip'>外观设置</Text></Button>
+      </View>
+    </View>
+    <View className={`studio-layout ${guest ? 'guest-layout' : ''}`}>
+      {!guest && <View className='studio-sidebar'>
+        <Text className='sidebar-label'>我的学习空间</Text>
+        {navigation.map(item => <Button key={item.key} className={`nav-link ${active === item.key ? 'active' : ''}`} onClick={() => navigate(item.path)}><Icon name={item.icon} /><Text>{item.label}</Text></Button>)}
+        <View className='sidebar-footer'><Text className='tiny-label'>每一步，都有迹可循</Text><Text className='muted'>学习 / 练习 / 再理解</Text></View>
+      </View>}
+      <View className='studio-main'>
+        <View className='page-heading'><Text className='page-title'>{title}</Text>{subtitle && <Text className='page-subtitle'>{subtitle}</Text>}</View>
+        {children}
+      </View>
+    </View>
+    {!guest && <View className='mobile-navigation'>{navigation.map(item => <Button key={item.key} className={`mobile-nav-item ${active === item.key ? 'active' : ''}`} onClick={() => navigate(item.path)}><Icon name={item.icon} /><Text>{item.label}</Text></Button>)}</View>}
+    {settings.companion && !focus && !guest && !appearance && <Companion reducedMotion={settings.reducedMotion} onHide={() => settings.update({ companion: false })} />}
+    {appearance && <View className='modal-backdrop' onClick={() => setAppearance(false)}><View className='appearance-dialog' onClick={event => event.stopPropagation()}>
+      <View className='section-heading'><Text className='section-title'>我的学园外观</Text><Button className='icon-button' aria-label='关闭外观设置' onClick={() => setAppearance(false)}><Icon name='close' /></Button></View>
+      <View className='theme-options'>{themes.map(theme => <Button key={theme.id} className={`theme-option ${settings.theme === theme.id ? 'selected' : ''}`} onClick={() => settings.update({ theme: theme.id })}>
+        <View className='theme-swatch' style={{ background: theme.paper, borderColor: theme.accent }}><View style={{ background: theme.accent }} /></View><View><Text>{theme.name}</Text><Text className='muted'>{theme.motif}</Text></View>{settings.theme === theme.id && <Icon name='check' />}
+      </Button>)}</View>
+      <View className='setting-row'><Text>学习伙伴</Text><Switch checked={settings.companion} onChange={e => settings.update({ companion: e.detail.value })} /></View>
+      <View className='setting-row'><Text>伙伴形态</Text><View className='actions'><Button className={`form-swatch pink ${settings.companionForm === 'pink' ? 'selected' : ''}`} aria-label='粉樱学妹' onClick={() => settings.update({ companionForm: 'pink' })} /><Button className={`form-swatch orange ${settings.companionForm === 'orange' ? 'selected' : ''}`} aria-label='橘晴学妹' onClick={() => settings.update({ companionForm: 'orange' })} /></View></View>
+      <View className='pose-selector'>{(['auto','read','wave','celebrate'] as const).map((pose, index) => <Button key={pose} className={settings.companionPose === pose ? 'active' : ''} onClick={() => settings.update({ companionPose: pose })}>{['自动','阅读 / 思考','招手','庆祝'][index]}</Button>)}</View>
+      <View className='setting-row'><Text>减少动效</Text><Switch checked={settings.reducedMotion} onChange={e => settings.update({ reducedMotion: e.detail.value })} /></View>
+    </View></View>}
+  </View>
+}
+
+export function Notice({ message, retry }: { message: string; retry?: () => void }) {
+  return <View className='notice' role='alert'><Text>{message}</Text>{retry && <Button className='text-button' onClick={retry}><Icon name='refresh' size={16} />重试</Button>}</View>
+}
+
+export function Empty({ title, text }: { title: string; text: string }) {
+  return <View className='empty-state'><View className='empty-icon'><Icon name='book' size={30} /></View><Text className='section-title'>{title}</Text><Text className='muted'>{text}</Text></View>
+}

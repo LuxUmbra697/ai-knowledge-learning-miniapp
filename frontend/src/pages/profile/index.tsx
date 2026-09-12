@@ -1,174 +1,50 @@
-import { useState, useCallback } from 'react'
-import { View, Text, Image, Button, Input } from '@tarojs/components'
-import Taro, { useDidShow } from '@tarojs/taro'
-import { getUserProfile, getQuizHistory, updateUserProfile, setCachedUser } from '../../services/api'
-import type { UserProfile, QuizHistoryItem } from '../../services/api'
-import './index.scss'
+import { useState, useRef } from 'react'
+import { View, Text, Button, Input } from '@tarojs/components'
+import Taro, { useDidShow, useDidHide } from '@tarojs/taro'
+import { getUserProfile, getQuizHistory, updateUserProfile, setCachedUser, clearToken, getToken, waitForLogin, UserProfile, QuizHistoryItem } from '../../services/api'
+import { StudioShell, Notice, Empty, navigate } from '../../components/StudioShell'
+import { Icon } from '../../components/Icon'
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [historyItems, setHistoryItems] = useState<QuizHistoryItem[]>([])
+  const [history, setHistory] = useState<QuizHistoryItem[]>([])
+  const [nickname, setNickname] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
   const [page, setPage] = useState(1)
-  const [hasMore, setHasMore] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [editing, setEditing] = useState(false)
-
-  const loadProfile = useCallback(() => {
-    return getUserProfile()
-      .then((data) => {
-        setProfile(data)
-        // 同步更新本地缓存，让首页等页面能读到最新信息
-        setCachedUser({ id: data.id, nickname: data.nickname, avatar_url: data.avatar_url, total_xp: data.total_xp })
-      })
-      .catch(() => {})
-  }, [])
-
-  const loadHistory = useCallback((p: number, reset = false) => {
-    setLoadingMore(true)
-    getQuizHistory(p, 10)
-      .then((data) => {
-        setHistoryItems((prev) => (reset ? data.items : [...prev, ...data.items]))
-        setPage(p)
-        setHasMore(data.items.length >= 10 && p * 10 < data.total)
-      })
-      .catch(() => {})
-      .finally(() => setLoadingMore(false))
-  }, [])
-
-  // 每次 tab 显示时刷新
-  useDidShow(() => {
-    loadProfile()
-    loadHistory(1, true)
-  })
-
-  const handleLoadMore = () => {
-    if (!hasMore || loadingMore) return
-    loadHistory(page + 1)
+  const [total, setTotal] = useState(0)
+  const live = useRef(true), lock = useRef(false)
+  const load = async (nextPage = 1) => {
+    if (lock.current) return
+    await waitForLogin()
+    if (!getToken()) { navigate('/pages/login/index'); return }
+    lock.current = true; setLoading(true)
+    try {
+      const user = await getUserProfile(), result = await getQuizHistory(nextPage)
+      if (!live.current) return
+      setProfile(user); setCachedUser(user); setNickname(user.nickname)
+      setHistory(previous => nextPage === 1 ? result.items : [...previous, ...result.items])
+      setPage(nextPage); setTotal(result.total); setError('')
+    } catch (reason) { if (live.current) setError(reason instanceof Error ? reason.message : '加载失败') }
+    finally { lock.current = false; if (live.current) setLoading(false) }
   }
-
-  const handleViewDetail = (quizId: string) => {
-    Taro.navigateTo({
-      url: `/pages/report/index?quizId=${quizId}`,
-    })
+  useDidShow(() => { live.current = true; load() })
+  useDidHide(() => { live.current = false })
+  const save = async () => {
+    if (lock.current || !nickname.trim()) return
+    lock.current = true; setLoading(true)
+    try { await updateUserProfile({ nickname: nickname.trim() }); setError(''); Taro.showToast({ title: '昵称已保存', icon: 'success' }) }
+    catch (reason) { setError(reason instanceof Error ? reason.message : '保存失败') }
+    finally { lock.current = false; setLoading(false) }
+    await load()
   }
-
-  // Bug 9: 微信头像授权
-  const handleChooseAvatar = (e) => {
-    const avatarUrl = e.detail.avatarUrl
-    if (avatarUrl) {
-      updateUserProfile({ avatar_url: avatarUrl })
-        .then(() => loadProfile())
-        .then(() => {})
-        .catch(() => {})
-    }
-  }
-
-  // Bug 9: 昵称编辑 — 微信 type='nickname' 选择后触发 onInput，自动提交
-  const handleNicknameInput = (e) => {
-    const name = (e?.detail?.value || '').trim()
-    if (name && name !== profile?.nickname) {
-      setEditing(false)
-      updateUserProfile({ nickname: name })
-        .then(() => loadProfile())
-        .catch(() => {})
-    }
-  }
-
-  return (
-    <View className='profile-page'>
-      <View className='profile-content'>
-        <View className='avatar-section'>
-          {/* Bug 8 + Bug 9: 显示真实头像，支持点击授权更换 */}
-          <Button className='avatar-btn' openType='chooseAvatar' onChooseAvatar={handleChooseAvatar}>
-            {profile?.avatar_url ? (
-              <Image className='avatar-img' src={profile.avatar_url} mode='aspectFill' />
-            ) : (
-              <View className='avatar-placeholder'>
-                <Text className='avatar-emoji'>{profile?.nickname?.[0] || '🎓'}</Text>
-              </View>
-            )}
-          </Button>
-          {editing ? (
-            <Input
-              type='nickname'
-              className='nickname-input'
-              onInput={(e) => handleNicknameInput(e)}
-              focus
-              placeholder='点击获取微信昵称'
-            />
-          ) : (
-            <Text className='nickname' onClick={() => setEditing(true)}>
-              {profile?.nickname || '学习者'}
-            </Text>
-          )}
-          <Text className='slogan'>每天闯关一点点，进步看得见</Text>
-        </View>
-
-        <View className='stats-row'>
-          <View className='stat-item'>
-            <Text className='stat-num'>{profile?.quiz_count ?? 0}</Text>
-            <Text className='stat-label'>闯关次数</Text>
-          </View>
-          <View className='stat-item'>
-            <Text className='stat-num'>{profile?.correct_count ?? 0}</Text>
-            <Text className='stat-label'>答对题数</Text>
-          </View>
-          <View className='stat-item'>
-            <Text className='stat-num'>{profile?.average_accuracy ?? 0}%</Text>
-            <Text className='stat-label'>平均正确率</Text>
-          </View>
-        </View>
-
-        <View className='xp-row'>
-          <Text className='xp-label'>经验值</Text>
-          <View className='xp-value-badge'>
-            <Text className='xp-value'>{profile?.total_xp ?? 0}</Text>
-            <Text className='xp-star'>⭐</Text>
-          </View>
-        </View>
-
-        <View
-          className='knowledge-entry'
-          onClick={() => Taro.navigateTo({ url: '/pages/knowledge/index' })}
-        >
-          <View className='knowledge-entry-left'>
-            <Text className='knowledge-entry-icon'>📚</Text>
-            <Text className='knowledge-entry-text'>我的知识库</Text>
-          </View>
-          <Text className='knowledge-entry-arrow'>›</Text>
-        </View>
-
-        {/* 闯关历史 */}
-        <Text className='section-title'>闯关记录</Text>
-        {historyItems.length === 0 ? (
-          <View className='empty-history'>
-            <Text className='empty-text'>暂无闯关记录，去首页开始学习吧</Text>
-          </View>
-        ) : (
-          <View className='history-list'>
-            {historyItems.map((item) => (
-              <View
-                key={item.quiz_id}
-                className='history-item'
-                onClick={() => handleViewDetail(item.quiz_id)}
-              >
-                <View className='history-left'>
-                  <Text className='history-title'>{item.title}</Text>
-                  <Text className='history-meta'>
-                    {item.question_count} 题 · 正确率 {Math.round(item.accuracy)}%
-                  </Text>
-                </View>
-                <Text className='history-arrow'>›</Text>
-              </View>
-            ))}
-            {hasMore && (
-              <View className='load-more' onClick={handleLoadMore}>
-                <Text className='load-more-text'>{loadingMore ? '加载中...' : '加载更多'}</Text>
-              </View>
-            )}
-          </View>
-        )}
-      </View>
-    </View>
-  )
+  return <StudioShell active='profile' title='我的学习档案' subtitle='收藏每一段认真学习的时光。'>
+    {error && <Notice message={error} retry={() => load()} />}
+    <View className='profile-form'><Text className='field-label'>学园昵称</Text><Input className='studio-input' value={nickname} maxlength={40} onInput={e => setNickname(e.detail.value)} /><View className='document-actions'><Button className='secondary-button' disabled={loading || !nickname.trim()} onClick={save}>保存昵称</Button><Button className='text-button' onClick={() => { clearToken(); navigate('/pages/login/index') }}><Icon name='logout' size={16} />退出登录</Button></View></View>
+    <View className='stats-row'><View className='stat'><Text className='muted'>已完成练习</Text><Text className='stat-number'>{profile?.quiz_count ?? 0}</Text></View><View className='stat'><Text className='muted'>答对题数</Text><Text className='stat-number'>{profile?.correct_count ?? 0}</Text></View><View className='stat'><Text className='muted'>学习经验</Text><Text className='stat-number'>{profile?.total_xp ?? 0}</Text></View></View>
+    <View className='section-heading'><Text className='section-title'>学习记录</Text><Text className='muted'>共 {total} 次</Text></View>
+    {!history.length && <Empty title={loading ? '正在读取学习记录' : '还没有完成的练习'} text='完成练习后，可以在这里回看作答与报告。' />}
+    {history.map(item => <View className='history-row' key={item.quiz_id} onClick={() => Taro.navigateTo({ url: `/pages/report/index?quizId=${item.quiz_id}` })}><View className='row-copy'><Text className='row-title'>{item.title}</Text><Text className='muted'>{item.question_count} 题 · {item.created_at}</Text></View><Text className='score-badge'>{Math.round(item.accuracy)}%</Text><Icon name='arrow' size={18} /></View>)}
+    {history.length < total && <Button className='text-button' disabled={loading} onClick={() => load(page + 1)}>{loading ? '正在读取' : '加载更多'}</Button>}
+  </StudioShell>
 }

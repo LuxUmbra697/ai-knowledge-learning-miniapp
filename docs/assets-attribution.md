@@ -1,0 +1,21 @@
+# Asset Sources
+
+## Original Study Companions
+
+Pink academy and apricot academy character sheets were generated for this project with OpenAI's built-in ImageGen on 2026-09-11. They are original illustrated characters, not photographs or real application screenshots. No reference-project character artwork was used. Selected frames are distributed as project artwork under the repository license to the extent rights in generated output permit; uniqueness and copyright eligibility are not guaranteed.
+
+Files: `frontend/src/assets/companion-pink-{0,1,2}.png` and `companion-orange-{0,1,2}.png`. Each atlas contains reading/thinking, waving, and celebration poses. `frontend/scripts/build-assets.mjs` extracts evenly spaced frames and compresses PNGs. Combined six-frame size: approximately 144 KiB at initial export, measured from actual files.
+
+Generation prompt: original adult anime study mentor; transparent three-column sprite sheet; identical outfit and scale within each sheet; full-body reading/thinking, waving, celebration poses; pink hair/cardigan or apricot hair/vest; no text, logos or third-party franchise references. Runtime animation is implemented separately from this artwork and can be disabled.
+
+## Interface Icons
+
+[Lucide](https://lucide.dev/license), ISC license. PNGs are generated from `lucide-static` SVGs for the shared Taro interface. The package version is pinned by `frontend/package-lock.json`. Original SVG geometry is retained; raster export allows a consistent miniapp `Image` implementation.
+
+## Fonts
+
+System fonts only. The application does not distribute or download proprietary font files.
+
+## Existing Assets
+
+The original repository's four tab PNGs are retained in source history. Their original authorship has not been newly attributed. The redesigned navigation uses Lucide instead. Original repository license and author notices remain intact.

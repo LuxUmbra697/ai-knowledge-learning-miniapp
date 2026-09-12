@@ -1,0 +1,47 @@
+import { useState, useRef, useEffect } from 'react'
+import { MovableArea, MovableView, Image, Button } from '@tarojs/components'
+import Taro, { useDidHide, useDidShow } from '@tarojs/taro'
+import { dockPosition, safePosition } from './position'
+import { useCompanion } from './useCompanion'
+
+export default function Companion({ reducedMotion, onHide }: { reducedMotion: boolean; onHide: () => void }) {
+  const info = Taro.getWindowInfo()
+  const saved = Taro.getStorageSync('ai-learn:v1:companion-position') || { x: info.windowWidth - 82, y: 120 }
+  const [position, setPosition] = useState(() => dockPosition(saved, info.windowWidth, info.windowHeight))
+  const live = useRef(position)
+  const start = useRef(position)
+  const [menu, setMenu] = useState(false)
+  const [visible, setVisible] = useState(true)
+  const [safe, setSafe] = useState(true)
+  const state = useCompanion(visible && safe)
+  const place = () => {
+    const next = Taro.getWindowInfo()
+    Taro.createSelectorQuery().selectAll('.primary-button, .secondary-button, .text-button, .studio-input, .studio-textarea, .mobile-navigation, .stat, .page-title, .page-subtitle, .welcome-title, .section-title, .row-title, .field-hint').boundingClientRect(rectangles => {
+      const candidate = safePosition(live.current, next.windowWidth, next.windowHeight, Array.isArray(rectangles) ? rectangles : [])
+      setSafe(!!candidate)
+      if (candidate) { live.current = candidate; setPosition(candidate) }
+    }).exec()
+  }
+  useDidHide(() => setVisible(false))
+  useDidShow(() => { setVisible(true); place() })
+  useEffect(() => {
+    const resize = place
+    const keyboard = (event: { height: number }) => setVisible(event.height === 0)
+    Taro.onWindowResize(resize)
+    Taro.onKeyboardHeightChange(keyboard)
+    const timer = setTimeout(place, 500)
+    return () => { clearTimeout(timer); Taro.offWindowResize(resize); Taro.offKeyboardHeightChange(keyboard) }
+  }, [])
+  if (!visible) return null
+  return <MovableArea className='companion-area' style={{ visibility: safe ? 'visible' : 'hidden' }}><MovableView className={`companion-native pose-${state.pose} ${reducedMotion || !state.enabled ? '' : 'companion-animated'}`} direction='all' x={position.x} y={position.y} inertia={false}
+    onChange={event => { live.current = { x: event.detail.x, y: event.detail.y } }}
+    onTouchStart={() => { start.current = live.current }}
+    onTouchEnd={() => {
+      if (Math.hypot(live.current.x - start.current.x, live.current.y - start.current.y) < 6) { setMenu(value => !value); state.nextPose() }
+      const next = dockPosition(live.current, info.windowWidth, info.windowHeight)
+      setPosition(next); Taro.setStorageSync('ai-learn:v1:companion-position', next)
+      place()
+    }}>
+    <Image src={state.source} mode='aspectFit' />{menu && <Button className='companion-hide' onClick={onHide}>收起伙伴</Button>}
+  </MovableView></MovableArea>
+}

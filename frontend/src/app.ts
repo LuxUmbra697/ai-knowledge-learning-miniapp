@@ -1,14 +1,15 @@
-import { PropsWithChildren, useEffect } from 'react'
+import { PropsWithChildren, useEffect, createElement } from 'react'
 import Taro from '@tarojs/taro'
 import { getToken, setToken, setCachedUser, loginByCode, resolveLogin } from './services/api'
 import './app.scss'
+import { StudioProvider } from './components/StudioProvider'
 
 function App({ children }: PropsWithChildren) {
   useEffect(() => {
     if (getToken()) {
       // 已有 token，直接标记就绪
       resolveLogin()
-    } else {
+    } else if (process.env.TARO_ENV === 'weapp') {
       Taro.login({
         success: async (res) => {
           if (!res.code) { resolveLogin(); return }
@@ -24,10 +25,12 @@ function App({ children }: PropsWithChildren) {
         },
         fail: () => resolveLogin(),
       })
+    } else {
+      resolveLogin()
     }
   }, [])
 
-  return children
+  return createElement(StudioProvider, null, children)
 }
 
 export default App

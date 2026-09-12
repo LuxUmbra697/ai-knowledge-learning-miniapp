@@ -13,6 +13,20 @@ MIGRATIONS = {
         CONSTRAINT fk_attempt_quiz FOREIGN KEY (quiz_id) REFERENCES quiz_sessions(quiz_id) ON DELETE CASCADE,
         CONSTRAINT fk_attempt_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"""],
+    2: [
+        "ALTER TABLE users MODIFY openid VARCHAR(64) NULL",
+        """CREATE TABLE IF NOT EXISTS account_credentials (
+            username VARCHAR(40) NOT NULL PRIMARY KEY,
+            user_id BIGINT UNSIGNED NOT NULL UNIQUE,
+            password_hash VARCHAR(255) NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            CONSTRAINT fk_account_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci""",
+        """CREATE TABLE IF NOT EXISTS auth_rate_limits (
+            bucket VARCHAR(64) NOT NULL PRIMARY KEY, hits INT NOT NULL,
+            expires_at DATETIME NOT NULL, KEY idx_auth_expiry(expires_at)
+        ) ENGINE=InnoDB""",
+    ],
 }
 
 

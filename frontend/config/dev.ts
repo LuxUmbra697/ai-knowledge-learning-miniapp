@@ -6,7 +6,7 @@ export default {
     stats: true,
   },
   defineConstants: {
-    API_BASE_URL: '"http://localhost:8000/api/v1"',
+    API_BASE_URL: JSON.stringify(process.env.TARO_ENV === 'h5' ? '/ai-learn/api/v1' : 'http://127.0.0.1:18081/api/v1'),
   },
   mini: {},
   h5: {},

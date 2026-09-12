@@ -1,4 +1,5 @@
 import Taro from '@tarojs/taro'
+import { PollControl, pollUntil } from './polling'
 
 // 由 frontend/config/dev.ts、frontend/config/prod.ts 中的 defineConstants 按环境注入
 declare const API_BASE_URL: string
@@ -57,6 +58,7 @@ export async function request<T = any>(
     method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
     data?: any
     timeout?: number
+    control?: PollControl
   } = {},
 ): Promise<T> {
   const { method = 'GET', data, timeout = 120000 } = options
@@ -70,7 +72,8 @@ export async function request<T = any>(
     header['Authorization'] = `Bearer ${token}`
   }
 
-  const res = await Taro.request({
+  options.control?.check()
+  const task = Taro.request({
     url: `${BASE_URL}${url}`,
     method,
     data,
@@ -78,6 +81,9 @@ export async function request<T = any>(
     timeout,
   })
 
+  const cleanup = options.control?.onCancel(() => task.abort())
+  const res = await task.finally(() => cleanup?.())
+  options.control?.check()
   const body = res.data as ApiResponse<T>
 
   // 401 未认证 — 清除本地凭证
@@ -115,41 +121,24 @@ export function generateQuizAsync(
 }
 
 /** 查询出题任务状态 */
-export function getQuizTaskStatus(taskId: string) {
-  return request<QuizTaskStatus>(`/quiz/task/${taskId}`)
+export function getQuizTaskStatus(taskId: string, control?: PollControl) {
+  return request<QuizTaskStatus>(`/quiz/task/${taskId}`, { control })
 }
 
 /** 轮询等待出题任务完成 */
-export function pollQuizTask(
+export async function pollQuizTask(
   taskId: string,
   onProgress?: (status: string) => void,
   intervalMs = 8000,
   maxAttempts = 100,
+  control?: PollControl,
 ): Promise<QuizData> {
-  return new Promise((resolve, reject) => {
-    let attempts = 0
-    const timer = setInterval(async () => {
-      attempts++
-      try {
-        const res = await getQuizTaskStatus(taskId)
-        onProgress?.(res.status)
-
-        if (res.status === 'completed' && res.result) {
-          clearInterval(timer)
-          resolve(res.result)
-        } else if (res.status === 'failed') {
-          clearInterval(timer)
-          reject(new Error(res.error_message || '题目生成失败'))
-        } else if (attempts >= maxAttempts) {
-          clearInterval(timer)
-          reject(new Error('生成超时，请稍后重试'))
-        }
-      } catch (err) {
-        clearInterval(timer)
-        reject(err)
-      }
-    }, intervalMs)
-  })
+  const result = await pollUntil(() => getQuizTaskStatus(taskId, control), res => {
+    onProgress?.(res.status)
+    if (res.status === 'failed') throw new Error(res.error_message || '题目生成失败')
+    return res.status === 'completed' && !!res.result
+  }, { intervalMs, maxAttempts, control })
+  return result.result!
 }
 
 /** 生成题库（同步，保留兼容） */
@@ -265,8 +254,8 @@ export function getKnowledgeDocuments() {
 }
 
 /** 查询知识库文档处理状态 */
-export function getKnowledgeDocumentStatus(docId: string) {
-  return request<KnowledgeDocumentStatus>(`/knowledge/documents/${docId}`)
+export function getKnowledgeDocumentStatus(docId: string, control?: PollControl) {
+  return request<KnowledgeDocumentStatus>(`/knowledge/documents/${docId}`, { control })
 }
 
 /** 删除知识库文档 */

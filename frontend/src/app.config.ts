@@ -5,6 +5,7 @@ export default defineAppConfig({
     'pages/report/index',
     'pages/profile/index',
     'pages/knowledge/index',
+    'pages/login/index',
   ],
   networkTimeout: {
     request: 600000,
@@ -15,27 +16,7 @@ export default defineAppConfig({
   window: {
     backgroundTextStyle: 'light',
     navigationBarBackgroundColor: '#fff',
-    navigationBarTitleText: 'LuxUmbra-AI闯关学习',
+    navigationBarTitleText: '星知学园',
     navigationBarTextStyle: 'black',
-  },
-  tabBar: {
-    color: '#9b7d60',
-    selectedColor: '#df5f1f',
-    backgroundColor: '#fffbf8',
-    borderStyle: 'white',
-    list: [
-      {
-        pagePath: 'pages/index/index',
-        text: '闯关',
-        iconPath: 'assets/tab-home.png',
-        selectedIconPath: 'assets/tab-home-active.png',
-      },
-      {
-        pagePath: 'pages/profile/index',
-        text: '我的',
-        iconPath: 'assets/tab-me.png',
-        selectedIconPath: 'assets/tab-me-active.png',
-      },
-    ],
   },
 })

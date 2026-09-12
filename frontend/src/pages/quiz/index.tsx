@@ -1,240 +1,67 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
-import { View, Text, Image } from '@tarojs/components'
+import { useEffect, useRef, useState } from 'react'
+import { View, Text, Image, Button } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
-import type { Question, AnswerRecord, QuizData } from '../../services/api'
-import { getCachedUser, submitAnswer } from '../../services/api'
-import './index.scss'
+import { getQuizDetail, submitAnswer, QuizDetailResponse, AnswerRecord, getCachedUser } from '../../services/api'
+import { StudioShell, Notice, navigate } from '../../components/StudioShell'
+import { Icon } from '../../components/Icon'
 
 export default function QuizPage() {
   const router = useRouter()
-
-  // 从路由参数解析题库数据
-  const initialQuizData: QuizData | null = useMemo(() => {
+  let quizId = router.params.quizId || ''
+  try { if (!quizId && router.params.quizData) quizId = JSON.parse(decodeURIComponent(router.params.quizData)).quiz_id || '' } catch { /* Legacy malformed links show a recoverable error. */ }
+  const [quiz, setQuiz] = useState<QuizDetailResponse | null>(null)
+  const [index, setIndex] = useState(0), [selected, setSelected] = useState<string[]>([])
+  const [records, setRecords] = useState<AnswerRecord[]>([])
+  const [error, setError] = useState(''), [busy, setBusy] = useState(false)
+  const lock = useRef(false), start = useRef(Date.now())
+  const draftKey = `ai-learn:v1:draft:${getCachedUser()?.id}:${quizId}`
+  const question = quiz?.questions[index], record = records.find(item => item.question_id === question?.id)
+  const load = async () => {
+    if (!quizId) { setError('练习链接不完整，请从学习记录重新进入'); return }
     try {
-      const raw = router.params.quizData
-      return raw ? JSON.parse(decodeURIComponent(raw)) : null
-    } catch {
-      return null
-    }
-  }, [router.params.quizData])
-  const [quizData, setQuizData] = useState(initialQuizData)
-  const submitting = useRef(false)
-
-  // Bug 13: 动态设置导航栏标题
-  useEffect(() => {
-    if (quizData?.title) {
-      Taro.setNavigationBarTitle({ title: quizData.title.slice(0, 10) })
-    }
-  }, [quizData?.title])
-
-  const questions = quizData?.questions || []
-  const totalQuestions = questions.length
-
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [selectedAnswers, setSelectedAnswers] = useState<string[]>([])
-  const [submitted, setSubmitted] = useState(false)
-  const [answerRecords, setAnswerRecords] = useState<AnswerRecord[]>([])
-  const [startTime, setStartTime] = useState<number>(Date.now())
-  const [correctCount, setCorrectCount] = useState(0)
-
-  const currentQuestion: Question | undefined = questions[currentIndex]
-  const correctAnswers = currentQuestion?.answer || []
-
-  // 处理选项点击
-  const handleOptionClick = (key: string) => {
-    if (submitted) return
-
-    if (currentQuestion?.type === 'multiple') {
-      // 多选题切换选中
-      setSelectedAnswers((prev) =>
-        prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
-      )
-    } else {
-      // 单选和判断题
-      setSelectedAnswers([key])
-    }
+      const result = await getQuizDetail(quizId)
+      const attempts = result.answer_records || []
+      const next = result.questions.findIndex(q => !attempts.some(a => a.question_id === q.id))
+      const current = next < 0 ? 0 : next
+      const draft = Taro.getStorageSync(draftKey)
+      setQuiz(result); setRecords(attempts); setIndex(current)
+      setSelected(draft?.questionId === result.questions[current]?.id && Array.isArray(draft.selected) ? draft.selected.filter((key: string) => result.questions[current].options.some(o => o.key === key)) : [])
+      setError('')
+    } catch (reason) { setError(reason instanceof Error ? reason.message : '读取练习失败') }
   }
-
-  // 提交当前题目答案
-  const handleSubmit = async () => {
-    if (submitting.current || selectedAnswers.length === 0 || !currentQuestion || !quizData) return
-    submitting.current = true
+  useEffect(() => { load() }, [quizId])
+  const choose = (key: string) => {
+    if (record || busy || !question) return
+    const values = question.type === 'multiple' ? selected.includes(key) ? selected.filter(x => x !== key) : [...selected, key] : [key]
+    setSelected(values); Taro.setStorageSync(draftKey, { questionId: question.id, selected: values })
+  }
+  const submit = async () => {
+    if (lock.current || !question || !selected.length || record) return
+    lock.current = true; setBusy(true); setError('')
     try {
-      const { record, question } = await submitAnswer(quizData.quiz_id, currentQuestion.id, selectedAnswers, Date.now() - startTime)
-      setQuizData({...quizData, questions: questions.map(q => q.id === question.id ? question : q)})
-      setAnswerRecords(prev => {
-        const updated = [...prev.filter(r => r.question_id !== record.question_id), record]
-        setCorrectCount(updated.filter(r => r.is_correct).length)
-        return updated
-      })
-      setSubmitted(true)
-    } catch (error) {
-      Taro.showToast({ title: error instanceof Error ? error.message : '提交失败，请重试', icon: 'none' })
-    } finally {
-      submitting.current = false
-    }
+      const result = await submitAnswer(quizId, question.id, selected, Math.min(86400000, Date.now() - start.current))
+      setRecords(previous => [...previous.filter(r => r.question_id !== question.id), result.record])
+      setQuiz(previous => previous && ({ ...previous, questions: previous.questions.map(q => q.id === question.id ? result.question : q) }))
+      Taro.removeStorageSync(draftKey)
+    } catch (reason) { setError(reason instanceof Error ? reason.message : '提交失败，请重试') }
+    finally { lock.current = false; setBusy(false) }
   }
-
-  // 下一题
-  const handleNext = () => {
-    if (currentIndex < totalQuestions - 1) {
-      setCurrentIndex((prev) => prev + 1)
-      setSelectedAnswers([])
-      setSubmitted(false)
-      setStartTime(Date.now())
-    } else {
-      // 所有题目完成，跳转报告页
-      Taro.navigateTo({
-        url: `/pages/report/index?quizData=${encodeURIComponent(JSON.stringify(quizData))}&answerRecords=${encodeURIComponent(JSON.stringify(answerRecords))}`,
-      })
-    }
-  }
-
-  // 上一题（仅查看，不允许修改）
-  const handlePrev = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex((prev) => prev - 1)
-      // 回看上一题时以已提交状态展示
-      const prevRecord = answerRecords[currentIndex - 1]
-      if (prevRecord) {
-        setSelectedAnswers(prevRecord.selected_answers)
-        setSubmitted(true)
-      }
-    }
-  }
-
-  const handleClose = () => {
-    Taro.navigateBack()
-  }
-
-  if (!quizData || !currentQuestion) {
-    return (
-      <View className='quiz-page'>
-        <View className='empty-state'>
-          <Text>题目加载失败</Text>
-          <View className='btn-primary' style={{ marginTop: '32px', width: '300px' }} onClick={handleClose}>
-            <Text>返回首页</Text>
-          </View>
-        </View>
-      </View>
-    )
-  }
-
-  const progressPercent = ((currentIndex + 1) / totalQuestions) * 100
-
-  // 判断选项状态
-  const getOptionClass = (key: string) => {
-    if (!submitted) {
-      return selectedAnswers.includes(key) ? 'option selected' : 'option'
-    }
-    const isCorrectAnswer = correctAnswers.includes(key)
-    const isSelected = selectedAnswers.includes(key)
-    if (isCorrectAnswer) return 'option correct'
-    if (isSelected && !isCorrectAnswer) return 'option wrong'
-    return 'option'
-  }
-
-  const isCurrentCorrect =
-    submitted &&
-    correctAnswers.length === selectedAnswers.length &&
-    correctAnswers.every((a) => selectedAnswers.includes(a))
-
-  return (
-    <View className='quiz-page'>
-      {/* 顶部栏 */}
-      <View className='quiz-header'>
-        <Text className='question-num'>第 {currentIndex + 1} / {totalQuestions} 题</Text>
-        <View className='coin-badge-small'>
-          <Text className='coin-text'>{getCachedUser()?.total_xp ?? 0}</Text>
-          <Text className='coin-icon'>⭐</Text>
-        </View>
-      </View>
-
-      {/* 进度条 */}
-      <View className='quiz-progress'>
-        <View className='progress-track'>
-          <View className='progress-fill' style={{ width: `${progressPercent}%` }} />
-        </View>
-        <View className='progress-meta'>
-          <Text className='meta-text'>第 {currentIndex + 1} 题 / 共 {totalQuestions} 题</Text>
-          <Text className='meta-text'>答对 {correctCount} 题</Text>
-        </View>
-      </View>
-
-      {/* 题干 */}
-      <Text className='quiz-title'>{currentQuestion.stem}</Text>
-
-      {/* 题目配图（若 AI 生成了） */}
-      {currentQuestion.image_url && (
-        <View className='question-image-wrap'>
-          <Image
-            className='question-image'
-            src={currentQuestion.image_url}
-            mode='aspectFit'
-          />
-        </View>
-      )}
-
-      {/* 选项列表 */}
-      <View className='options-list'>
-        {currentQuestion.options.map((opt) => (
-          <View
-            key={opt.key}
-            className={getOptionClass(opt.key)}
-            onClick={() => handleOptionClick(opt.key)}
-          >
-            {submitted && correctAnswers.includes(opt.key) && (
-              <View className='check-icon'>✓</View>
-            )}
-            {submitted && selectedAnswers.includes(opt.key) && !correctAnswers.includes(opt.key) && (
-              <View className='cross-icon'>✗</View>
-            )}
-            <Text className='option-text'>{opt.key}. {opt.text}</Text>
-          </View>
-        ))}
-      </View>
-
-      {/* 未提交时显示提交按钮 */}
-      {!submitted && selectedAnswers.length > 0 && (
-        <View className='btn-primary submit-btn' onClick={handleSubmit}>
-          <Text>确认答案</Text>
-        </View>
-      )}
-
-      {/* 提交后的反馈区 */}
-      {submitted && (
-        <>
-          {/* 结果提示 */}
-          <View className={`result-tip ${isCurrentCorrect ? 'is-correct' : 'is-wrong'}`}>
-            <Text className='result-label'>
-              {isCurrentCorrect ? '✓ 答对啦' : '✗ 答错了'}
-            </Text>
-            <Text className='result-reward'>
-              {isCurrentCorrect ? '+2 经验值' : '+0 经验值'}
-            </Text>
-          </View>
-
-          {/* 讲解区 */}
-          <View className='explain-box'>
-            <Text className='explain-title'>解析：</Text>
-            <Text className='explain-content'>{currentQuestion.explanation}</Text>
-          </View>
-
-          {/* 导航按钮 */}
-          <View className='nav-buttons'>
-            {currentIndex > 0 && (
-              <View className='prev-btn' onClick={handlePrev}>
-                <Text>上一题</Text>
-              </View>
-            )}
-            <View className='next-btn' onClick={handleNext}>
-              <Text>
-                {currentIndex < totalQuestions - 1 ? '继续 →' : '查看报告 →'}
-              </Text>
-            </View>
-          </View>
-        </>
-      )}
+  const move = (next: number) => { setIndex(next); setSelected([]); start.current = Date.now() }
+  return <StudioShell title={quiz?.title || '知识练习'} subtitle='先独立思考，再与解析对照。' focus>
+    <View className='practice-surface'>
+      {error && <Notice message={error} retry={load} />}
+      {!question && !error && <Text className='muted'>正在读取练习</Text>}
+      {question && <>
+        <View className='section-heading'><Text className='tag'>{({ single: '单选题', multiple: '多选题', judge: '判断题' })[question.type]}</Text><Text className='muted'>第 {index + 1} / {quiz!.questions.length} 题 · 已完成 {records.length} 题</Text></View>
+        <View className='practice-progress'><View className='practice-progress-fill' style={{ width: `${records.length / quiz!.questions.length * 100}%` }} /></View>
+        <Text className='question-stem'>{question.stem}</Text>
+        {question.image_url && /^https:\/\//.test(question.image_url) && <Image className='question-media' src={question.image_url} mode='aspectFit' />}
+        <View className='answer-options'>{question.options.map(option => <Button key={option.key} className={`answer-option ${(record?.selected_answers || selected).includes(option.key) ? 'selected' : ''} ${record && question.answer?.includes(option.key) ? 'correct' : record && record.selected_answers.includes(option.key) ? 'wrong' : ''}`} onClick={() => choose(option.key)} aria-pressed={(record?.selected_answers || selected).includes(option.key)}><Text className='option-key'>{option.key}</Text><Text className='option-text'>{option.text}</Text></Button>)}</View>
+        {!record && <Button className='primary-button' disabled={!selected.length || busy} onClick={submit}>{busy ? '正在提交' : '确认答案'}</Button>}
+        {record && <View className='answer-explanation'><Text className='section-title'>{record.is_correct ? '回答正确' : '再理解一次'}</Text><Text className='muted'>你的选择：{record.selected_answers.join('、')} · 参考答案：{question.answer?.join('、')}</Text><Text>{question.explanation}</Text></View>}
+        <View className='practice-navigation'><Button className='secondary-button' disabled={index === 0} onClick={() => move(index - 1)}>上一题</Button>{index + 1 < quiz!.questions.length ? <Button className='secondary-button' onClick={() => move(index + 1)}>下一题<Icon name='arrow' size={16} /></Button> : <Button className='primary-button' disabled={records.length !== quiz!.questions.length} onClick={() => Taro.navigateTo({ url: `/pages/report/index?quizId=${quizId}` })}>查看学习报告</Button>}</View>
+      </>}
+      <Button className='text-button' onClick={() => navigate('/pages/index/index')}>返回学习首页</Button>
     </View>
-  )
+  </StudioShell>
 }

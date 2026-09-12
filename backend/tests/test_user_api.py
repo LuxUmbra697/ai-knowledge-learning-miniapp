@@ -222,9 +222,10 @@ class TestQuizHistoryAPI:
                     "/api/v1/user/quizzes/quiz_nonexist",
                     headers=auth_header,
                 )
-            assert resp.status_code == 200
+            assert resp.status_code == 404
             body = resp.json()
             assert body["code"] == 4004
+            assert body["data"] is None
 
 
 @pytest.mark.asyncio
