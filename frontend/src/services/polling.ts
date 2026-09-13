@@ -17,10 +17,13 @@ export async function pollUntil<T>(load: () => Promise<T>, done: (value: T) => b
     control.check()
     const value = await load()
     control.check()
-    if (done(value)) return value
+    const finished = done(value)
+    control.check()
+    if (finished) return value
     if (attempt + 1 < maxAttempts) await new Promise<void>(resolve => {
-      const cleanup = control.onCancel(() => { clearTimeout(timer); resolve() })
+      let cleanup = () => {}
       const timer = setTimeout(() => { cleanup(); resolve() }, intervalMs)
+      cleanup = control.onCancel(() => { clearTimeout(timer); resolve() })
     })
   }
   throw new Error('poll timeout: 处理尚未结束，请稍后查看任务')

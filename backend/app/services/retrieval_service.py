@@ -6,6 +6,7 @@ import uuid
 from app.core.config import get_settings
 from app.models.evidence import RetrievalResult, evidence_from_row
 from app.repositories import rag_index_repository as repo
+from app.repositories.job_repository import TaskBudgetExceeded, TaskLeaseLost
 from app.services import vector_store_service as vector
 from app.services.hybrid_ranking import bm25_rank, reciprocal_rank_fusion, rerank_lexical
 
@@ -14,7 +15,7 @@ def chunk_key(row):
     return f'{row["doc_id"]}:{row["revision"]}:{row["chunk_id"]}'
 
 
-async def retrieve(user_id: int, doc_ids: list[str], query: str, mode='rerank') -> RetrievalResult:
+async def retrieve(user_id: int, doc_ids: list[str], query: str, mode='rerank', context=None) -> RetrievalResult:
     started = perf_counter()
     settings = get_settings()
     version = vector.index_version()
@@ -29,8 +30,17 @@ async def retrieve(user_id: int, doc_ids: list[str], query: str, mode='rerank') 
     dense_started = perf_counter()
     if rows:
         try:
-            dense = await asyncio.to_thread(vector.search_scoped, user_id, scopes, query, settings.kb_retrieve_candidates)
-            dense_ids = list(dict.fromkeys(chunk_key(item.metadata) for item in dense if chunk_key(item.metadata) in by_key))
+            async def recall():
+                dense = await asyncio.to_thread(vector.search_scoped, user_id, scopes, query, settings.kb_retrieve_candidates)
+                return list(dict.fromkeys(chunk_key(item.metadata) for item in dense if chunk_key(item.metadata) in by_key)), None
+            if context:
+                cached = context.checkpoints.get('query_embedding', {})
+                recalled = cached['output'] if 'output' in cached else await context.external('query_embedding', recall, len(query.encode()))
+                dense_ids = [key for key in recalled if key in by_key]
+            else:
+                dense_ids, _tokens = await recall()
+        except (TaskLeaseLost, TaskBudgetExceeded):
+            raise
         except Exception as error:
             trace['dense_error'] = type(error).__name__
     trace['dense_ms'] = round((perf_counter() - dense_started) * 1000, 2)

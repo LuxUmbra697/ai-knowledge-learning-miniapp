@@ -22,7 +22,7 @@ MATERIAL = '''# 梯度下降学习笔记
 '''
 
 
-async def main():
+async def main(evidence_name='m2-live-index'):
     checks = []
     async with httpx.AsyncClient(base_url='http://127.0.0.1:18081/api/v1', timeout=65) as client:
         accounts = []
@@ -93,18 +93,27 @@ async def main():
         assert denied.status_code == 404
         checks.append('deleted_document_rejected_before_retrieval')
 
-    private = ROOT / '.local/m2-browser.json'
+        response = await client.get('/learning/tasks', headers=headers)
+        response.raise_for_status()
+        tasks = response.json()['data']['items']
+        assert all(task['status'] == 'completed' for task in tasks)
+        assert sum(task['trace']['model_calls'] for task in tasks) <= 4
+        checks.append('durable_index_retrieval_and_rebuild_tasks_complete')
+
+    private = ROOT / ('.local/m2-browser.json' if evidence_name == 'm2-live-index' else '.local/m3-index-browser.json')
     private.write_text(json.dumps({'account': accounts[0], 'doc_id': second['doc_id']}, ensure_ascii=False), encoding='utf-8')
     report = {'recorded_at': datetime.now(timezone.utc).isoformat(), 'environment': 'isolated loopback API/MySQL/Chroma',
               'source': 'synthetic authored teaching material', 'checks': checks, 'passed': len(checks),
               'elapsed_seconds': round(time.perf_counter()-started, 2), 'retrieval_trace': retrieval['trace'],
-              'embedding_request_upper_bound': 4, 'chat_requests': 0, 'billed_currency': None}
-    (ROOT / 'docs/evidence/m2-live-index.json').write_text(json.dumps(report, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
+              'embedding_request_upper_bound': 4, 'chat_requests': 0, 'billed_currency': None,
+              'durable_tasks': [{key: task[key] for key in ('kind', 'status', 'trace')} for task in tasks]}
+    (ROOT / f'docs/evidence/{evidence_name}.json').write_text(json.dumps(report, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
     print(json.dumps(report, ensure_ascii=True))
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--confirm-four-small-embeddings', action='store_true', required=True)
-    parser.parse_args()
-    asyncio.run(main())
+    parser.add_argument('--evidence-name', choices=['m2-live-index', 'm3-live-index'], default='m2-live-index')
+    args = parser.parse_args()
+    asyncio.run(main(args.evidence_name))

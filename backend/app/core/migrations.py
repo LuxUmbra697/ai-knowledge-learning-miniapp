@@ -55,6 +55,41 @@ MIGRATIONS = {
             CONSTRAINT fk_kb_chunk_doc FOREIGN KEY(doc_id) REFERENCES kb_documents(doc_id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci""",
     ],
+    4: [
+        """CREATE TABLE IF NOT EXISTS learning_jobs (
+            task_id VARCHAR(64) NOT NULL PRIMARY KEY,
+            user_id BIGINT UNSIGNED NOT NULL,
+            kind VARCHAR(16) NOT NULL,
+            idempotency_key VARCHAR(100) NOT NULL,
+            fingerprint CHAR(64) NOT NULL,
+            active_fingerprint CHAR(64) NULL,
+            status ENUM('staging','queued','running','completed','failed','cancelled') NOT NULL DEFAULT 'queued',
+            stage VARCHAR(40) NOT NULL DEFAULT 'queued',
+            payload_json JSON NOT NULL,
+            state_json JSON NOT NULL,
+            trace_json JSON NOT NULL,
+            result_json JSON NULL,
+            error_code VARCHAR(64) NULL,
+            error_message VARCHAR(500) NULL,
+            lease_token CHAR(32) NULL,
+            lease_until DATETIME NULL,
+            claims INT NOT NULL DEFAULT 0,
+            created_at DATETIME NOT NULL,
+            started_at DATETIME NULL,
+            updated_at DATETIME NOT NULL,
+            config_version VARCHAR(32) NOT NULL DEFAULT 'jobs-v1',
+            UNIQUE KEY idx_job_idempotency(user_id,kind,idempotency_key),
+            UNIQUE KEY idx_job_active(user_id,kind,active_fingerprint),
+            KEY idx_job_claim(status,lease_until,created_at),
+            CONSTRAINT fk_job_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci""",
+    ],
+    5: ["ALTER TABLE kb_index_meta ADD COLUMN job_id VARCHAR(64) NULL"],
+    6: ["""CREATE TABLE IF NOT EXISTS provider_call_budget (
+        budget_day DATE NOT NULL PRIMARY KEY,
+        calls INT NOT NULL DEFAULT 0,
+        input_bytes BIGINT NOT NULL DEFAULT 0
+    ) ENGINE=InnoDB"""],
 }
 
 

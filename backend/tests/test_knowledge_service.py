@@ -48,15 +48,15 @@ async def test_handle_upload_rejects_when_quota_reached(tmp_path):
 async def test_handle_upload_success_saves_file_and_creates_record(tmp_path):
     settings = _patch_settings(kb_upload_dir=str(tmp_path))
     async def reserved(doc_id, user_id, filename, *args):
-        return dict(doc_id=doc_id, file_name=filename, status='processing', duplicate=False)
+        return dict(doc_id=doc_id, file_name=filename, status='processing', duplicate=False, task_id='job_test')
     create_document_mock = AsyncMock(side_effect=reserved)
 
     with patch("app.services.knowledge_service.get_settings", return_value=settings), patch(
         "app.services.knowledge_service.rag_index_repository.reserve",
         create_document_mock,
     ), patch(
-        "app.services.knowledge_service.asyncio.create_task"
-    ) as mock_create_task:
+        "app.services.knowledge_service.job_repository.activate", AsyncMock()
+    ) as activate:
         result = await knowledge_service.handle_upload(1, "sample.txt", b"hello world")
 
     assert result.status == "processing"
@@ -64,9 +64,7 @@ async def test_handle_upload_success_saves_file_and_creates_record(tmp_path):
     assert result.doc_id.startswith("doc_")
 
     create_document_mock.assert_called_once()
-    mock_create_task.assert_called_once()
-    # asyncio.create_task 被 mock 掉，需手动关闭协程避免 "never awaited" 警告
-    mock_create_task.call_args[0][0].close()
+    activate.assert_awaited_once_with('job_test', 1)
 
     saved_file = tmp_path / f"{result.doc_id}.txt"
     assert saved_file.exists()
@@ -195,7 +193,8 @@ async def test_delete_document_success_cascades(tmp_path):
     ):
         await knowledge_service.delete_document(1, "doc_1")
 
-    delete_vectors_mock.assert_called_once_with(1, 'doc_1', version='v1')
+    # Deletion must cover all model/index versions, including interrupted rebuilds.
+    delete_vectors_mock.assert_called_once_with(1, 'doc_1')
     delete_db_mock.assert_called_once_with("doc_1", 1)
     assert not file_path.exists()
 
@@ -242,8 +241,21 @@ async def test_duplicate_does_not_schedule_or_write(tmp_path):
     row = dict(doc_id='doc_existing', file_name='old.txt', status='ready', duplicate=True)
     with patch.object(knowledge_service, 'get_settings', return_value=_patch_settings(kb_upload_dir=str(tmp_path))), \
          patch.object(knowledge_service.rag_index_repository, 'reserve', AsyncMock(return_value=row)), \
-         patch.object(knowledge_service, '_schedule') as schedule:
+         patch.object(knowledge_service.job_repository, 'activate', AsyncMock()) as schedule:
         result = await knowledge_service.handle_upload(1, 'copy.txt', b'existing')
     assert result.duplicate and result.doc_id == 'doc_existing'
     schedule.assert_not_called()
     assert not list(tmp_path.iterdir())
+
+
+@pytest.mark.asyncio
+async def test_expired_index_worker_cannot_mark_new_owner_work_failed():
+    from app.repositories.job_repository import TaskLeaseLost
+    context = MagicMock()
+    context.checkpoints = {}
+    context.checkpoint = AsyncMock(side_effect=TaskLeaseLost())
+    with patch.object(knowledge_service.rag_index_repository, 'is_current', AsyncMock(return_value=True)), \
+         patch.object(knowledge_service.rag_index_repository, 'fail', AsyncMock()) as fail:
+        with pytest.raises(TaskLeaseLost):
+            await knowledge_service._process_document('doc_a', 1, 'unused', 'txt', 1, 'v1', context=context)
+    fail.assert_not_called()

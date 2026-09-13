@@ -33,6 +33,7 @@ def configure(with_models=False):
                       CHROMA_PERSIST_DIR=str(private / "chroma"), KB_UPLOAD_DIR=str(private / "uploads"),
                       ENABLE_WEB_SEARCH="false", COS_UPLOAD_PREFIX="ai-learn-local-test/",
                       ANONYMIZED_TELEMETRY="false")
+    os.environ['WORKER_ENABLED'] = 'true'
     sys.path.insert(0, str(ROOT / "backend"))
 
 

@@ -32,3 +32,8 @@ test('attempt limit and permanent request errors terminate deterministically', a
   assert.equal(count, 3)
   await assert.rejects(pollUntil(async () => { throw new Error('401') }, () => false), /401/)
 })
+
+test('cancellation inside a progress callback does not access an uninitialized timer', async () => {
+  const control = new PollControl()
+  await assert.rejects(pollUntil(async () => false, () => { control.cancel(); return false }, { control }), /poll cancelled/)
+})

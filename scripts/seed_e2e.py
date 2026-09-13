@@ -11,7 +11,7 @@ from app.core.db import connect_mysql, close_mysql_pool, get_mysql_pool
 from app.repositories.quiz_repository import save_quiz_session
 
 
-async def main(user_id: int):
+async def main(user_id: int, staged_upload=False):
     await connect_mysql()
     try:
         async with get_mysql_pool().acquire() as conn:
@@ -20,6 +20,16 @@ async def main(user_id: int):
                 row = await cur.fetchone()
                 if not row or not row[0].startswith("e2e_"):
                     raise ValueError("Only synthetic e2e accounts may receive fixtures")
+        if staged_upload:
+            from app.repositories.rag_index_repository import reserve
+            from app.services.vector_store_service import index_version
+            import hashlib
+            doc_id = 'doc_' + uuid.uuid4().hex
+            content = b'Synthetic interrupted-upload fixture; no external calls.'
+            task = await reserve(doc_id, user_id, '学习任务恢复与取消验收资料.md', 'md', len(content),
+                                 hashlib.sha256(content).hexdigest(), index_version(), 10)
+            print(task['task_id'])
+            return
         quiz_id = "quiz_e2e_" + uuid.uuid4().hex[:12]
         questions = [
             {"id": "q1", "type": "single", "stem": "阅读笔记后，哪一种做法更有助于检查自己是否真正理解了知识？",
@@ -44,4 +54,6 @@ async def main(user_id: int):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--user-id", required=True, type=int)
-    asyncio.run(main(parser.parse_args().user_id))
+    parser.add_argument('--staged-upload', action='store_true')
+    args = parser.parse_args()
+    asyncio.run(main(args.user_id, args.staged_upload))

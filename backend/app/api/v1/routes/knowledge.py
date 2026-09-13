@@ -1,6 +1,6 @@
 """知识库文档路由"""
 
-from fastapi import APIRouter, Depends, UploadFile, File, Query
+from fastapi import APIRouter, Depends, UploadFile, File, Query, Header
 
 from app.core.auth import get_current_user
 from app.core.config import get_settings
@@ -8,21 +8,27 @@ from app.core.exceptions import KnowledgeBaseError
 from app.models.common import ApiResponse
 from app.models.evidence import RetrievalRequest, evidence_from_row
 from app.repositories import rag_index_repository
-from app.services import knowledge_service, retrieval_service, vector_store_service, grounded_answer_service
+from app.services import knowledge_service, vector_store_service, learning_task_service
 
 router = APIRouter(prefix="/knowledge", tags=["knowledge"])
 
 
 @router.post('/ask', response_model=ApiResponse)
-async def ask(request: RetrievalRequest, user_id: int = Depends(get_current_user)):
-    result = await grounded_answer_service.answer(user_id, request.doc_ids, request.query)
+async def ask(request: RetrievalRequest, user_id: int = Depends(get_current_user), idempotency_key: str | None = Header(None)):
+    task = await learning_task_service.create_answer(user_id, request, idempotency_key)
+    result = await learning_task_service.wait_result(task['task_id'], user_id)
     return ApiResponse.success(data=result)
 
 
+@router.post('/ask/async', response_model=ApiResponse)
+async def ask_async(request: RetrievalRequest, user_id: int = Depends(get_current_user), idempotency_key: str | None = Header(None)):
+    return ApiResponse.success(data=await learning_task_service.create_answer(user_id, request, idempotency_key))
+
+
 @router.post('/retrieve', response_model=ApiResponse)
-async def retrieve(request: RetrievalRequest, user_id: int = Depends(get_current_user)):
-    result = await retrieval_service.retrieve(user_id, request.doc_ids, request.query, request.mode)
-    return ApiResponse.success(data=result.model_dump())
+async def retrieve(request: RetrievalRequest, user_id: int = Depends(get_current_user), idempotency_key: str | None = Header(None)):
+    task = await learning_task_service.create_retrieval(user_id, request, idempotency_key)
+    return ApiResponse.success(data=await learning_task_service.wait_result(task['task_id'], user_id, 30))
 
 
 @router.get('/documents/{doc_id}/chunks', response_model=ApiResponse)

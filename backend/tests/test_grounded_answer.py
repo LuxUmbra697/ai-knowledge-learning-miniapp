@@ -3,6 +3,22 @@ from unittest.mock import AsyncMock
 import pytest
 from app.models.evidence import Evidence, RetrievalResult
 from app.services import grounded_answer_service as service
+import json
+
+
+class MemoryContext:
+    def __init__(self):
+        self.checkpoints = {}
+        self.calls = 0
+
+    async def checkpoint(self, stage, value):
+        self.checkpoints[stage] = value
+
+    async def external(self, stage, operation, input_bytes=0):
+        self.calls += 1
+        output, _tokens = await operation()
+        self.checkpoints[stage] = {'output': output}
+        return output
 
 
 def source():
@@ -72,3 +88,30 @@ async def test_permanent_error_is_not_retried(monkeypatch):
     result = await service.answer(1, ['doc_a'], '问题')
     assert result['status'] == 'provider_failed' and call.await_count == 1
     assert 'private detail' not in str(result)
+
+
+@pytest.mark.asyncio
+async def test_completed_response_checkpoint_resumes_without_provider_call(monkeypatch):
+    retrieval = RetrievalResult(query='问题', status='ok', evidence=[source()], trace={})
+    monkeypatch.setattr(service, 'retrieve', AsyncMock(return_value=retrieval))
+    monkeypatch.setattr(service, 'get_chunk', AsyncMock(return_value={}))
+    call = AsyncMock(return_value=(json.dumps(valid()), {'total_tokens': 10}))
+    monkeypatch.setattr(service, 'complete', call)
+    context = MemoryContext()
+    first = await service.answer(1, ['doc_a'], '问题', context=context)
+    second = await service.answer(1, ['doc_a'], '问题', context=context)
+    assert first['claims'] == second['claims'] and first['status'] == 'answered'
+    assert call.await_count == 1 and context.calls == 1
+    assert second['trace']['total_tokens'] == 10
+
+
+@pytest.mark.asyncio
+async def test_deleted_checkpoint_evidence_stops_before_generation(monkeypatch):
+    from fastapi import HTTPException
+    context = MemoryContext()
+    context.checkpoints['retrieval'] = RetrievalResult(query='问题', status='ok', evidence=[source()], trace={}).model_dump()
+    monkeypatch.setattr(service, 'get_chunk', AsyncMock(side_effect=HTTPException(404)))
+    call = AsyncMock(); monkeypatch.setattr(service, 'complete', call)
+    result = await service.answer(1, ['doc_a'], '问题', context=context)
+    assert result['status'] == 'stale_evidence' and not result['evidence']
+    call.assert_not_called()

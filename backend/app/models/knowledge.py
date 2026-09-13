@@ -10,6 +10,7 @@ class KnowledgeUploadResponse(BaseModel):
     file_name: str
     status: Literal["processing", "ready", "failed"]
     duplicate: bool = False
+    task_id: str | None = None
 
 
 class KnowledgeDocumentItem(BaseModel):

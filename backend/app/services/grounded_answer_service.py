@@ -10,6 +10,7 @@ from fastapi import HTTPException
 
 from app.core.config import get_settings
 from app.repositories.rag_index_repository import get_chunk
+from app.models.evidence import RetrievalResult
 from app.services.retrieval_service import retrieve
 
 
@@ -66,24 +67,63 @@ async def complete(messages):
         response = await client.chat.completions.create(model=settings.deepseek_model, messages=messages,
                                                         temperature=0, max_tokens=1400,
                                                         response_format={'type': 'json_object'})
-    content = response.choices[0].message.content or ''
+    content = response.choices[0].message.content or '' if response.choices else ''
     usage = response.usage.model_dump() if response.usage else {}
     return content, usage
 
 
-async def _answer(user_id, doc_ids, query, trace):
-    retrieval = await retrieve(user_id, doc_ids, query)
+async def _answer(user_id, doc_ids, query, trace, context=None, mode='rerank'):
+    cached = context.checkpoints.get('retrieval') if context else None
+    if cached:
+        retrieval = RetrievalResult.model_validate(cached)
+    else:
+        retrieval = await retrieve(user_id, doc_ids, query, mode=mode, context=context)
+        if context:
+            await context.checkpoint('retrieval', retrieval.model_dump())
     trace['retrieval'] = retrieval.trace
-    base = dict(claims=[], evidence=[item.model_dump() for item in retrieval.evidence], trace=trace,
+    base = dict(query=query, claims=[], evidence=[item.model_dump() for item in retrieval.evidence], trace=trace,
                 retrieval_status=retrieval.status)
     if not retrieval.evidence:
         return {**base, 'status': 'retrieval_failed' if retrieval.status == 'failed' else 'no_evidence'}
+    try:
+        if cached:
+            for item in retrieval.evidence:
+                await get_chunk(user_id, item.doc_id, item.chunk_id, item.revision)
+    except HTTPException:
+        return {**base, 'status': 'stale_evidence', 'evidence': []}
     messages = [{'role': 'system', 'content': SYSTEM},
                 {'role': 'user', 'content': json.dumps({'question': query, 'materials': base['evidence']}, ensure_ascii=False)}]
+    responses = context.checkpoints.get('answer', {}).get('output', []) if context else []
     for attempt in range(1, 4):
         trace['model_calls'] = attempt
+        if attempt > len(responses):
+            async def generate():
+                try:
+                    raw, usage = await complete(messages)
+                    item = {'raw': raw, 'usage': usage}
+                    tokens = usage.get('total_tokens')
+                except (APIStatusError, APIConnectionError, RuntimeError) as error:
+                    status = getattr(error, 'status_code', None)
+                    item = {'error_type': type(error).__name__, 'retryable':
+                            not isinstance(error, RuntimeError) and (status is None or status >= 500)}
+                    tokens = None
+                return [*responses, item], tokens
+            if context:
+                responses = await context.external('answer', generate, len(json.dumps(messages, ensure_ascii=False).encode()))
+            else:
+                responses, _tokens = await generate()
+        response = responses[attempt-1]
+        if response.get('error_type'):
+            trace['provider_error'] = response['error_type']
+            if not response['retryable']:
+                break
+            if attempt < 3:
+                await asyncio.sleep(.5 * attempt)
+            continue
+        raw, usage = response['raw'], response['usage']
+        if context:
+            await context.checkpoint('validation', {'attempt': attempt})
         try:
-            raw, usage = await complete(messages)
             trace['total_tokens'] += usage.get('total_tokens', 0)
             try:
                 answer = validate_answer(json.loads(raw), retrieval.evidence)
@@ -98,27 +138,20 @@ async def _answer(user_id, doc_ids, query, trace):
             except HTTPException:
                 return {**base, 'status': 'stale_evidence', 'evidence': []}
             return {**base, **answer.model_dump()}
-        except (APIStatusError, APIConnectionError) as error:
-            status = getattr(error, 'status_code', None)
-            trace['provider_error'] = type(error).__name__
-            # Rate-limit/insufficient-quota errors require caller action; no automatic retry.
-            if status is not None and status < 500:
-                break
-            if attempt < 3:
-                await asyncio.sleep(.5 * attempt)
-        except RuntimeError as error:
-            trace['provider_error'] = type(error).__name__
-            break
+        except TypeError:
+            trace['validation_failures'] += 1
     return {**base, 'status': 'provider_failed' if trace.get('provider_error') else 'validation_failed'}
 
 
-async def answer(user_id: int, doc_ids: list[str], query: str):
+async def answer(user_id: int, doc_ids: list[str], query: str, context=None, mode='rerank'):
     started = perf_counter()
     trace = dict(config_version='grounded-v1', model_calls=0, total_tokens=0, validation_failures=0,
                  cost_currency=None, cost_note='Provider billing not queried; token usage is measured.')
     try:
-        result = await asyncio.wait_for(_answer(user_id, doc_ids, query, trace), timeout=55)
+        result = await asyncio.wait_for(_answer(user_id, doc_ids, query, trace, context, mode), timeout=55)
     except asyncio.TimeoutError:
+        if context:
+            raise
         result = dict(status='timeout', claims=[], evidence=[], trace=trace)
     trace['total_ms'] = round((perf_counter() - started) * 1000, 2)
     return result

@@ -107,9 +107,15 @@ def delete_document_vectors(
     *, revision: int | None = None, version: str | None = None,
 ) -> None:
     """从用户向量库中删除指定文档的所有向量"""
-    vector_store = get_user_vector_store(user_id, embeddings=embeddings, version=version)
-    where = {'doc_id': doc_id} if revision is None or version == 'legacy' else {'scope_key': scope_key(doc_id, revision, version or index_version())}
-    vector_store.delete(where=where)
+    import chromadb
+    client = chromadb.PersistentClient(path=get_settings().chroma_persist_dir)
+    expected = f'kb_user_{user_id}' if version == 'legacy' else f'kb_u{user_id}_{version}' if version else None
+    for collection in client.list_collections():
+        name = collection.name
+        if (expected and name != expected) or (not expected and name != f'kb_user_{user_id}' and not name.startswith(f'kb_u{user_id}_')):
+            continue
+        where = {'doc_id': doc_id} if revision is None or version == 'legacy' else {'scope_key': scope_key(doc_id, revision, version or index_version())}
+        client.get_collection(name, embedding_function=None).delete(where=where)
     logger.info("document_vectors_deleted", user_id=user_id, doc_id=doc_id)
 
 

@@ -35,5 +35,5 @@ if __name__ == "__main__":
 
     temporary = ROOT / ".local/tests" / uuid.uuid4().hex
     temporary.parent.mkdir(parents=True, exist_ok=True)
-    arguments = sys.argv[1:] or [str(ROOT / "backend/tests"), "-q", "--tb=short"]
+    arguments = [str(ROOT / 'backend/tests'), *(sys.argv[1:] or ['-q', '--tb=short'])]
     raise SystemExit(pytest.main([*arguments, f"--basetemp={temporary}"]))

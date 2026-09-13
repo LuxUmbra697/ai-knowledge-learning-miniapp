@@ -4,8 +4,10 @@ import Taro, { useDidHide, useDidShow, useRouter } from '@tarojs/taro'
 import { StudioShell, Notice, Empty, navigate } from '../../components/StudioShell'
 import { Icon } from '../../components/Icon'
 import { useStudio } from '../../components/StudioProvider'
-import { askKnowledge, Evidence, getKnowledgeDocuments, getToken, GroundedAnswer, KnowledgeDocumentItem, waitForLogin } from '../../services/api'
-import { PollControl } from '../../services/polling'
+import { askKnowledge, cancelLearningTask, Evidence, getCachedUser, getKnowledgeDocuments, getLearningTask, getToken, GroundedAnswer, KnowledgeDocumentItem, LearningTask, waitForLogin } from '../../services/api'
+import { PollControl, pollUntil } from '../../services/polling'
+import { taskPhase } from '../../services/taskDisplay'
+import { restorableAnswer } from '../../services/answerSession'
 
 const statuses: Record<GroundedAnswer['status'], string> = {
   answered: '来自学习材料的回答', no_evidence: '没有找到支持证据', conflict: '材料中存在不同说法',
@@ -21,7 +23,24 @@ export default function AssistantPage() {
   const [documents, setDocuments] = useState<KnowledgeDocumentItem[]>([]), [selected, setSelected] = useState<string[]>([])
   const [query, setQuery] = useState(''), [submitted, setSubmitted] = useState(''), [answer, setAnswer] = useState<GroundedAnswer | null>(null)
   const [error, setError] = useState(''), [busy, setBusy] = useState(false), [loading, setLoading] = useState(true)
+  const [task, setTask] = useState<LearningTask | null>(null)
   const live = useRef(true), locked = useRef(false), control = useRef<PollControl>(), initialized = useRef(false)
+  const storageKey = () => `ai-learn:v1:answer:${getCachedUser()?.id}`
+  const monitor = async (taskId: string, current: PollControl) => {
+    const completed = await pollUntil(() => getLearningTask(taskId, current), status => {
+      if (live.current) { setTask(status); if (!submitted) setSubmitted(status.title || '') }
+      if (status.status === 'failed' || status.status === 'cancelled') throw new Error(status.error_message || '任务已取消')
+      return status.status === 'completed'
+    }, { control: current, intervalMs: 2000, maxAttempts: 100 })
+    if (live.current) { setAnswer(completed.result); setSubmitted(completed.result.query || completed.title || '') }
+  }
+  const resume = async (taskId: string) => {
+    control.current?.cancel(); const current = new PollControl(); control.current = current
+    locked.current = true; setBusy(true)
+    try { await monitor(taskId, current) }
+    catch (reason) { if (live.current && !current.cancelled) setError(reason instanceof Error ? reason.message : '任务读取失败') }
+    finally { if (control.current === current) { locked.current = false; if (live.current) setBusy(false) } }
+  }
   useEffect(() => {
     if (answer) Taro.nextTick(() => { if (live.current) Taro.pageScrollTo({ selector: '#grounded-response', duration: appearance.reducedMotion ? 0 : 200 }) })
   }, [answer, appearance.reducedMotion])
@@ -37,21 +56,39 @@ export default function AssistantPage() {
       else setSelected(previous => previous.filter(id => ready.some(doc => doc.doc_id === id)))
       initialized.current = true
       setError('')
+      const saved = Taro.getStorageSync(storageKey())
+      const taskId = restorableAnswer(router.params, saved)
+      if (taskId && !locked.current) {
+        if (saved?.taskId === taskId) { setQuery(saved.query); setSubmitted(saved.query); setSelected(saved.docIds.filter(id => ready.some(doc => doc.doc_id === id))) }
+        resume(taskId)
+      }
     } catch (reason) { if (live.current) setError(reason instanceof Error ? reason.message : '材料读取失败') }
     finally { if (live.current) setLoading(false) }
   }
-  useDidShow(() => { live.current = true; setBusy(locked.current); load() })
-  useDidHide(() => { live.current = false; control.current?.cancel() })
+  useDidShow(() => { live.current = true; locked.current = false; setBusy(false); load() })
+  useDidHide(() => { live.current = false; control.current?.cancel(); locked.current = false })
   const ask = async () => {
     if (locked.current) return
     if (!query.trim() || !selected.length) { setError('请选择材料并填写问题'); return }
-    locked.current = true; setBusy(true); setError(''); setAnswer(null); setSubmitted(query.trim())
+    locked.current = true; setBusy(true); setError(''); setAnswer(null); setTask(null); setSubmitted(query.trim())
     const current = new PollControl(); control.current = current
+    const previous = Taro.getStorageSync(storageKey())
+    const saved = { query: query.trim(), docIds: [...selected].sort(), key: `ask_${Date.now()}_${Math.random().toString(36).slice(2)}`, taskId: '' }
+    if (previous && !previous.taskId && previous.query === saved.query && JSON.stringify(previous.docIds) === JSON.stringify(saved.docIds)) saved.key = previous.key
+    Taro.setStorageSync(storageKey(), saved)
     try {
-      const response = await askKnowledge(query.trim(), selected, current)
-      if (live.current) setAnswer(response)
+      const response = await askKnowledge(saved.query, saved.docIds, current, saved.key)
+      saved.taskId = response.task_id; Taro.setStorageSync(storageKey(), saved)
+      await monitor(response.task_id, current)
     } catch (reason) { if (live.current && !current.cancelled) setError(reason instanceof Error ? reason.message : '回答失败') }
-    finally { locked.current = false; if (live.current) setBusy(false) }
+    finally { if (control.current === current) { locked.current = false; if (live.current) setBusy(false) } }
+  }
+  const cancel = async () => {
+    if (!task) return
+    const confirmation = await Taro.showModal({ title: '取消回答', content: '已开始的模型调用可能仍会产生费用。是否取消本次任务？' })
+    if (!confirmation.confirm) return
+    try { await cancelLearningTask(task.task_id); control.current?.cancel(); locked.current = false; setBusy(false); setError('任务已取消') }
+    catch (reason) { setError(reason instanceof Error ? reason.message : '取消失败') }
   }
   return <StudioShell active='assistant' title='证据学习助手' subtitle='读懂一段知识，也找到它的来处。'>
     <View className='assistant-layout'>
@@ -64,7 +101,8 @@ export default function AssistantPage() {
       </View>
       <View className='conversation-column'>
         <Text className='field-label'>我的问题</Text><Textarea className='studio-textarea' placeholder='例如：学习率过大时，为什么会发生震荡？' maxlength={1000} value={query} disabled={busy} onInput={event => setQuery(event.detail.value)} />
-        <View className='ask-actions'><Text className='muted'>已选择 {selected.length} 篇材料</Text><Button className='primary-button' disabled={busy || !documents.length} onClick={ask}><Icon name='chat' size={18} />{busy ? '正在检索并核对引用' : '提问'}</Button></View>
+        <View className='ask-actions'><Text className='muted'>已选择 {selected.length} 篇材料</Text><Button className='primary-button' disabled={busy || !documents.length} onClick={ask}><Icon name='chat' size={18} />{busy ? (task ? taskPhase(task.stage) : '提交问题') : '提问'}</Button></View>
+        {task && <View className='document-actions'><Button className='text-button' onClick={() => Taro.navigateTo({ url: '/learning/tasks/index' })}><Icon name='clock' size={16} />任务记录</Button>{busy && <Button className='text-button' onClick={cancel}><Icon name='close' size={16} />取消任务</Button>}</View>}
         {error && <Notice message={error} />}
         {answer && <View className='grounded-response' id='grounded-response'><Text className='submitted-question'>{submitted}</Text><Text className='section-title'>{statuses[answer.status]}</Text>
           {answer.retrieval_status === 'degraded' && <Notice message='向量检索暂不可用，本次仅使用关键词召回的材料。' />}

@@ -10,7 +10,7 @@ This ledger records observed results; planned capabilities are not delivery clai
 | M0 | Isolated baseline; authenticated ownership; authoritative grading; safe config | Core checks passed; release hardening continues | `evidence/m0-local.json`; 159 deterministic tests |
 | M1 | Taro H5/weapp, separate outputs, independent login, five themes | H5 core flow passed; native runtime gate pending | `frontend/e2e`; `screenshots/h5`; DevTools service port unavailable |
 | M2 | Bounded parsing, scoped hybrid retrieval, citations, 100-case evaluation | Retrieval/citation checkpoint verified; remaining gates below | 104 synthetic cases; real index and answer evidence; dual builds |
-| M3 | Bounded learning agent, durable worker, cancellation/recovery | Starting with persistent task lifecycle | Existing task table reviewed; in-process execution remains a release blocker |
+| M3 | Bounded learning agent, durable worker, cancellation/recovery | Index, retrieval and answer queue checkpoint verified; practice/report migration and tutoring graph pending | MySQL restart/cancellation tests, real index/answer tasks and H5 task history |
 | M4 | Mastery, FSRS, prerequisites, reproducible offline experiment | Pending | No implementation yet |
 | M5 | Browser and DevTools workflows, screenshots, regression | In progress alongside each module | Actual H5 screenshots exist; no weapp screenshots claimed |
 | M6 | New deployment plus all existing sites healthy | Pending | No gateway mutations |
@@ -109,10 +109,39 @@ M2 remaining gates: durable indexing/recovery and cleanup worker (M3), a configu
 | RAG-04 source-located answers | `services/grounded_answer_service.py`, `models/evidence.py`, Taro `learning` package | `test_grounded_answer.py`, `grounded-live.spec.ts` | H5 `04-grounded-chat.png`, `12-source-evidence.png` |
 | RAG-05 reproducible evaluation | `scripts/build_rag_dataset.py`, `embed_rag_dataset.py`, `evaluate_rag.py` | `test_rag_dataset.py` | `eval/rag/results-v1.json` |
 
+## M3 Durable Task Checkpoint
+
+- Migrations 4-6 add the owned `learning_jobs` queue, document-to-task link and daily provider budget. Only the isolated local schemas were migrated. Neither cloud MySQL nor existing production applications were modified.
+- Upload reserves a staging job and document in one transaction, writes the private file, then activates the job. Maintenance can recover a completed staging file by checking its hash. Publication of SQL chunks, ready status and the completed index task shares one transaction.
+- Worker claims use short MySQL 5.7-compatible locking transactions, a 40-second lease, an 8-second heartbeat and a random fencing token. Cancellation wins over late completion. An expired owner cannot publish or mark a replacement worker's document failed.
+- A real child worker process was started, terminated after its checkpoint, and replaced by another process that recovered the MySQL checkpoint with zero external calls. A crash while an external request is pending instead produces `external_outcome_unknown`; no automatic repeat of the possibly billed call occurs.
+- Per-stage attempts are at most three, task calls at most 12, known tokens at most 20,000 before the next call, cumulative input at most 60,000 UTF-8 bytes, and execution eligibility at most 180 seconds after first claim. One answer has a separate 55-second generation bound. Token limits are pre-call guards, not an exact provider billing cap.
+- Daily UTC site admission limits default to 100 provider requests and 500,000 UTF-8 input bytes on the new queue paths. A concurrent two-user test verifies that only one can consume the last available request. SDK retries are disabled on the new private retrieval/answer paths. Legacy quiz/report/image/search paths are not yet covered by this budget and remain release blockers.
+- Explicit source retrieval and knowledge answers now run as owned jobs. The compatibility synchronous endpoints wait on those same jobs, rather than launching an independent model call. Document revisions are captured at admission, checked again before execution, and checked when restoring evidence. Task lists omit answer bodies; owned task reads invalidate deleted-source answers.
+- H5 and weapp share the task monitor and awaited polling. The assistant saves an account-namespaced task reference and idempotency key. Page hiding stops transport; explicit cancellation changes the server state. Task history uses real stages, trace IDs, observed call counts and checkpoint-interval timings, without private model reasoning.
+- Reproduced and fixed: pending-call tasks incorrectly accepted as completed; document deletion cleaning only the current index version; early clearing of cleanup flags while a cancelled native thread could still finish; polling cancellation accessing an uninitialized timer; document-specific assistant refresh failing to restore its task. A cleanup sweep waits beyond the cancelled lease, plus a 60-second grace period, to catch late vector writes.
+- First real answer run completed in the backend but exposed the refresh bug. A reuse-only browser pass verified the fix without new provider requests. A subsequent full new-task pass verified idempotent replay, refresh recovery and source navigation: two external calls, 555 returned chat tokens, three validated citations, 5870.44 ms answer-service duration. This includes provider latency but not the entire user journey. See `evidence/m3-live-answer.json` and `evidence/m3-answer-resume.json`.
+- One browser attempt started before the restarted API was listening and failed before making any model request. E2E now checks actual loopback API readiness before starting scenarios. It does not hide UI/network failures inside scenarios.
+- Real durable upload/index/retrieval/rebuild/delete verification passed seven checks in 10.29 seconds, using four small embedding requests and no chat calls. See `evidence/m3-live-index.json`. Embedding usage is not returned by the current LangChain bridge, so these calls are marked unmetered rather than assigned invented token/currency values.
+- Checkpoint regression: 211 deterministic backend tests, 15 isolated MySQL integration tests, seven frontend unit tests and TypeScript checks passed. Task cancellation and damaged-upload browser scenarios passed; real grounded answer/recovery scenarios passed separately. Final artifact and full browser regression results are recorded with this checkpoint's evidence.
+- Final staged review reproduced three additional boundaries: duplicate provider-result publication, timeout failures losing vector cleanup grace, and cancellation of a completed answer returning deleted-source evidence. All three received failing tests and fixes; the 15-case database regression passed afterward.
+- An options-only offline test invocation accidentally collected the separate database integration directory. Its strict database guard rejected all nine fixtures before any connection. The runner now always targets `backend/tests`; the independent database command remains mandatory and all its assertions remain in place.
+
+M3 still required: migrate legacy quiz/report generation and its image/search calls to the bounded queue; validate structured practice outputs and coverage; implement the learning state graph, Socratic mode and diagnosis; strengthen provider error and cancellation matrices; complete old-task reconciliation and retired-index cleanup; verify the native task UI. No complete learning-Agent or production release claim is made at this checkpoint.
+
+| ID / behavior | Implementation | Tests | Evidence |
+| --- | --- | --- | --- |
+| JOB-01 owned idempotency and lease fencing | `repositories/job_repository.py`, migrations 4-6 | `integration/test_job_lifecycle.py` | Real MySQL tests and worker child-process restart |
+| JOB-02 durable document publication and deletion | `knowledge_service.py`, `rag_index_repository.py`, `job_handlers.py` | `test_knowledge_service.py`, database lifecycle tests | `evidence/m3-live-index.json` |
+| JOB-03 persisted answer/retrieval budgets | `learning_task_service.py`, `grounded_answer_service.py`, `retrieval_service.py` | `test_learning_tasks.py`, `test_grounded_answer.py`, global-budget race test | `evidence/m3-live-answer.json` |
+| JOB-04 task monitor, cancel and refresh | Taro `learning/tasks`, `learning/assistant`, `services/polling.ts` | `tasks.spec.ts`, `grounded-live.spec.ts`, `answerSession.test.ts` | H5 `13-task-history.png`, `04-grounded-chat.png` |
+
 ## Decision Record
 
 - Preserve Taro 4.1.11, MySQL and Chroma; enhance existing modules.
 - Deterministic tests must disable dotenv and network before importing the application.
 - External credentials are consumed from private files, never logged. Existing SSH host keys must verify before login.
 - New learning tables require isolated migration verification and backup before production use.
+- The current embedded Chroma runtime uses one API process with one controlled worker loop. This shares the vector-store process and avoids a second Chroma service on the constrained host. A separate multi-process vector deployment is not claimed or enabled.
+- MySQL owns task delivery, leases, cancellation, checkpoints and budgets. No Redis or message broker is introduced for this queue. An uncertain provider outcome fails explicitly instead of promising exactly-once billing.
 - No claim of OCR, model training, real-device testing, public availability or performance improvement without recorded execution.

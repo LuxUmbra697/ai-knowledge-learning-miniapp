@@ -59,6 +59,7 @@ export async function request<T = any>(
     data?: any
     timeout?: number
     control?: PollControl
+    idempotencyKey?: string
   } = {},
 ): Promise<T> {
   const { method = 'GET', data, timeout = 120000 } = options
@@ -68,6 +69,7 @@ export async function request<T = any>(
   }
 
   const token = getToken()
+  if (options.idempotencyKey) header['Idempotency-Key'] = options.idempotencyKey
   if (token) {
     header['Authorization'] = `Bearer ${token}`
   }
@@ -406,14 +408,15 @@ export interface Evidence {
   index_version: string; file_name: string; page: number; section: string; content: string; content_hash: string
 }
 export interface GroundedAnswer {
+  query?: string
   status: 'answered' | 'no_evidence' | 'conflict' | 'retrieval_failed' | 'provider_failed' | 'validation_failed' | 'stale_evidence' | 'timeout'
   claims: { text: string; citations: { evidence_id: string; quote: string }[] }[]
   evidence: Evidence[]
   retrieval_status?: string
   trace: { model_calls: number; total_tokens: number; validation_failures: number; total_ms: number }
 }
-export function askKnowledge(query: string, docIds: string[], control: PollControl) {
-  return request<GroundedAnswer>('/knowledge/ask', { method: 'POST', data: { query, doc_ids: docIds }, timeout: 65000, control })
+export function askKnowledge(query: string, docIds: string[], control: PollControl, idempotencyKey: string) {
+  return request<LearningTask>('/knowledge/ask/async', { method: 'POST', data: { query, doc_ids: docIds }, timeout: 15000, control, idempotencyKey })
 }
 export function getDocumentChunks(docId: string, page = 1, control?: PollControl) {
   return request<{ items: Evidence[]; total: number; page: number }>(`/knowledge/documents/${encodeURIComponent(docId)}/chunks?page=${page}`, { control })
@@ -423,4 +426,21 @@ export function getEvidence(docId: string, chunkId: string, revision: number, co
 }
 export function reindexDocument(docId: string) {
   return request(`/knowledge/documents/${encodeURIComponent(docId)}/reindex`, { method: 'POST' })
+}
+
+export interface LearningTask {
+  task_id: string; kind: 'index' | 'answer' | 'retrieve' | 'quiz' | 'report' | 'cleanup'
+  status: 'staging' | 'queued' | 'running' | 'completed' | 'failed' | 'cancelled'
+  stage: string; title?: string; created_at?: string; result: any
+  error_code?: string; error_message?: string
+  trace: { trace_id: string; model_calls: number; tokens: number; unmetered_calls?: number; nodes: { stage: string; duration_ms: number }[] }
+}
+export function getLearningTasks(control?: PollControl) {
+  return request<{ items: LearningTask[] }>('/learning/tasks', { control })
+}
+export function getLearningTask(taskId: string, control?: PollControl) {
+  return request<LearningTask>(`/learning/tasks/${encodeURIComponent(taskId)}`, { control })
+}
+export function cancelLearningTask(taskId: string) {
+  return request<LearningTask>(`/learning/tasks/${encodeURIComponent(taskId)}/cancel`, { method: 'POST' })
 }

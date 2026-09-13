@@ -66,6 +66,9 @@ class Settings(BaseSettings):
     app_host: str = "0.0.0.0"
     app_port: int = 8000
     app_debug: bool = True
+    worker_enabled: bool = False
+    worker_daily_provider_calls: int = Field(default=100, ge=0, le=1000000)
+    worker_daily_provider_input_bytes: int = Field(default=500000, ge=0, le=100000000)
 
     # JWT
     jwt_secret: str = "change-me-in-production"

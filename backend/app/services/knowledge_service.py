@@ -11,6 +11,7 @@ import uuid
 
 import structlog
 from fastapi import HTTPException
+from langchain_core.documents import Document
 
 from app.core.config import get_settings
 from app.core.exceptions import KnowledgeBaseError
@@ -20,22 +21,13 @@ from app.models.knowledge import (
     KnowledgeStatusResponse,
     KnowledgeUploadResponse,
 )
-from app.repositories import knowledge_repository, rag_index_repository
+from app.repositories import knowledge_repository, rag_index_repository, job_repository
 from app.services import isolated_parser, vector_store_service
 
 logger = structlog.get_logger()
 
 SUPPORTED_EXTENSIONS = {"pdf", "docx", "md", "txt"}
 _processing_slots = asyncio.Semaphore(1)
-_background = set()
-
-
-def _schedule(coroutine):
-    task = asyncio.create_task(coroutine)
-    _background.add(task)
-    task.add_done_callback(_background.discard)
-
-
 def _stored_path(storage_key):
     root = Path(get_settings().kb_upload_dir).resolve()
     path = (root / storage_key).resolve()
@@ -88,35 +80,64 @@ async def handle_upload(user_id: int, filename: str, content: bytes) -> Knowledg
     except OSError:
         await rag_index_repository.fail(doc_id, user_id, 1, version, '文件保存失败，请稍后重试上传')
         raise KnowledgeBaseError('文件保存失败，请稍后重试上传')
-    _schedule(_process_document(doc_id, user_id, str(file_path), file_type, 1, version))
+    await job_repository.activate(reservation['task_id'], user_id)
     return KnowledgeUploadResponse.model_validate(reservation)
 
 
 async def _process_document(doc_id: str, user_id: int, file_path: str, file_type: str,
-                            revision: int = 1, version: str | None = None, previous=None) -> None:
+                            revision: int = 1, version: str | None = None, previous=None, context=None) -> None:
     """后台异步解析文档：加载分块 -> 向量化写入 -> 更新状态"""
     version = version or vector_store_service.index_version()
     async with _processing_slots:
-        await _index_document(doc_id, user_id, file_path, file_type, revision, version, previous)
+        await _index_document(doc_id, user_id, file_path, file_type, revision, version, previous, context)
 
 
-async def _index_document(doc_id, user_id, file_path, file_type, revision, version, previous):
+async def _index_document(doc_id, user_id, file_path, file_type, revision, version, previous, context=None):
     try:
         if not await rag_index_repository.is_current(doc_id, user_id, revision, version):
             return
         logger.info("kb_document_processing_started", doc_id=doc_id, user_id=user_id)
 
-        chunks = await asyncio.to_thread(isolated_parser.parse_document, file_path, file_type)
+        cached = context.checkpoints.get('parsed') if context else None
+        if cached:
+            chunks = [Document(page_content=item['content'], metadata=item['metadata']) for item in cached]
+        else:
+            if context:
+                await context.checkpoint('parsing', {'started': True})
+            chunks = await asyncio.to_thread(isolated_parser.parse_document, file_path, file_type)
         if not chunks:
             raise ValueError("文档解析后未提取到任何内容")
         if len(chunks) > 100:
             raise ValueError('文档超过单次索引的 100 个片段预算，请拆分为较小材料')
+        if context and not cached:
+            await context.checkpoint('parsed', [{'content': chunk.page_content, 'metadata': chunk.metadata} for chunk in chunks])
         if not await rag_index_repository.is_current(doc_id, user_id, revision, version):
             return
 
-        chunk_count = await asyncio.to_thread(vector_store_service.add_document_chunks, user_id, doc_id, chunks,
-                                              revision=revision, version=version)
-        published = await rag_index_repository.publish(doc_id, user_id, revision, version, chunks)
+        if context:
+            if sum(len(chunk.page_content.encode()) for chunk in chunks) > 60000:
+                raise ValueError('材料超过当前索引调用预算，请拆分为较小文档')
+            for offset in range(0, len(chunks), 10):
+                batch = chunks[offset:offset+10]
+                stage = f'embedding_{offset//10}'
+                if context.checkpoints.get(stage, {}).get('output'):
+                    # Restore deterministic metadata without issuing another embedding request.
+                    for chunk in batch:
+                        chunk.metadata.update(doc_id=doc_id, user_id=user_id, revision=revision, index_version=version,
+                                              scope_key=vector_store_service.scope_key(doc_id, revision, version))
+                    continue
+                async def embed(batch=batch):
+                    count = await asyncio.to_thread(vector_store_service.add_document_chunks, user_id, doc_id, batch,
+                                                    revision=revision, version=version)
+                    return {'count': count}, None
+                await context.external(stage, embed, sum(len(chunk.page_content.encode()) for chunk in batch))
+            chunk_count = len(chunks)
+            await context.checkpoint('publishing', {'chunk_count': chunk_count})
+            published = await rag_index_repository.publish(doc_id, user_id, revision, version, chunks, context=context)
+        else:
+            chunk_count = await asyncio.to_thread(vector_store_service.add_document_chunks, user_id, doc_id, chunks,
+                                                  revision=revision, version=version)
+            published = await rag_index_repository.publish(doc_id, user_id, revision, version, chunks)
         if not published:
             await asyncio.to_thread(vector_store_service.delete_document_vectors, user_id, doc_id,
                                     revision=revision, version=version)
@@ -130,10 +151,17 @@ async def _index_document(doc_id, user_id, file_path, file_type, revision, versi
         logger.info(
             "kb_document_processing_completed", doc_id=doc_id, user_id=user_id, chunk_count=chunk_count
         )
+    except job_repository.TaskLeaseLost:
+        raise
     except Exception as error:
         logger.error('kb_document_processing_failed', doc_id=doc_id, user_id=user_id, error_type=type(error).__name__)
         message = str(error)[:300] if isinstance(error, ValueError) else '索引服务暂时不可用，请稍后重试'
-        await rag_index_repository.fail(doc_id, user_id, revision, version, message)
+        if context:
+            await rag_index_repository.fail(doc_id, user_id, revision, version, message, context=context)
+        else:
+            await rag_index_repository.fail(doc_id, user_id, revision, version, message)
+        if context:
+            raise
 
 
 async def list_documents(user_id: int) -> KnowledgeListResponse:
@@ -161,8 +189,7 @@ async def delete_document(user_id: int, doc_id: str) -> None:
     """Revoke SQL visibility first. Failed physical cleanup remains explicitly pending."""
     row = await rag_index_repository.tombstone(doc_id, user_id)
     try:
-        await asyncio.to_thread(vector_store_service.delete_document_vectors, user_id, doc_id,
-                                version=row['index_version'])
+        await asyncio.to_thread(vector_store_service.delete_document_vectors, user_id, doc_id)
         await asyncio.to_thread(_stored_path(row['storage_key']).unlink, missing_ok=True)
         await rag_index_repository.cleanup_done(doc_id, user_id)
     except Exception as error:
@@ -171,6 +198,4 @@ async def delete_document(user_id: int, doc_id: str) -> None:
 
 async def reindex_document(user_id: int, doc_id: str):
     meta = await rag_index_repository.begin_reindex(doc_id, user_id, vector_store_service.index_version())
-    _schedule(_process_document(doc_id, user_id, str(_stored_path(meta['storage_key'])), meta['file_type'],
-                               meta['revision'], meta['index_version'], meta['previous']))
-    return {'doc_id': doc_id, 'status': 'processing', 'revision': meta['revision']}
+    return {'doc_id': doc_id, 'status': 'processing', 'revision': meta['revision'], 'task_id': meta['task_id']}

@@ -1,0 +1,125 @@
+{
+  "recorded_at": "2026-09-13T09:53:27.410465+00:00",
+  "environment": "isolated loopback API/MySQL/Chroma",
+  "source": "synthetic authored teaching material",
+  "checks": [
+    "markdown_parsing_embedding_index_ready",
+    "duplicate_reuses_document_without_embedding",
+    "hybrid_rerank_and_exact_citation_round_trip",
+    "cross_user_document_citation_retrieve_delete_blocked",
+    "reindex_invalidates_previous_revision_citations",
+    "deleted_document_rejected_before_retrieval",
+    "durable_index_retrieval_and_rebuild_tasks_complete"
+  ],
+  "passed": 7,
+  "elapsed_seconds": 10.29,
+  "retrieval_trace": {
+    "mode": "rerank",
+    "rrf_k": 60,
+    "dense_ms": 184.75,
+    "reranker": "lexical",
+    "total_ms": 186.99,
+    "trace_id": "76aaab0e972947cabf724cb3b0057b02",
+    "rerank_ms": 0.08,
+    "candidates": 20,
+    "dense_error": null,
+    "corpus_chunks": 5,
+    "index_version": "54c7a2d7b912062b",
+    "bm25_candidates": 5,
+    "embedding_calls": 1,
+    "scope_documents": 2,
+    "dense_candidates": 5
+  },
+  "embedding_request_upper_bound": 4,
+  "chat_requests": 0,
+  "billed_currency": null,
+  "durable_tasks": [
+    {
+      "kind": "index",
+      "status": "completed",
+      "trace": {
+        "nodes": [
+          {
+            "stage": "parsing",
+            "duration_ms": 1.95
+          },
+          {
+            "stage": "parsed",
+            "duration_ms": 1549.87
+          },
+          {
+            "stage": "publishing",
+            "duration_ms": 225.95
+          }
+        ],
+        "tokens": 0,
+        "trace_id": "bbd1818fed2e4c2ab34f108e02ce1177",
+        "input_bytes": 511,
+        "model_calls": 1,
+        "unmetered_calls": 1
+      }
+    },
+    {
+      "kind": "retrieve",
+      "status": "completed",
+      "trace": {
+        "nodes": [],
+        "tokens": 0,
+        "trace_id": "113b7a26bd1c49b0a4c3349dfed0f44c",
+        "input_bytes": 27,
+        "model_calls": 1,
+        "unmetered_calls": 1
+      }
+    },
+    {
+      "kind": "index",
+      "status": "completed",
+      "trace": {
+        "nodes": [
+          {
+            "stage": "parsing",
+            "duration_ms": 1.76
+          },
+          {
+            "stage": "parsed",
+            "duration_ms": 1468.17
+          },
+          {
+            "stage": "publishing",
+            "duration_ms": 172.95
+          }
+        ],
+        "tokens": 0,
+        "trace_id": "afff8c8b309440ea896a0dde6481aba8",
+        "input_bytes": 196,
+        "model_calls": 1,
+        "unmetered_calls": 1
+      }
+    },
+    {
+      "kind": "index",
+      "status": "completed",
+      "trace": {
+        "nodes": [
+          {
+            "stage": "parsing",
+            "duration_ms": 1.91
+          },
+          {
+            "stage": "parsed",
+            "duration_ms": 1479.1
+          },
+          {
+            "stage": "publishing",
+            "duration_ms": 445.41
+          }
+        ],
+        "tokens": 0,
+        "trace_id": "602285cf83424b2ca0d0035b59039ce9",
+        "input_bytes": 511,
+        "model_calls": 1,
+        "unmetered_calls": 1
+      }
+    }
+  ]
+}

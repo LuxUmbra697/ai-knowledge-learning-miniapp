@@ -1,13 +1,14 @@
 """FastAPI 应用入口"""
 
 from contextlib import asynccontextmanager
+import asyncio
 
 import structlog
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.v1.routes import health, knowledge, quiz, report, user
+from app.api.v1.routes import health, knowledge, quiz, report, user, tasks
 from app.core.config import get_settings
 from app.core.db import close_mysql_pool, connect_mysql
 from app.core.upload_limits import UploadLimitsMiddleware
@@ -28,9 +29,19 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     logger.info("app_starting", host=settings.app_host, port=settings.app_port)
     await connect_mysql()
-    yield
-    await close_mysql_pool()
-    logger.info("app_shutting_down")
+    worker = None
+    if settings.worker_enabled:
+        from app.worker import run
+        from app.services.job_handlers import handlers, maintenance
+        worker = asyncio.create_task(run(handlers(), maintenance=maintenance))
+    try:
+        yield
+    finally:
+        if worker:
+            worker.cancel()
+            await asyncio.gather(worker, return_exceptions=True)
+        await close_mysql_pool()
+        logger.info("app_shutting_down")
 
 
 
@@ -56,6 +67,7 @@ app.include_router(quiz.router, prefix="/api/v1")
 app.include_router(report.router, prefix="/api/v1")
 app.include_router(user.router, prefix="/api/v1")
 app.include_router(knowledge.router, prefix="/api/v1")
+app.include_router(tasks.router, prefix='/api/v1')
 
 
 # 全局异常处理
