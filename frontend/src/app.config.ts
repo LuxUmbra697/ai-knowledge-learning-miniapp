@@ -7,6 +7,7 @@ export default defineAppConfig({
     'pages/knowledge/index',
     'pages/login/index',
   ],
+  subPackages: [{ root: 'learning', pages: ['assistant/index', 'document/index'] }],
   networkTimeout: {
     request: 600000,
     connectSocket: 600000,

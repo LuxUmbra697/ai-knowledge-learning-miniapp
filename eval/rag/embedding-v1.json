@@ -1,0 +1,86 @@
+{
+  "dataset_sha256": "7896706bbe66c06807e78701d91e66aec2099a4fb6da6f31b64d7fbdd882e9d7",
+  "model": "text-embedding-v4",
+  "dimensions": 1024,
+  "source": "public synthetic fixtures only",
+  "requests": [
+    {
+      "inputs": 10,
+      "latency_ms": 1622.28,
+      "total_tokens": 153
+    },
+    {
+      "inputs": 10,
+      "latency_ms": 239.37,
+      "total_tokens": 188
+    },
+    {
+      "inputs": 10,
+      "latency_ms": 263.33,
+      "total_tokens": 128
+    },
+    {
+      "inputs": 10,
+      "latency_ms": 299.22,
+      "total_tokens": 119
+    },
+    {
+      "inputs": 10,
+      "latency_ms": 258.3,
+      "total_tokens": 200
+    },
+    {
+      "inputs": 10,
+      "latency_ms": 242.78,
+      "total_tokens": 117
+    },
+    {
+      "inputs": 10,
+      "latency_ms": 266.27,
+      "total_tokens": 226
+    },
+    {
+      "inputs": 10,
+      "latency_ms": 248.19,
+      "total_tokens": 168
+    },
+    {
+      "inputs": 10,
+      "latency_ms": 495.79,
+      "total_tokens": 154
+    },
+    {
+      "inputs": 10,
+      "latency_ms": 246.0,
+      "total_tokens": 195
+    },
+    {
+      "inputs": 10,
+      "latency_ms": 321.5,
+      "total_tokens": 199
+    },
+    {
+      "inputs": 10,
+      "latency_ms": 328.03,
+      "total_tokens": 187
+    },
+    {
+      "inputs": 10,
+      "latency_ms": 305.43,
+      "total_tokens": 156
+    },
+    {
+      "inputs": 10,
+      "latency_ms": 638.16,
+      "total_tokens": 205
+    },
+    {
+      "inputs": 4,
+      "latency_ms": 168.53,
+      "total_tokens": 42
+    }
+  ],
+  "billed_currency": null,
+  "recorded_at": "2026-09-12T20:47:11.205623+00:00",
+  "text_corpus_sha256": "71a3cf0228447e8db54108bd1e338a02990f03cd0c8d45c980b6630a72211cad"
+}

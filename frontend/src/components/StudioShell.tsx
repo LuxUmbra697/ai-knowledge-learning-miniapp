@@ -8,6 +8,7 @@ import Companion from './companion/Companion'
 export const navigation = [
   { key: 'home', label: '学习首页', icon: 'home', path: '/pages/index/index' },
   { key: 'knowledge', label: '知识书架', icon: 'library', path: '/pages/knowledge/index' },
+  { key: 'assistant', label: '学习助手', icon: 'chat', path: '/learning/assistant/index' },
   { key: 'profile', label: '学习档案', icon: 'user', path: '/pages/profile/index' },
 ]
 export function navigate(path: string) { Taro.reLaunch({ url: path }) }

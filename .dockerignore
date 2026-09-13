@@ -18,8 +18,17 @@ LOCAL_*.md
 **/__pycache__
 **/*.log
 backend/data
+/data
 artifacts
 openspec
 prototypes
-docs
+docs/保姆级本地运行指南.md
+docs/方案设计文档.md
+docs/方案设计文档输出计划（已作废）.md
+docs/需求分析文档.md
+docs/需求分析文档（已作废 - 原始草稿）.md
+docs/需要修复的 Bug.md
+docs/用户系统方案设计文档.md
+docs/用户系统需求分析文档.md
+docs/OpenSpec使用教程.md
 **/project.private.config.json

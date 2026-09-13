@@ -23,6 +23,7 @@ venv/
 
 # Backend runtime data
 backend/data/
+/data/
 
 # Environment files and local export artifacts
 wxcloudrun*.env.json

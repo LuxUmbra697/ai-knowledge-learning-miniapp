@@ -9,8 +9,8 @@ This ledger records observed results; planned capabilities are not delivery clai
 | --- | --- | --- | --- |
 | M0 | Isolated baseline; authenticated ownership; authoritative grading; safe config | Core checks passed; release hardening continues | `evidence/m0-local.json`; 159 deterministic tests |
 | M1 | Taro H5/weapp, separate outputs, independent login, five themes | H5 core flow passed; native runtime gate pending | `frontend/e2e`; `screenshots/h5`; DevTools service port unavailable |
-| M2 | Bounded parsing, scoped hybrid retrieval, citations, 100-case evaluation | Pending | Existing dense Chroma reviewed |
-| M3 | Bounded learning agent, durable worker, cancellation/recovery | Pending | Existing task table reviewed |
+| M2 | Bounded parsing, scoped hybrid retrieval, citations, 100-case evaluation | Retrieval/citation checkpoint verified; remaining gates below | 104 synthetic cases; real index and answer evidence; dual builds |
+| M3 | Bounded learning agent, durable worker, cancellation/recovery | Starting with persistent task lifecycle | Existing task table reviewed; in-process execution remains a release blocker |
 | M4 | Mastery, FSRS, prerequisites, reproducible offline experiment | Pending | No implementation yet |
 | M5 | Browser and DevTools workflows, screenshots, regression | In progress alongside each module | Actual H5 screenshots exist; no weapp screenshots claimed |
 | M6 | New deployment plus all existing sites healthy | Pending | No gateway mutations |
@@ -74,7 +74,42 @@ Pending M0 release gates: bounded uploads and fail-closed persistence, durable c
 - Checkpoint results: 165 backend tests, five frontend unit tests, two multi-step real browser tests. Latest H5 entry gzip is about 115 KiB; both complete build footprints are recorded in `evidence/m1-build-size.json`. This is not a page-load latency or concurrency measurement.
 - M1 remaining gates: full native runtime after DevTools access; mobile keyboard/device behavior; subpackage review as more pages are added; avatar upload persistence; all later feature pages and end-to-end evidence.
 
-## Architecture Decisions
+## M2 Parser Loop (In Progress)
+
+- Added 11 initially failing boundary cases, then expanded to 13 with an actual isolated parser process and timeout handling. New metadata includes content/document SHA-256, parser version, stable chunk ID, chunk offset and one-based PDF pages or DOCX/Markdown sections.
+- Preserved real PDF/DOCX/TXT/Markdown processing while replacing two loader-mock dispatch checks with stronger tests extracting real generated PDF streams and DOCX paragraph XML. DOCX XML uses `defusedxml`; archive members are inspected without extracting them to arbitrary paths.
+- The API bounds multipart buffering before framework parsing, limits two simultaneous uploads and imposes receive timeouts. Per-file size and path/signature checks precede task creation. These limits are not a throughput claim.
+- Parsing executes in a short-lived subprocess with a hard elapsed timeout. Linux has an address-space and CPU limit; the Windows smoke only verifies elapsed-time termination and normal subprocess execution. OCR is explicitly unsupported.
+- Real browser file-picker upload of a damaged PDF reaches the API, persists the parser failure in isolated MySQL and preserves the error after refresh. Screenshot: `screenshots/h5/03-upload-feedback.png`.
+- Exactly two external smoke calls were made using existing credentials: DeepSeek chat (12 total tokens) and DashScope embedding (18 tokens, 1024 dimensions). Actual results are in `evidence/provider-smoke.json`; billed currency was not queried and is not invented.
+- Full deterministic regression: 182 passed, one upstream warning. Hybrid ranking, owned chunk persistence, deletion/index races, retrieval evaluation and successful real embedding/index integration remain to implement before M2 is complete.
+
+## M2 Retrieval and Citation Checkpoint
+
+- Added `kb_index_meta` and `kb_chunks` in explicit migration 3; migrated only the isolated local schema. User-row locking makes duplicate detection and document quota checks atomic. SQL publication checks owner, active state, index fingerprint and revision.
+- Chroma remains the vector database, with separate user/index-version collections. Stable vector IDs make identical indexing an upsert; old revision cleanup cannot delete the current revision. SQL tombstones revoke access before physical cleanup, and failed cleanup remains recorded. Deleted sources cannot pass the owned corpus read or citation API.
+- `retrieval_service` authorizes the entire document scope before dense/BM25/reranker input. Chinese bigram BM25 and dense ranks combine through RRF; the optional reranker is a bounded lexical rule, not a trained neural model. Provider errors are distinguished from empty evidence.
+- `grounded_answer_service` accepts only schema-validated statements with exact source excerpts, limits output/elapsed time and attempts to three including the first, disables SDK retry, and revalidates source access after generation. Private retrieval no longer supplies Tavily tools or returns only the Agent's last string. Public topic search is separate and still requires M3 security review.
+- Real local API/MySQL/Chroma: six multi-step checks passed with at most four embedding requests. Cross-user document GET, source GET, retrieval and deletion all returned 404; forged identity fields returned 422. Reindex invalidated prior revision citations. See `evidence/m2-live-index.json`.
+- New Taro learning subpackage contains the assistant and original-source pages. H5 browser exercised actual model answers, source navigation and direct refresh. Two browser iterations caught test locator ambiguity due to retained Taro pages; a third passed. A mobile response-scroll regression was corrected and verified. Screenshots are actual runtime captures, not image-generation mockups.
+- Real answer evidence: one successful measured request used 553 tokens and produced three source-validated citations. The two earlier UI-debug runs also made bounded real model calls; they are not counted as passed E2E runs. Default E2E excludes the paid test unless explicitly opted in.
+- Reproducible evaluation: 104 synthetic rule-labeled queries, 56 chunks, topic-separated partitions, cached real embeddings and actual local Chroma. Acquisition used 15 requests / 2437 tokens. Dense MRR 0.950000, hybrid and lexical-reranked MRR 0.929167; no improvement claim. Raw records and limitations are in `eval/rag` and `rag-evaluation.md`.
+- Latest dual artifact check passed. H5 entry gzip: 118521 bytes. Weapp main: 556427 bytes; learning subpackage: 11455 bytes. This verifies artifacts, not native execution. TypeScript and five frontend units passed; default browser suite passed three cases and explicitly skipped the paid case. Pyflakes static checks passed; broader inherited style diagnostics remain for the CI/configuration phase.
+- The old loopback DB port became unavailable with Windows bind error 10013; an isolated alternate port was selected without changing firewalls, existing MySQL instances or cloud configuration. Existing test data was retained.
+
+M2 remaining gates: durable indexing/recovery and cleanup worker (M3), a configurable remote reranker only if justified by evaluation/budget, larger independently reviewed relevance/answer data, model-level no-answer/conflict/injection regressions, native WeChat runtime, real PDF/DOCX provider/browser upload beyond deterministic parsing fixtures. Windows parser memory isolation remains weaker than Linux.
+
+### Updated Requirement Evidence
+
+| ID / behavior | Implementation | Tests | Evidence |
+| --- | --- | --- | --- |
+| RAG-01 bounded document parsing | `services/document_loader_service.py`, `isolated_parser.py`, `core/upload_limits.py` | `test_document_boundaries.py`, `test_upload_limits.py` | H5 `03-upload-feedback.png` |
+| RAG-02 owned hybrid recall | `services/retrieval_service.py`, `hybrid_ranking.py` | `test_retrieval_service.py`, `test_hybrid_ranking.py` | `eval/rag/raw-v1.jsonl` |
+| RAG-03 duplicate, reindex, deletion | `repositories/rag_index_repository.py`, migration 3 | `integration/test_index_lifecycle.py`, `test_vector_store_service.py` | `evidence/m2-live-index.json` |
+| RAG-04 source-located answers | `services/grounded_answer_service.py`, `models/evidence.py`, Taro `learning` package | `test_grounded_answer.py`, `grounded-live.spec.ts` | H5 `04-grounded-chat.png`, `12-source-evidence.png` |
+| RAG-05 reproducible evaluation | `scripts/build_rag_dataset.py`, `embed_rag_dataset.py`, `evaluate_rag.py` | `test_rag_dataset.py` | `eval/rag/results-v1.json` |
+
+## Decision Record
 
 - Preserve Taro 4.1.11, MySQL and Chroma; enhance existing modules.
 - Deterministic tests must disable dotenv and network before importing the application.

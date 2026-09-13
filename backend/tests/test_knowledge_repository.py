@@ -1,6 +1,7 @@
 """knowledge_repository 单元测试"""
 
 from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import datetime
 
 import pytest
 
@@ -62,7 +63,7 @@ async def test_update_document_status():
 
 @pytest.mark.asyncio
 async def test_get_document_found():
-    row = ("doc_1", 1, "a.pdf", "pdf", 1024, "ready", 5, None, None)
+    row = dict(doc_id='doc_1', status='ready', chunk_count=5, created_at=datetime(2026, 1, 1))
     pool, cursor = _make_pool(fetchone_result=row)
     with patch("app.repositories.knowledge_repository.get_mysql_pool", return_value=pool):
         result = await knowledge_repository.get_document("doc_1", 1)
@@ -82,8 +83,8 @@ async def test_get_document_not_found():
 @pytest.mark.asyncio
 async def test_list_documents():
     rows = [
-        ("doc_1", "a.pdf", "pdf", 1024, "ready", 5, None, None),
-        ("doc_2", "b.docx", "docx", 2048, "processing", 0, None, None),
+        dict(doc_id='doc_1', status='ready', created_at=datetime(2026, 1, 1)),
+        dict(doc_id='doc_2', status='processing', created_at=datetime(2026, 1, 1)),
     ]
     pool, cursor = _make_pool(fetchall_result=rows)
     with patch("app.repositories.knowledge_repository.get_mysql_pool", return_value=pool):

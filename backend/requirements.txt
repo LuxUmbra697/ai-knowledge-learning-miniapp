@@ -11,6 +11,8 @@ langchain-community>=0.3.0,<0.4.0
 chromadb>=1.0.0,<2.0.0
 pypdf>=5.0.0,<6.0.0
 docx2txt>=0.8,<1.0
+defusedxml==0.7.1
+rank-bm25==0.2.2
 python-multipart>=0.0.9,<1.0.0
 structlog>=24.0.0,<26.0.0
 python-dotenv>=1.0.0,<2.0.0

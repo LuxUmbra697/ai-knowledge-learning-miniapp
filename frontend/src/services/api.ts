@@ -371,6 +371,7 @@ export interface KnowledgeUploadResponse {
   doc_id: string
   file_name: string
   status: KnowledgeDocumentStatusEnum
+  duplicate: boolean
 }
 
 export interface KnowledgeDocumentItem {
@@ -382,6 +383,8 @@ export interface KnowledgeDocumentItem {
   chunk_count: number
   error_message: string | null
   created_at: string
+  revision?: number
+  needs_reindex?: boolean
 }
 
 export interface KnowledgeListResponse {
@@ -394,4 +397,30 @@ export interface KnowledgeDocumentStatus {
   status: KnowledgeDocumentStatusEnum
   chunk_count: number
   error_message: string | null
+  revision?: number
+  needs_reindex?: boolean
+}
+
+export interface Evidence {
+  id: string; source_type: 'private_document'; doc_id: string; chunk_id: string; revision: number
+  index_version: string; file_name: string; page: number; section: string; content: string; content_hash: string
+}
+export interface GroundedAnswer {
+  status: 'answered' | 'no_evidence' | 'conflict' | 'retrieval_failed' | 'provider_failed' | 'validation_failed' | 'stale_evidence' | 'timeout'
+  claims: { text: string; citations: { evidence_id: string; quote: string }[] }[]
+  evidence: Evidence[]
+  retrieval_status?: string
+  trace: { model_calls: number; total_tokens: number; validation_failures: number; total_ms: number }
+}
+export function askKnowledge(query: string, docIds: string[], control: PollControl) {
+  return request<GroundedAnswer>('/knowledge/ask', { method: 'POST', data: { query, doc_ids: docIds }, timeout: 65000, control })
+}
+export function getDocumentChunks(docId: string, page = 1, control?: PollControl) {
+  return request<{ items: Evidence[]; total: number; page: number }>(`/knowledge/documents/${encodeURIComponent(docId)}/chunks?page=${page}`, { control })
+}
+export function getEvidence(docId: string, chunkId: string, revision: number, control?: PollControl) {
+  return request<Evidence>(`/knowledge/documents/${encodeURIComponent(docId)}/chunks/${encodeURIComponent(chunkId)}?revision=${revision}`, { control })
+}
+export function reindexDocument(docId: string) {
+  return request(`/knowledge/documents/${encodeURIComponent(docId)}/reindex`, { method: 'POST' })
 }

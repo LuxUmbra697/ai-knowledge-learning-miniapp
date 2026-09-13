@@ -8,7 +8,7 @@ from app.core.exceptions import ReportGenerationError
 from app.llm.report_chain import generate_report
 from app.models.report import ReportGenerateRequest, ReportGenerateResponse
 from app.services.scoring_service import compute_score_summary
-from app.repositories import quiz_repository, user_repository
+from app.repositories import quiz_repository
 from fastapi import HTTPException
 from app.models.quiz import Question, AnswerRecord
 from app.services.grading_service import get_attempts

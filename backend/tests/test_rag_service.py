@@ -1,169 +1,78 @@
-"""rag_service 单元测试"""
+"""Private RAG regression: structured citations, fail-closed scope and no web export."""
+import json
+from unittest.mock import AsyncMock
 
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
-
+from fastapi import HTTPException
 import pytest
-from langchain_core.documents import Document
 
+from app.models.evidence import Evidence, RetrievalResult
+from app.core.exceptions import KnowledgeBaseError
 from app.services import rag_service
 
 
-@pytest.fixture
-def mock_settings_web_enabled():
-    settings = MagicMock()
-    settings.enable_web_search = True
-    settings.tavily_api_key = "tvly-test-key"
-    settings.deepseek_model = "deepseek-chat"
-    settings.deepseek_base_url = "https://api.deepseek.com"
-    settings.deepseek_api_key = "sk-test"
-    return settings
-
-
-@pytest.fixture
-def mock_settings_web_disabled():
-    settings = MagicMock()
-    settings.enable_web_search = False
-    settings.tavily_api_key = "tvly-test-key"
-    settings.deepseek_model = "deepseek-chat"
-    settings.deepseek_base_url = "https://api.deepseek.com"
-    settings.deepseek_api_key = "sk-test"
-    return settings
-
-
-class TestKnowledgeBaseTool:
-    def test_returns_joined_content_on_success(self):
-        docs = [
-            Document(page_content="片段一"),
-            Document(page_content="片段二"),
-        ]
-        with patch(
-            "app.services.rag_service.vector_store_service.similarity_search",
-            return_value=docs,
-        ):
-            tool = rag_service._build_knowledge_base_tool(user_id=1, doc_id="doc_1")
-            result = tool.invoke({"query": "test"})
-
-        assert "片段一" in result
-        assert "片段二" in result
-
-    def test_returns_fallback_when_empty(self):
-        with patch(
-            "app.services.rag_service.vector_store_service.similarity_search",
-            return_value=[],
-        ):
-            tool = rag_service._build_knowledge_base_tool(user_id=1, doc_id="doc_1")
-            result = tool.invoke({"query": "test"})
-
-        assert "未检索到相关内容" in result
-
-    def test_returns_fallback_on_exception(self):
-        with patch(
-            "app.services.rag_service.vector_store_service.similarity_search",
-            side_effect=RuntimeError("chroma error"),
-        ):
-            tool = rag_service._build_knowledge_base_tool(user_id=1, doc_id="doc_1")
-            result = tool.invoke({"query": "test"})
-
-        assert "检索失败" in result
+def result(status='ok', content='原文证据'):
+    evidence = [] if status in ('empty', 'failed') else [Evidence(id='E1', doc_id='doc_1', chunk_id='c1', revision=1,
+                       index_version='v1', file_name='test.md', section='章节', content=content, content_hash='hash')]
+    return RetrievalResult(query='学习', status=status, evidence=evidence, trace={})
 
 
 @pytest.mark.asyncio
-async def test_fetch_rag_context_returns_content_on_success(mock_settings_web_enabled):
-    mock_agent = AsyncMock()
-    mock_message = MagicMock()
-    mock_message.content = "知识库摘要内容"
-    mock_agent.ainvoke.return_value = {"messages": [mock_message]}
-
-    with patch(
-        "app.services.rag_service.get_settings", return_value=mock_settings_web_enabled
-    ), patch("app.services.rag_service._build_agent", return_value=mock_agent):
-        result = await rag_service.fetch_rag_context("学一下 RAG", user_id=1, doc_id="doc_1")
-
-    assert result == "知识库摘要内容"
-    mock_agent.ainvoke.assert_called_once()
+async def test_tool_returns_complete_structured_evidence(monkeypatch):
+    retrieve = AsyncMock(return_value=result())
+    monkeypatch.setattr(rag_service, 'retrieve', retrieve)
+    data = await rag_service._build_knowledge_base_tool(1, 'doc_1').ainvoke({'query': '学习'})
+    assert data['evidence'][0]['section'] == '章节'
+    assert data['evidence'][0]['chunk_id'] == 'c1'
+    retrieve.assert_awaited_once_with(1, ['doc_1'], '学习')
 
 
 @pytest.mark.asyncio
-async def test_fetch_rag_context_truncates_long_content(mock_settings_web_enabled):
-    mock_agent = AsyncMock()
-    mock_message = MagicMock()
-    mock_message.content = "x" * 8000
-    mock_agent.ainvoke.return_value = {"messages": [mock_message]}
-
-    with patch(
-        "app.services.rag_service.get_settings", return_value=mock_settings_web_enabled
-    ), patch("app.services.rag_service._build_agent", return_value=mock_agent):
-        result = await rag_service.fetch_rag_context("test", user_id=1, doc_id="doc_1")
-
-    assert len(result) == rag_service.MAX_CONTEXT_LENGTH
+async def test_tool_cannot_override_identity(monkeypatch):
+    call = AsyncMock(); monkeypatch.setattr(rag_service, 'retrieve', call)
+    with pytest.raises(ValueError):
+        await rag_service._build_knowledge_base_tool(1, 'doc_1').ainvoke({'query': '学习', 'user_id': 2})
+    call.assert_not_called()
 
 
-@pytest.mark.asyncio
-async def test_fetch_rag_context_returns_empty_on_timeout(mock_settings_web_enabled):
-    mock_agent = AsyncMock()
-    mock_agent.ainvoke.side_effect = asyncio.TimeoutError()
+@pytest.mark.parametrize('status', ['failed', 'empty'])
+def test_no_evidence_never_becomes_an_unconstrained_generation_prompt(status):
+    with pytest.raises(KnowledgeBaseError):
+        rag_service.serialize_context(result(status))
 
-    with patch(
-        "app.services.rag_service.get_settings", return_value=mock_settings_web_enabled
-    ), patch("app.services.rag_service._build_agent", return_value=mock_agent):
-        result = await rag_service.fetch_rag_context("test", user_id=1, doc_id="doc_1")
 
-    assert result == ""
+def test_over_budget_source_is_not_silently_truncated():
+    with pytest.raises(KnowledgeBaseError):
+        rag_service.serialize_context(result(content='文' * 20000))
+
+
+def test_context_is_valid_json_with_locations():
+    data = json.loads(rag_service.serialize_context(result()))
+    assert data['source_type'] == 'private_document'
+    assert data['evidence'][0]['content'] == '原文证据'
+    assert data['evidence'][0]['revision'] == 1
 
 
 @pytest.mark.asyncio
-async def test_fetch_rag_context_returns_empty_on_exception(mock_settings_web_enabled):
-    mock_agent = AsyncMock()
-    mock_agent.ainvoke.side_effect = RuntimeError("agent error")
-
-    with patch(
-        "app.services.rag_service.get_settings", return_value=mock_settings_web_enabled
-    ), patch("app.services.rag_service._build_agent", return_value=mock_agent):
-        result = await rag_service.fetch_rag_context("test", user_id=1, doc_id="doc_1")
-
-    assert result == ""
+async def test_scope_error_does_not_fall_back_to_web(monkeypatch):
+    monkeypatch.setattr(rag_service, 'retrieve', AsyncMock(side_effect=HTTPException(404)))
+    with pytest.raises(HTTPException):
+        await rag_service.fetch_rag_context('private', 1, 'doc_1')
 
 
 @pytest.mark.asyncio
-async def test_fetch_rag_context_returns_empty_when_agent_response_empty(
-    mock_settings_web_enabled,
-):
-    mock_agent = AsyncMock()
-    mock_agent.ainvoke.return_value = {"messages": []}
-
-    with patch(
-        "app.services.rag_service.get_settings", return_value=mock_settings_web_enabled
-    ), patch("app.services.rag_service._build_agent", return_value=mock_agent):
-        result = await rag_service.fetch_rag_context("test", user_id=1, doc_id="doc_1")
-
-    assert result == ""
+async def test_timeout_is_not_treated_as_absent_knowledge(monkeypatch):
+    monkeypatch.setattr(rag_service, 'retrieve', AsyncMock(side_effect=TimeoutError()))
+    with pytest.raises(TimeoutError):
+        await rag_service.fetch_rag_context('private', 1, 'doc_1')
 
 
-def test_build_agent_excludes_web_tools_when_disabled(mock_settings_web_disabled):
-    with patch(
-        "app.services.rag_service.get_settings", return_value=mock_settings_web_disabled
-    ), patch("langgraph.prebuilt.create_react_agent") as mock_create_agent, patch(
-        "langchain_openai.ChatOpenAI"
-    ):
-        rag_service._build_agent(user_id=1, doc_id="doc_1")
-
-        _, kwargs = mock_create_agent.call_args
-        tool_names = [t.name for t in kwargs["tools"]]
-        assert tool_names == ["search_knowledge_base"]
+@pytest.mark.asyncio
+async def test_private_retrieval_does_not_construct_a_web_agent(monkeypatch):
+    monkeypatch.setattr(rag_service, 'retrieve', AsyncMock(return_value=result()))
+    monkeypatch.setenv('ENABLE_WEB_SEARCH', 'true')
+    data = json.loads(await rag_service.fetch_rag_context('private', 1, 'doc_1'))
+    assert all(item['source_type'] == 'private_document' for item in data['evidence'])
 
 
-def test_build_agent_includes_web_tools_when_enabled(mock_settings_web_enabled):
-    with patch(
-        "app.services.rag_service.get_settings", return_value=mock_settings_web_enabled
-    ), patch("langgraph.prebuilt.create_react_agent") as mock_create_agent, patch(
-        "langchain_openai.ChatOpenAI"
-    ):
-        rag_service._build_agent(user_id=1, doc_id="doc_1")
-
-        _, kwargs = mock_create_agent.call_args
-        tool_names = [t.name for t in kwargs["tools"]]
-        assert "search_knowledge_base" in tool_names
-        assert "tavily_search_basic" in tool_names
-        assert "tavily_search_deep" in tool_names
-        assert "tavily_extract" in tool_names
+def test_degraded_retrieval_is_explicit_in_context():
+    assert json.loads(rag_service.serialize_context(result('degraded')))['retrieval_status'] == 'degraded'

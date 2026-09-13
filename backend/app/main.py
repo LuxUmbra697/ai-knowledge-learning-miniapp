@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from app.api.v1.routes import health, knowledge, quiz, report, user
 from app.core.config import get_settings
 from app.core.db import close_mysql_pool, connect_mysql
+from app.core.upload_limits import UploadLimitsMiddleware
 from app.core.exceptions import (
     AuthenticationError,
     ContentFilterError,
@@ -49,6 +50,7 @@ app.add_middleware(
 )
 
 # 注册路由
+app.add_middleware(UploadLimitsMiddleware)
 app.include_router(health.router, prefix="/api/v1")
 app.include_router(quiz.router, prefix="/api/v1")
 app.include_router(report.router, prefix="/api/v1")

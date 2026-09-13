@@ -6,11 +6,10 @@ from pydantic import ValidationError
 from app.models.quiz import (
     QuizGenerateRequest,
     QuizOutput,
-    Question,
     QuestionOption,
     AnswerRecord,
 )
-from app.models.report import ReportGenerateRequest, ReportOutput, ReportGenerateResponse
+from app.models.report import ReportOutput
 from app.models.common import ApiResponse
 
 

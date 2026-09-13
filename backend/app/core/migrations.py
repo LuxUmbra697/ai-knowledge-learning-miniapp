@@ -27,6 +27,34 @@ MIGRATIONS = {
             expires_at DATETIME NOT NULL, KEY idx_auth_expiry(expires_at)
         ) ENGINE=InnoDB""",
     ],
+    3: [
+        """CREATE TABLE IF NOT EXISTS kb_index_meta (
+            doc_id VARCHAR(64) NOT NULL PRIMARY KEY,
+            user_id BIGINT UNSIGNED NOT NULL,
+            file_hash CHAR(64) NULL,
+            revision INT NOT NULL DEFAULT 1,
+            index_version VARCHAR(32) NOT NULL,
+            storage_key VARCHAR(100) NOT NULL,
+            active BOOLEAN NOT NULL DEFAULT TRUE,
+            cleanup_pending BOOLEAN NOT NULL DEFAULT FALSE,
+            UNIQUE KEY idx_kb_user_hash(user_id, file_hash),
+            KEY idx_kb_owner_active(user_id, active),
+            CONSTRAINT fk_kb_meta_doc FOREIGN KEY(doc_id) REFERENCES kb_documents(doc_id) ON DELETE CASCADE,
+            CONSTRAINT fk_kb_meta_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci""",
+        """CREATE TABLE IF NOT EXISTS kb_chunks (
+            doc_id VARCHAR(64) NOT NULL,
+            chunk_id VARCHAR(64) NOT NULL,
+            user_id BIGINT UNSIGNED NOT NULL,
+            revision INT NOT NULL,
+            index_version VARCHAR(32) NOT NULL,
+            content MEDIUMTEXT NOT NULL,
+            metadata_json JSON NOT NULL,
+            PRIMARY KEY(doc_id, revision, chunk_id),
+            KEY idx_kb_chunk_scope(user_id, index_version),
+            CONSTRAINT fk_kb_chunk_doc FOREIGN KEY(doc_id) REFERENCES kb_documents(doc_id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci""",
+    ],
 }
 
 

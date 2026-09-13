@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 
 from pydantic_settings import BaseSettings
+from pydantic import Field
 
 
 class Settings(BaseSettings):
@@ -21,6 +22,8 @@ class Settings(BaseSettings):
     dashscope_api_key: str = ""
     dashscope_embedding_model: str = "text-embedding-v4"
     dashscope_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    embedding_dimensions: int = Field(default=1024, ge=64, le=4096)
+    embedding_timeout_seconds: int = Field(default=15, ge=1, le=60)
 
     # 知识库 / 向量存储
     chroma_persist_dir: str = "./data/chroma"
@@ -30,6 +33,13 @@ class Settings(BaseSettings):
     kb_chunk_size: int = 1000
     kb_chunk_overlap: int = 150
     kb_retrieve_top_k: int = 4
+    kb_retrieve_candidates: int = Field(default=20, ge=4, le=50)
+    kb_reranker: str = 'lexical'
+    kb_max_corpus_chunks: int = Field(default=10000, ge=100, le=20000)
+    kb_max_pdf_pages: int = Field(default=120, ge=1, le=500)
+    kb_max_text_chars: int = Field(default=500000, ge=1000, le=2000000)
+    kb_parse_timeout_seconds: int = Field(default=25, ge=1, le=60)
+    kb_max_uncompressed_mb: int = Field(default=20, ge=1, le=50)
 
     # 题目配图（DashScope 千问-文生图 qwen-image）
     dashscope_image_model: str = "qwen-image-2.0"

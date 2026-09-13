@@ -1,0 +1,47 @@
+{
+  "recorded_at": "2026-09-12T20:44:41.055Z",
+  "environment": "Playwright Chromium + loopback API + isolated MySQL/Chroma + actual provider",
+  "source": "synthetic teaching fixture",
+  "status": "answered",
+  "claim_count": 3,
+  "citation_count": 3,
+  "trace": {
+    "config_version": "grounded-v1",
+    "model_calls": 1,
+    "total_tokens": 553,
+    "validation_failures": 0,
+    "cost_currency": null,
+    "cost_note": "Provider billing not queried; token usage is measured.",
+    "retrieval": {
+      "trace_id": "bb564344c2534f8eb35f3ea6668b5fd6",
+      "index_version": "54c7a2d7b912062b",
+      "mode": "rerank",
+      "scope_documents": 1,
+      "corpus_chunks": 1,
+      "candidates": 20,
+      "rrf_k": 60,
+      "reranker": "lexical",
+      "embedding_calls": 1,
+      "dense_error": null,
+      "dense_ms": 246.74,
+      "rerank_ms": 0.06,
+      "dense_candidates": 1,
+      "bm25_candidates": 1,
+      "total_ms": 250.47
+    },
+    "total_ms": 2018.77
+  },
+  "checks": [
+    "selected_document",
+    "actual_model_answer",
+    "owned_exact_citation",
+    "source_navigation",
+    "direct_refresh",
+    "390_and_1440_width",
+    "no_page_errors"
+  ],
+  "limitations": [
+    "No human semantic correctness rating",
+    "No native WeChat execution"
+  ]
+}

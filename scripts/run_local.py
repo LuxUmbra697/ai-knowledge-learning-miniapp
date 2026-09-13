@@ -13,6 +13,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def configure(with_models=False):
+    if not with_models:
+        for name in ('DEEPSEEK_API_KEY', 'DASHSCOPE_API_KEY', 'DASHSCOPE_IMAGE_API_KEY',
+                     'TAVILY_API_KEY', 'COS_SECRET_ID', 'COS_SECRET_KEY'):
+            os.environ.pop(name, None)
     config = dotenv_values(ROOT / "backend/.env") if with_models else {}
     for key, value in config.items():
         if value is not None:
@@ -22,7 +26,7 @@ def configure(with_models=False):
     signing_key = private / "local-jwt.key"
     if not signing_key.exists():
         signing_key.write_text(secrets.token_urlsafe(48), encoding="ascii")
-    os.environ.update(AI_LEARN_ENV_FILE="", MYSQL_HOST="127.0.0.1", MYSQL_PORT="13308",
+    os.environ.update(AI_LEARN_ENV_FILE="", MYSQL_HOST="127.0.0.1", MYSQL_PORT="23308",
                       MYSQL_USER="root", MYSQL_PASSWORD="", MYSQL_DATABASE="ai_learn_local",
                       MYSQL_AUTO_INIT="false", MYSQL_POOL_MAXSIZE="3", MYSQL_POOL_MINSIZE="1",
                       JWT_SECRET=signing_key.read_text(encoding="ascii"), APP_DEBUG="true",

@@ -20,6 +20,17 @@ page, body { margin: 0; background: #fff6f9; font-family: 'PingFang SC', 'Micros
 .studio .appearance-dialog { max-height: calc(100dvh - 36px); }
 .studio .primary-button, .studio .secondary-button, .studio .text-button { flex-shrink: 0; }
 .profile-form { max-width: 540px; margin-bottom: 32px; }
+.assistant-layout { display: grid; grid-template-columns: minmax(180px, .7fr) minmax(0, 1.6fr); gap: 32px; }
+.source-column { border-right: 1px solid var(--line); padding-right: 24px; }
+.source-choice { display: flex; gap: 10px; align-items: flex-start; padding: 16px 0; border-bottom: 1px solid var(--line); }
+.source-choice checkbox { flex: none; }.conversation-column { min-width: 0; }.conversation-column .field-label { margin-top: 0; }
+.ask-actions { display: flex; gap: 12px; align-items: center; justify-content: space-between; margin: 14px 0 22px; }
+.grounded-response { border-top: 1px solid var(--line); padding-top: 20px; }.submitted-question { display: block; font-size: 13px; color: var(--muted); margin-bottom: 16px; overflow-wrap: anywhere; }
+.claim-block { padding: 18px 0; border-bottom: 1px solid var(--line); }.claim-text, .original-content { display: block; font-size: 15px; line-height: 1.9; white-space: pre-wrap; overflow-wrap: anywhere; }
+.citation-links { margin-top: 10px; }.studio .citation-link, .studio .source-title { white-space: normal; justify-content: flex-start; text-align: left; max-width: 100%; overflow-wrap: anywhere; }
+.citation-link .studio-icon { align-self: flex-start; margin-top: 12px; }.evidence-summary { margin-top: 24px; }.evidence-row { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; }.evidence-row .tag { margin-top: 10px; }
+.source-fragment { padding: 20px 0 28px; border-bottom: 1px solid var(--line); }.original-content { margin: 18px 0; }.source-fingerprint { overflow-wrap: anywhere; }.source-excerpt { white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 800px) { .assistant-layout { display: block; }.source-column { border-right: 0; border-bottom: 1px solid var(--line); padding: 0 0 16px; margin-bottom: 24px; }.ask-actions { flex-wrap: wrap; }.studio .citation-link { font-size: 12px; } }
 .practice-surface { max-width: 900px; margin: 0 auto; }
 .practice-progress { height: 5px; background: var(--line); margin: 18px 0 24px; overflow: hidden; }
 .practice-progress-fill { height: 100%; background: var(--accent); }
