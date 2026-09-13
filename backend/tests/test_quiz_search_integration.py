@@ -1,6 +1,7 @@
 """出题链路集成测试 - 验证有/无搜索上下文时均能正常生成题目"""
 
 from unittest.mock import AsyncMock, MagicMock, patch
+import json
 
 import pytest
 
@@ -103,20 +104,11 @@ async def test_quiz_generate_without_search_context(mock_quiz_output):
 
 
 @pytest.mark.asyncio
-async def test_generate_quiz_passes_search_context_to_prompt():
+async def test_generate_quiz_passes_search_context_to_prompt(sample_quiz_response_data):
     """generate_quiz 应将 search_context 正确传入 prompt 模板"""
     mock_llm_response = MagicMock()
-    mock_llm_response.content = '''{
-        "title": "测试",
-        "summary": "测试摘要",
-        "questions": [{
-            "id": "q1", "type": "single", "stem": "题干",
-            "options": [{"key": "A", "text": "A"}, {"key": "B", "text": "B"},
-                        {"key": "C", "text": "C"}, {"key": "D", "text": "D"}],
-            "answer": ["A"], "explanation": "讲解",
-            "knowledge_point": "知识点", "difficulty": "easy"
-        }]
-    }'''
+    # A prompt transport fixture must also satisfy the requested five-question contract.
+    mock_llm_response.content = json.dumps({key: sample_quiz_response_data[key] for key in ('title', 'summary', 'questions')}, ensure_ascii=False)
 
     mock_chain = MagicMock()
     mock_chain.ainvoke = AsyncMock(return_value=mock_llm_response)
@@ -139,7 +131,8 @@ async def test_generate_quiz_passes_search_context_to_prompt():
             search_context="Harness 是一个 CD 平台",
         )
 
-        assert result.title == "测试"
+        assert result.title == sample_quiz_response_data['title']
+        assert len(result.questions) == 5
         # 验证 ainvoke 调用时传入了 search_context_section
         call_args = mock_chain.ainvoke.call_args
         invoke_dict = call_args[0][0] if call_args[0] else call_args.kwargs

@@ -51,7 +51,7 @@ async def save_quiz_session(
 ) -> None:
     pool = get_mysql_pool()
     if pool is None:
-        return
+        raise HTTPException(503, "学习记录暂时不可用")
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
             await cur.execute(
@@ -78,7 +78,7 @@ async def save_answer_record(
 ) -> None:
     pool = get_mysql_pool()
     if pool is None:
-        return
+        raise HTTPException(503, "学习记录暂时不可用")
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
             await cur.execute(
@@ -102,7 +102,7 @@ async def save_report(
 ) -> None:
     pool = get_mysql_pool()
     if pool is None:
-        return
+        raise HTTPException(503, "学习记录暂时不可用")
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
             await cur.execute(

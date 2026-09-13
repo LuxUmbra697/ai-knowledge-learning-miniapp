@@ -1,0 +1,32 @@
+{
+  "recorded_at": "2026-09-13T16:04:52.570Z",
+  "environment": "Chromium + loopback API + isolated MySQL/Chroma + saved real-provider fixture",
+  "source": "Synthetic learning-rate teaching document, not user study data",
+  "quiz_ready_ms": 55,
+  "report_ready_ms": 9,
+  "question_count": 5,
+  "types": [
+    "single",
+    "multiple",
+    "judge"
+  ],
+  "correct_count": 1,
+  "report_accuracy": 20,
+  "xp_delta": 0,
+  "checks": [
+    "server_grading_matches_stored_answers",
+    "report_matches_server_score",
+    "report_persists_after_refresh",
+    "report_replay_returns_same_result",
+    "xp_awarded_once",
+    "cross_user_report_404",
+    "no_browser_errors",
+    "390px_no_horizontal_overflow"
+  ],
+  "limitations": [
+    "Model-generated question semantics are not human-rated",
+    "Legacy quiz/report jobs are not yet restart-safe",
+    "No native WeChat execution",
+    "Provider usage must be read from redacted stage logs, not inferred from HTTP count"
+  ]
+}

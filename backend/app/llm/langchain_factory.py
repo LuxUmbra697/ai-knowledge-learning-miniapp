@@ -16,4 +16,6 @@ def get_chat_model(temperature: float = 0.4) -> ChatOpenAI:
         api_key=settings.deepseek_api_key,
         temperature=temperature,
         max_tokens=4096,
+        max_retries=0,
+        timeout=20,
     )

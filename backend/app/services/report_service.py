@@ -40,7 +40,7 @@ async def handle_report_generate(
             score_summary=score_summary,
         )
     except Exception as e:
-        logger.error("report_generation_failed", error=str(e))
+        logger.error("report_generation_failed", error_type=type(e).__name__)
         raise ReportGenerationError("报告生成暂不可用，答题记录已保存，请稍后重试") from e
 
     report_output.accuracy = score_summary["accuracy"]

@@ -1,0 +1,10 @@
+{
+  "recorded_at": "2026-09-14T00:00:07+08:00",
+  "source": "Redacted structured_call_finished logs from the successful live practice E2E",
+  "quiz": {"attempts": 1, "tokens": 1644, "elapsed_ms": 3679, "finish_reason": "stop"},
+  "report": {"attempts": 1, "tokens": 1441, "elapsed_ms": 1900, "finish_reason": "stop"},
+  "observed_chat_tokens": 3085,
+  "embedding_usage": "Not captured by the legacy private quiz retrieval bridge; not included in token total",
+  "billed_currency": null,
+  "scope": "One synthetic local practice; not a concurrency, educational outcome or general latency benchmark"
+}

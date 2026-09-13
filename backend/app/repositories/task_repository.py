@@ -6,6 +6,7 @@ import json
 from typing import Optional
 
 import structlog
+from fastapi import HTTPException
 
 from app.core.db import get_mysql_pool
 
@@ -21,7 +22,7 @@ async def create_task(
 ) -> None:
     pool = get_mysql_pool()
     if pool is None:
-        return
+        raise HTTPException(503, "学习任务暂时不可用")
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
             await cur.execute(
@@ -39,7 +40,7 @@ async def update_task_status(
 ) -> None:
     pool = get_mysql_pool()
     if pool is None:
-        return
+        raise HTTPException(503, "学习任务暂时不可用")
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
             await cur.execute(

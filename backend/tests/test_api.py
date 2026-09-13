@@ -132,7 +132,7 @@ class TestQuizAPI:
             "app.services.quiz_service.generate_quiz",
             new_callable=AsyncMock,
             return_value=mock_quiz_output,
-        ):
+        ), patch("app.services.quiz_service.quiz_repository.save_quiz_session", new_callable=AsyncMock) as persist:
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test", headers=authenticated_headers) as client:
                 resp = await client.post(
@@ -148,6 +148,7 @@ class TestQuizAPI:
             assert body["code"] == 0
             assert len(body["data"]["questions"]) == 5
             assert all("answer" not in q and "explanation" not in q for q in body["data"]["questions"])
+            persist.assert_awaited_once()
 
     async def test_generate_quiz_empty_input(self, authenticated_headers):
         transport = ASGITransport(app=app)

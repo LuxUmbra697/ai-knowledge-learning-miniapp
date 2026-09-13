@@ -136,6 +136,23 @@ M3 still required: migrate legacy quiz/report generation and its image/search ca
 | JOB-03 persisted answer/retrieval budgets | `learning_task_service.py`, `grounded_answer_service.py`, `retrieval_service.py` | `test_learning_tasks.py`, `test_grounded_answer.py`, global-budget race test | `evidence/m3-live-answer.json` |
 | JOB-04 task monitor, cancel and refresh | Taro `learning/tasks`, `learning/assistant`, `services/polling.ts` | `tasks.spec.ts`, `grounded-live.spec.ts`, `answerSession.test.ts` | H5 `13-task-history.png`, `04-grounded-chat.png` |
 
+## M3 Practice Validation Loop
+
+- Added a shared structured-output stage for quiz and report generation: at most three combined transport/format attempts, SDK retries disabled, bounded output and repair feedback without original private inputs. Permanent 4xx (including 429) fail immediately. Redacted logs record stage, attempt, elapsed time, returned tokens and finish reason.
+- Quiz validation now checks exact count, all three supported types, distinct IDs/stems/options, submission-compatible ID lengths, answer cardinality and membership, judgment option semantics, display limits, requested difficulty, nonempty knowledge points and server-only image URLs. It does not prove factual correctness or evidence coverage; those remain separate gates.
+- Reports reject knowledge points outside the submitted quiz, enforce summary/advice structure, and use the server's score. Mastery and error diagnosis still need the explicit learning algorithm in M4.
+- Initially failing regressions reproduced successful responses after failed persistence, five write functions silently succeeding without a connection pool, and malformed-but-parseable exercises. Writes now fail closed. The successful API unit test explicitly mocks and asserts persistence instead of relying on the former silent no-op.
+- Actual H5 library -> five real generated questions -> server submissions -> model report -> refresh -> report replay passed. The three question types were all present; answer fields were absent before submission; server score was 20% for this deliberately mechanical fixture, and XP increased by 12 exactly once. A second account received 404 for the report. See `evidence/m3-practice-live.json` and actual screenshot `screenshots/h5/08-learning-report.png`.
+- Measured calls: quiz 1 / 1644 tokens / 3679 ms; report 1 / 1441 tokens / 1900 ms. These are model-stage timings, not browser journey latency. Embedding tokens and currency were not measured. The provider evidence file makes that distinction explicit.
+- After adding ID/option guards, `scripts/verify_saved_practice.py` revalidated the saved real output and its grading without a provider call. The API was restarted with provider keys disabled, and the saved-report browser recovery test passed without new calls or XP. Only the local fixture database was used; no cloud or production data changed.
+- Latest backend deterministic suite: 240 passed. Isolated database suite: 15 passed. Static Pyflakes checks passed. Native WeChat execution and migration of legacy quiz/report tasks into the durable budgeted queue remain pending; this checkpoint does not claim them complete.
+
+| ID / behavior | Implementation | Tests | Evidence |
+| --- | --- | --- | --- |
+| QUIZ-02 validate usable question contracts | `llm/quiz_chain.py`, `llm/structured_stage.py` | `test_quiz_output_safety.py`, `test_structured_stage.py` | `evidence/m3-practice-live.json` |
+| QUIZ-03 fail closed on persistence errors | `repositories/quiz_repository.py`, `task_repository.py`, `services/quiz_service.py` | five missing-pool tests, sync/async failure tests | 240-test offline regression |
+| REPORT-02 real generated report and replay | `llm/report_chain.py`, `services/report_service.py` | `practice-live.spec.ts`, `scripts/verify_saved_practice.py` | H5 `08-learning-report.png`, provider usage JSON |
+
 ## Decision Record
 
 - Preserve Taro 4.1.11, MySQL and Chroma; enhance existing modules.
