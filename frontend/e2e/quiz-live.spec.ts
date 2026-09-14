@@ -13,8 +13,34 @@ test('bounded real private practice task restores and publishes server-graded qu
     return (await response.json()).data
   }
   const before = await get('user/profile')
+  const publicFixture = await readFile('../evaluation/fixtures/learning-rate.md', 'utf8')
+  const material = await get(`knowledge/documents/${source.doc_id}/chunks`)
+  expect(material.total).toBe(material.items.length)
+  expect(material.items.length).toBeGreaterThan(0)
+  for (const chunk of material.items) {
+    expect(chunk.doc_id).toBe(source.doc_id)
+    expect(publicFixture.includes(chunk.content)).toBe(true)
+  }
+  await page.route('**/quiz/generate/async', async route => {
+    const payload = route.request().postDataJSON()
+    if (payload.doc_id !== source.doc_id || payload.generate_images) {
+      await route.abort()
+      throw new Error('Paid smoke can use only the verified public synthetic fixture, with images disabled')
+    }
+    await route.continue()
+  })
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
+  const settle = async () => {
+    await expect.poll(() => page.locator('body').evaluate(node => node.scrollWidth <= window.innerWidth)).toBe(true)
+  }
+  const scrollTop = async () => {
+    await page.evaluate(() => {
+      for (const node of document.querySelectorAll('*')) if (node.scrollTop) node.scrollTop = 0
+      window.scrollTo(0, 0)
+    })
+    await settle()
+  }
   await page.goto('pages/login/index')
   await page.evaluate(user => {
     localStorage.setItem('ai-learn:v1:token', JSON.stringify({ data: user.token }))
@@ -57,7 +83,7 @@ test('bounded real private practice task restores and publishes server-graded qu
   expect(initial.questions).toHaveLength(5)
   expect(new Set(initial.questions.map(q => q.type))).toEqual(new Set(['single', 'multiple', 'judge']))
   if (!reuse) {
-    expect(initial.questions.every(q => !('answer' in q) && !('explanation' in q))).toBe(true)
+    expect(initial.questions.every(q => !('answer' in q) && !('explanation' in q) && !('citations' in q))).toBe(true)
     await page.locator('.answer-option').first().click()
     if (initial.questions[0].type === 'multiple') await page.locator('.answer-option').nth(1).click()
     const submitted = page.waitForResponse(response => response.url().endsWith(`/quiz/${quizId}/answer`))
@@ -72,10 +98,22 @@ test('bounded real private practice task restores and publishes server-graded qu
   await page.getByText('上一题', { exact: true }).click()
   await expect(page.locator('.answer-explanation')).toBeVisible()
   const first = persisted.questions[0], attempt = persisted.answer_records[0]
+  expect(first.citations?.length).toBeGreaterThan(0)
+  expect(first.citations.every(c => c.status === 'verified')).toBe(true)
+  await page.locator('.quiz-citation .citation-link').first().click()
+  await expect(page.locator('.original-content')).toContainText(first.citations[0].quote)
+  await scrollTop()
+  await page.screenshot({ path: '../docs/screenshots/h5/21-practice-source.png', fullPage: true })
+  await page.getByText('返回', { exact: true }).click()
+  await expect(page.getByText('第 2 / 5 题', { exact: false })).toBeVisible()
+  await page.getByText('上一题', { exact: true }).click()
   expect(attempt.is_correct).toBe([...first.answer].sort().join(',') === [...attempt.selected_answers].sort().join(','))
   const repeated = await request.post(`api/v1/quiz/${quizId}/answer`, { headers,
     data: { question_id: first.id, selected_answers: attempt.selected_answers, duration_ms: 1 } })
   expect((await repeated.json()).data.replayed).toBe(true)
+  await settle()
+  await page.screenshot({ path: '../docs/screenshots/h5/22-cited-analysis.png', fullPage: true })
+  await scrollTop()
   await page.screenshot({ path: '../docs/screenshots/h5/19-durable-practice.png', fullPage: true })
   await page.setViewportSize({ width: 320, height: 640 })
   await page.getByText('下一题', { exact: true }).click()
@@ -83,6 +121,7 @@ test('bounded real private practice task restores and publishes server-graded qu
   expect(await page.locator('body').evaluate(node => node.scrollWidth <= window.innerWidth)).toBe(true)
   await page.getByText('上一题', { exact: true }).click()
   await page.setViewportSize({ width: 1440, height: 1000 })
+  await scrollTop()
   await page.screenshot({ path: '../docs/screenshots/h5/20-practice-desktop.png', fullPage: true })
   expect(await page.locator('body').evaluate(node => node.scrollWidth <= window.innerWidth)).toBe(true)
   expect((await get('user/profile')).total_xp).toBe(before.total_xp)
@@ -92,8 +131,8 @@ test('bounded real private practice task restores and publishes server-graded qu
     environment: 'Chromium + isolated MySQL/Chroma + controlled worker', reuse_only: reuse, ui_ready_ms: elapsed,
     task_calls: task.trace.model_calls, returned_tokens: task.trace.tokens, unmetered_calls: task.trace.unmetered_calls || 0,
     question_count: 5, checks: [...(reuse ? [] : ['library_admission_and_idempotent_replay']), 'task_link_refresh', 'generic_task_answer_nondisclosure',
-      'all_three_question_types', 'server_grading_and_repeat_submission', 'persisted_attempt_after_refresh', '320px_answer_navigation', 'no_xp_without_report', 'no_browser_errors'],
-    limitations: ['Exact source quotation/coverage validation for quiz questions is not implemented yet',
+      'all_three_question_types', 'server_grading_and_repeat_submission', 'persisted_attempt_after_refresh', 'exact_quote_opens_source', '320px_answer_navigation', 'no_xp_without_report', 'no_browser_errors'],
+    limitations: ['Exact quotes and fragment coverage do not prove semantic entailment',
       'Question semantics are not human rated', 'Legacy image and public-topic jobs are not yet durable',
       'Currency was not measured', 'No native WeChat execution'],
   }, null, 2) + '\n')

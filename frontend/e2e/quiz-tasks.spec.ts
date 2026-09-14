@@ -65,15 +65,21 @@ test('private practice tasks cancel, restore and publish no answers before submi
     expect(replay.status()).toBe(200)
     expect((await replay.json()).data.task_id).toBe(recovered.taskId)
     const compatibility = await get(`quiz/task/${recovered.taskId}`)
-    expect(compatibility.result.questions.every(q => !('answer' in q) && !('explanation' in q))).toBe(true)
+    expect(compatibility.result.questions.every(q => !('answer' in q) && !('explanation' in q) && !('citations' in q))).toBe(true)
     const detail = await get(`user/quizzes/${recovered.quizId}`)
-    expect(detail.questions.every(q => !('answer' in q) && !('explanation' in q))).toBe(true)
+    expect(detail.questions.every(q => !('answer' in q) && !('explanation' in q) && !('citations' in q))).toBe(true)
     await page.locator('.answer-option').first().click()
     await page.getByText('确认答案', { exact: true }).click()
     await expect(page.getByText('回答正确', { exact: true })).toBeVisible()
     const submitted = await get(`user/quizzes/${recovered.quizId}`)
     expect(submitted.answer_records).toHaveLength(1)
     expect(submitted.questions[0].answer).toEqual(['A'])
+    expect(submitted.questions[0].citations[0].status).toBe('verified')
+    await page.locator('.quiz-citation .citation-link').first().click()
+    await expect(page.locator('.original-content')).toContainText(submitted.questions[0].citations[0].quote)
+    await page.getByText('返回', { exact: true }).click()
+    await expect(page.getByText('多选题', { exact: true })).toBeVisible()
+    await page.getByText('上一题', { exact: true }).click()
     expect(submitted.questions.slice(1).every(q => !('answer' in q))).toBe(true)
     await page.screenshot({ path: '../docs/screenshots/h5/18-recovered-practice.png', fullPage: true })
     await page.reload()
@@ -105,7 +111,7 @@ test('private practice tasks cancel, restore and publish no answers before submi
       data_source: 'Explicit synthetic checkpoint, not real model output', provider_calls: 0,
       checks: ['cancel_does_not_publish', 'forged_and_empty_inputs_rejected', 'different_key_coalesces_active_job', 'pending_refresh_and_history_restore',
         'worker_validates_checkpoint_without_model', 'coalesced_key_replays_after_completion', 'generic_task_result_has_no_questions', 'answers_hidden_until_submission',
-        'server_attempt_persists_on_refresh', 'history_opens_completed_practice', 'network_failure_retains_request_key', 'invalid_local_reference_cleared_after_404', 'no_browser_errors'],
+        'server_attempt_persists_on_refresh', 'submitted_quote_opens_current_source', 'history_opens_completed_practice', 'network_failure_retains_request_key', 'invalid_local_reference_cleared_after_404', 'no_browser_errors'],
       limitations: ['Not native WeChat verification', 'No model quality or learning efficacy claim'],
     }, null, 2) + '\n')
   } finally {

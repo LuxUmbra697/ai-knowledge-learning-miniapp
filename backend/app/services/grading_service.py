@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.db import get_mysql_pool
+from app.services.quiz_evidence_service import visible_question
 
 
 class AnswerSubmission(BaseModel):
@@ -32,7 +33,7 @@ def public_quiz(data: dict, revealed: set[str] | None = None) -> dict:
     visible = revealed or set()
     return {**data, "questions": [
         dict(question) if question["id"] in visible else {
-            key: value for key, value in question.items() if key not in ("answer", "explanation")
+            key: value for key, value in question.items() if key not in ("answer", "explanation", "citations")
         } for question in data.get("questions", [])
     ]}
 
@@ -67,10 +68,14 @@ async def submit_question(quiz_id: str, user_id: int, submission: AnswerSubmissi
                     await cur.execute("INSERT INTO quiz_question_attempts (quiz_id,user_id,question_id,record_json) VALUES (%s,%s,%s,%s)",
                                       (quiz_id, user_id, submission.question_id, json.dumps(record, ensure_ascii=False)))
                 await conn.commit()
-                return {"record": record, "question": question, "replayed": bool(previous)}
         except BaseException:
-            await conn.rollback()
+            try:
+                if not conn.closed:
+                    await conn.rollback()
+            except Exception:
+                conn.close()
             raise
+    return {"record": record, "question": await visible_question(question, user_id), "replayed": bool(previous)}
 
 
 async def get_attempts(quiz_id: str, user_id: int) -> list[dict]:

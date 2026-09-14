@@ -1,5 +1,6 @@
 """Real isolated MySQL: source fencing, cancellation, rollback and cached-response recovery."""
 import asyncio
+import copy
 import hashlib
 import json
 import uuid
@@ -10,6 +11,7 @@ import pytest
 
 from app.llm.quiz_chain import validate_quiz
 from app.models.quiz import QuizGenerateRequest
+from app.models.evidence import evidence_from_row
 from app.repositories import job_repository as jobs, quiz_repository, rag_index_repository as index
 from app.services import quiz_task_service as service, vector_store_service as vectors
 from app.services.grading_service import public_quiz
@@ -53,10 +55,15 @@ async def test_quiz_reclaims_known_response_without_calling_models_and_hides_ans
         await service.create(req, users[1], uuid.uuid4().hex)
     assert error.value.status_code == 404
     claimed = TaskContext(await jobs.claim())
-    await claimed.checkpoint('quiz_sources', 'Synthetic authorized source')
+    row = (await index.scoped_chunks(users[0], [req.doc_id], vectors.index_version()))[0]
+    evidence = evidence_from_row(row, 'E1').model_dump()
+    output = copy.deepcopy(OUTPUT)
+    for question in output['questions']:
+        question['citations'] = [{'evidence_id': 'E1', 'quote': 'tasks and checkpoints are persisted'}]
+    await claimed.checkpoint('quiz_sources', json.dumps({'source_type': 'private_document', 'evidence': [evidence]}))
     await jobs.reserve_call(claimed.task_id, claimed.lease_token, 'quiz')
     await jobs.complete_call(claimed.task_id, claimed.lease_token, 'quiz',
-                             {'output': [{'content': json.dumps(OUTPUT), 'finish_reason': 'stop'}]}, 10)
+                             {'output': [{'content': json.dumps(output), 'finish_reason': 'stop'}]}, 10)
     async with index.transaction() as cur:
         await cur.execute('UPDATE learning_jobs SET lease_until=UTC_TIMESTAMP()-INTERVAL 1 SECOND WHERE task_id=%s', (claimed.task_id,))
     restored = TaskContext(await jobs.claim())
@@ -66,13 +73,22 @@ async def test_quiz_reclaims_known_response_without_calling_models_and_hides_ans
     assert saved['status'] == 'completed' and saved['result'] == reference and saved['trace']['model_calls'] == 1
     assert set(reference) == {'quiz_id', 'title'}
     visible = public_quiz((await service.status(task['task_id'], users[0])).result.model_dump())
-    assert all('answer' not in q and 'explanation' not in q for q in visible['questions'])
+    assert all('answer' not in q and 'explanation' not in q and 'citations' not in q for q in visible['questions'])
+    from app.services.grading_service import submit_question, AnswerSubmission
+    from app.services import history_service
+    answer = await submit_question(reference['quiz_id'], users[0], AnswerSubmission(question_id='q1', selected_answers=['A']))
+    assert answer['question']['citations'][0]['doc_id'] == req.doc_id
+    assert answer['question']['citations'][0]['status'] == 'verified'
     with pytest.raises(HTTPException) as error:
         await service.status(task['task_id'], users[1])
     assert error.value.status_code == 404
     with pytest.raises(jobs.TaskLeaseLost):
         await quiz_repository.publish_generated_quiz(restored, validate_quiz(OUTPUT, 3, 'mixed'))
     assert await quiz_count(task['task_id']) == 1
+    await index.tombstone(req.doc_id, users[0])
+    history = await history_service.get_quiz_detail(reference['quiz_id'], users[0])
+    assert history.questions[0]['citations'] == [{'evidence_id': 'E1', 'status': 'unavailable'}]
+    assert 'citations' not in history.questions[1]
 
 
 @pytest.mark.asyncio

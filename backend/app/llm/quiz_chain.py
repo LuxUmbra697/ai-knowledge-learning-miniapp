@@ -1,15 +1,17 @@
 """出题 Chain"""
 
+import json
 import re
 
 from langchain_core.prompts import ChatPromptTemplate
 
 from app.llm.langchain_factory import get_chat_model
 from app.llm.structured_stage import run_json_stage
-from app.models.quiz import QuizOutput
+from app.models.quiz import QuizOutput, QuestionCitation
+from app.models.evidence import Evidence
 from app.prompts.quiz_prompt import QUIZ_HUMAN_PROMPT, QUIZ_SYSTEM_PROMPT, SEARCH_CONTEXT_TEMPLATE
 
-def validate_quiz(data, question_count, difficulty):
+def validate_quiz(data, question_count, difficulty, evidence=None):
     result = QuizOutput.model_validate(data)
     if len(result.questions) != question_count:
         raise ValueError(f'Expected exactly {question_count} questions')
@@ -46,6 +48,27 @@ def validate_quiz(data, question_count, difficulty):
             raise ValueError('Image URLs may only be attached by the server image service')
         if difficulty != 'mixed' and question.difficulty != difficulty:
             raise ValueError('Question difficulty must match the requested difficulty')
+    owned = {item.id: item for item in (Evidence.model_validate(row) for row in (evidence or []))}
+    covered = set()
+    for raw, question in zip(data['questions'], result.questions):
+        if evidence is not None and not question.citations:
+            raise ValueError('Every private question requires 1-3 exact source citations')
+        seen = set()
+        canonical = []
+        for citation, original in zip(question.citations, raw.get('citations', [])):
+            if set(original) != {'evidence_id', 'quote'}:
+                raise ValueError('A generated citation may contain only evidence_id and quote; locations are server-owned')
+            item = owned.get(citation.evidence_id)
+            pair = (citation.evidence_id, citation.quote)
+            if item is None or not citation.quote.strip() or citation.quote not in item.content or pair in seen:
+                raise ValueError('Citations require distinct available IDs and exact nonblank source substrings')
+            seen.add(pair)
+            covered.add(item.id)
+            canonical.append(QuestionCitation(evidence_id=item.id, quote=citation.quote,
+                **item.model_dump(include={'doc_id', 'chunk_id', 'revision', 'index_version', 'file_name', 'page', 'section'})))
+        question.citations = canonical
+    if evidence is not None and (not owned or len(covered) < min(2, len(owned))):
+        raise ValueError('Cover at least two supplied evidence fragments, or the sole fragment when only one is supplied')
     return result
 
 
@@ -65,7 +88,17 @@ async def generate_quiz(
         else ""
     )
 
-    system = QUIZ_SYSTEM_PROMPT + (' 本次是私人学习材料，只允许依据所给材料出题；不得用常识补齐材料中未提供的事实。' if private_source else '')
+    evidence = None
+    if private_source:
+        source = json.loads(search_context)
+        if source.get('source_type') != 'private_document' or not source.get('evidence'):
+            raise ValueError('Private practice requires structured source evidence')
+        evidence = source['evidence']
+    system = QUIZ_SYSTEM_PROMPT + (''' 本次是私人学习材料，只允许依据所给材料出题；不得用常识补齐材料中未提供的事实。
+每道题必须增加 citations 数组，包含 1 至 3 个对象，每个对象仅有 evidence_id 和 quote 两个字段。
+evidence_id 必须是材料中的 id，quote 为对应 content 中逐字存在的 2 至 500 字摘录，直接支持本题答案与解析。
+不得自行填写文档路径、页码或其他位置字段。全套题至少覆盖两个所给片段；若仅有一个片段则覆盖该片段。
+引用校验是必要条件，不代表事实证明；不为增加题型而编造材料未支持的知识。''' if private_source else '')
     prompt = ChatPromptTemplate.from_messages(
         [
             ("system", system),
@@ -83,5 +116,5 @@ async def generate_quiz(
               'search_context_section': search_context_section}
     async def invoke(feedback):
         return await chain.ainvoke({**values, 'validation_feedback': feedback})
-    return await run_json_stage(invoke, lambda data: validate_quiz(data, question_count, difficulty), stage='quiz', context=context,
+    return await run_json_stage(invoke, lambda data: validate_quiz(data, question_count, difficulty, evidence), stage='quiz', context=context,
                                 input_bytes=lambda feedback: len((system + QUIZ_HUMAN_PROMPT.format(**values) + feedback).encode()), prepare=prepare)

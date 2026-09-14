@@ -261,6 +261,42 @@ M3 still required: migrate legacy quiz/report generation and its image/search ca
 | QUIZ-06 task links and protected answers | Taro quiz/library/tasks, `quizSession.ts` | `quiz-tasks.spec.ts`, `quiz-live.spec.ts`, frontend units | H5 screenshots 17-20 |
 | JOB-05 cross-device request-key binding | `repositories/job_repository.py`, migrations 7-8 | four-kind replay, conflict, alias limit, lock-order and isolation DB tests | `m3-quiz-task-ui.json` |
 
+## M3 Question Evidence Loop (2026-09-14)
+
+- Added a failing regression first: generated private questions had no source-evidence contract.
+  The validator now rejects missing/unknown/duplicate/paraphrased quotations, forged source locations
+  and insufficient fragment coverage. Locations are server-owned; a quote match is not a semantic
+  correctness score. Legacy saved questions retain their original data, without invented sources.
+- Quotes remain hidden until the corresponding answer is committed. Submission/history revalidate
+  owner, current source version and exact content. Deleted/reindexed evidence becomes unavailable;
+  no stale quote is returned. The actual MySQL test covers disclosure followed by deletion.
+- Browser verification traverses generation, refresh, authoritative submission, original-source
+  navigation, return, replay and task history. A failed first run exposed the old local API still
+  listening after a Windows separator mismatch in process selection; verified project-only PIDs
+  were restarted and the full scenario rerun. No assertion was disabled.
+- Paid smoke is gated to `evaluation/fixtures/learning-rate.md`. All stored chunks must exactly
+  occur in that public synthetic material, and the browser blocks any other document/image request.
+  This check was added after safety review rejected a potentially private payload. The reviewed
+  retry passed: 1 embedding + 1 quiz request, 1979 returned text tokens, 4306 ms model stage and
+  13008 ms UI-ready time. Currency and embedding usage are not available. No image/report calls.
+- Local paid providers remain enabled as requested; deterministic tests still isolate credentials
+  and network. Deployment is not yet complete. Native CLI remains blocked: service-port activation
+  returned a refused local connection, and a subsequent status check still reported disabled service.
+  The IDE and its open projects were not closed; no native screenshot or publication is claimed.
+- Verification: 317 offline tests, 29 isolated MySQL tests, 11 frontend units, TypeScript and Ruff
+  passed. H5 full regression: 7 passed / 3 explicitly skipped in 48.5 s, including saved paid-output
+  reuse with no new calls. Consecutive dual builds passed: H5 entry gzip 119314 bytes; weapp main
+  568279 bytes, learning subpackage 21565 bytes. Warnings remain recorded, not suppressed.
+- Evidence: `evidence/m3-quiz-live.json`, `evidence/m3-quiz-resume.json`,
+  `evidence/m3-quiz-task-ui.json`, `evidence/m3-citations-build-size.json`;
+  screenshots `19-durable-practice.png`, `20-practice-desktop.png`, `21-practice-source.png`,
+  `22-cited-analysis.png` under `screenshots/h5/` are real Chromium captures.
+
+| ID / behavior | Implementation | Tests | Evidence |
+| --- | --- | --- | --- |
+| QUIZ-07 exact question citations | `llm/quiz_chain.py`, `models/quiz.py` | `test_quiz_citations.py`, cached-response DB test | Bounded real quiz smoke |
+| QUIZ-08 disclosure and current-source check | `quiz_evidence_service.py`, grading/history services | delete/reindex/owner unit and DB tests | Quiz browser scenarios and screenshots 19-22 |
+
 ## Continuing Decisions
 
 - Preserve Taro 4.1.11, MySQL and Chroma; enhance existing modules.

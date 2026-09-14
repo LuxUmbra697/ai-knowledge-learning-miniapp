@@ -9,6 +9,20 @@ class QuestionOption(BaseModel):
     text: str = Field(description="选项文本")
 
 
+class QuestionCitation(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    evidence_id: str = Field(min_length=1, max_length=40)
+    quote: str = Field(min_length=2, max_length=500)
+    doc_id: str | None = None
+    chunk_id: str | None = None
+    revision: int | None = None
+    index_version: str | None = None
+    file_name: str | None = None
+    page: int = 0
+    section: str = ''
+    status: Literal['verified'] = 'verified'
+
+
 class Question(BaseModel):
     id: str = Field(description="题目编号，如 q1")
     type: Literal["single", "multiple", "judge"] = Field(description="题型")
@@ -19,6 +33,7 @@ class Question(BaseModel):
     knowledge_point: str = Field(description="知识点标签")
     difficulty: Literal["easy", "medium", "hard"] = Field(description="难度")
     image_url: str | None = Field(default=None, description="AI 生成的题目配图 URL（可选）")
+    citations: list[QuestionCitation] = Field(default_factory=list, max_length=3)
 
 
 class QuizOutput(BaseModel):

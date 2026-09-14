@@ -1,5 +1,6 @@
 """Private practice admission, response recovery and non-disclosing compatibility polling."""
 import json
+import copy
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
@@ -53,11 +54,15 @@ async def test_admission_captures_server_scope_and_rejects_other_owner(monkeypat
 
 @pytest.mark.asyncio
 async def test_quiz_checkpoint_validates_without_initializing_model(monkeypatch, sample_quiz_response_data):
-    data = {key: sample_quiz_response_data[key] for key in ('title', 'summary', 'questions')}
+    data = copy.deepcopy({key: sample_quiz_response_data[key] for key in ('title', 'summary', 'questions')})
+    for question in data['questions']:
+        question['citations'] = [{'evidence_id': 'E1', 'quote': 'Synthetic source'}]
+    source = {'source_type': 'private_document', 'evidence': [dict(id='E1', doc_id='doc_test', chunk_id='c1',
+        revision=1, index_version='v1', file_name='Synthetic.md', content='Synthetic source', content_hash='a' * 64)]}
     context = SimpleNamespace(checkpoints={'quiz': {'output': [{'content': json.dumps(data), 'finish_reason': 'stop'}]}}, external=AsyncMock())
     factory = Mock(side_effect=AssertionError('Recovery must not initialize a model'))
     monkeypatch.setattr(quiz_chain, 'get_chat_model', factory)
-    result = await quiz_chain.generate_quiz('Recovery', 5, context=context, private_source=True, search_context='Synthetic source')
+    result = await quiz_chain.generate_quiz('Recovery', 5, context=context, private_source=True, search_context=json.dumps(source))
     assert len(result.questions) == 5
     factory.assert_not_called()
     context.external.assert_not_awaited()

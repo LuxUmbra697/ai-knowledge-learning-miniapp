@@ -48,6 +48,15 @@ Practice serialization removes answers and explanations before a submitted attem
 
 ## Task Lifecycle
 
+Private text questions now require 1-3 distinct exact quotations. The server resolves evidence IDs
+against the structured retrieval context and attaches document/revision/chunk/page/section itself.
+At least two supplied fragments must be covered when available; this is fragment coverage, not
+complete knowledge-point coverage or semantic entailment. Invalid output enters the existing
+three-attempt repair budget. Quotes are withheld with answers before submission. Answer/history
+responses recheck current owner-scoped sources and replace unavailable quotations with a notice.
+Known older quizzes remain readable but do not acquire fabricated citations. Drain active generation
+jobs before deploying a changed output contract; completed stored quizzes are not regenerated.
+
 ```mermaid
 stateDiagram-v2
   [*] --> staging: reserve document and task

@@ -299,6 +299,19 @@ export interface Question {
   knowledge_point: string
   difficulty: 'easy' | 'medium' | 'hard'
   image_url?: string | null
+  citations?: QuestionCitation[]
+}
+
+export interface QuestionCitation {
+  evidence_id: string
+  status: 'verified' | 'unavailable'
+  quote?: string
+  doc_id?: string
+  chunk_id?: string
+  revision?: number
+  file_name?: string
+  page?: number
+  section?: string
 }
 
 export interface QuizData {

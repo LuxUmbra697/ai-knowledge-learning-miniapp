@@ -73,10 +73,15 @@ async def main(user_id: int, staged_upload=False, report_checkpoint=False, relea
             await jobs.cancel(doc['task_id'], user_id)
             query = '确定性浏览器练习恢复验收'
             payload = dict(query=query, question_count=3, difficulty='mixed', doc_ids=[doc_id], scope=[[doc_id, 1, version]], mode='rerank')
+            from app.models.evidence import evidence_from_row
+            evidence = evidence_from_row((await index.scoped_chunks(user_id, [doc_id], version))[0], 'E1').model_dump()
+            for question in questions:
+                question['citations'] = [{'evidence_id': 'E1', 'quote': question['explanation']}]
+            source = json.dumps({'source_type': 'private_document', 'evidence': [evidence]}, ensure_ascii=False)
             output = dict(title='学习方法与证据意识', summary='合成验收题库，验证任务恢复与作答流程', questions=questions)
             async with index.transaction() as cur:
                 task = await jobs.insert(cur, user_id, 'quiz', payload, uuid.uuid4().hex)
-                state = {'fixture': 'e2e-quiz-hold', 'checkpoints': {'quiz_sources': text,
+                state = {'fixture': 'e2e-quiz-hold', 'checkpoints': {'quiz_sources': source,
                          'quiz': {'output': [{'content': json.dumps(output, ensure_ascii=False), 'finish_reason': 'stop'}]}}}
                 await cur.execute("UPDATE learning_jobs SET status='running',stage='quiz',lease_token=%s,lease_until=UTC_TIMESTAMP()+INTERVAL 120 SECOND,claims=1,started_at=UTC_TIMESTAMP(),state_json=%s WHERE task_id=%s",
                                   (uuid.uuid4().hex, jobs.encoded(state), task['task_id']))

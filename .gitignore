@@ -13,6 +13,7 @@ Desktop.ini
 
 # Logs
 *.log
+Typora_Hook_Log.txt
 
 # Python
 __pycache__/
