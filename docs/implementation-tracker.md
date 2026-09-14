@@ -172,7 +172,33 @@ M3 still required: migrate legacy quiz/report generation and its image/search ca
 | REPORT-04 atomic report/XP/task publication | `repositories/quiz_repository.py` | cancellation, final-write rollback, replay integration tests | 18-case isolated MySQL suite |
 | REPORT-05 pending refresh and cross-device history | Taro report/task pages, `services/reportSession.ts` | `report-tasks.spec.ts`, `reportSession.test.ts` | `evidence/m3-report-task-ui.json`, H5 `14-report-task.png` |
 
-## Decision Record
+## M3 Outbound and Image Boundary Loop
+
+- Reproduced missing image-key fallback to the embedding key, quota-store failure allowing paid calls,
+  missing-pool quota writes silently succeeding, and total image failure returning no notice. These
+  now fail closed or return an explicit text-practice fallback. Existing endpoint derivation and the
+  separate keys remain intact; no actual credential values changed.
+- Added public HTTPS URL validation, connector DNS checks (including mixed public/private results),
+  manual redirect checks, identity encoding, MIME/streamed-size bounds and a total timeout that
+  includes admission wait. A malformed redirect regression now returns a safe service error.
+  Tests also exercise the real aiohttp connector with a controlled private DNS result and verify
+  that the socket-connection stage is never called.
+- Real network smoke: one verified-TLS public PNG read, 15770 bytes, 228 ms for the full smoke,
+  three private addresses blocked before network, zero model calls and zero COS writes.
+  `scripts/verify_outbound.py --confirm-one-public-read` reproduces this bounded check;
+  `evidence/m3-outbound-live.json` records the measured response hash and limitations.
+- Deterministic backend regression: 294 passed in 10.47 seconds; Pyflakes checks passed.
+  The DashScope import emits an upstream Assistants deprecation warning, not a failed image call.
+  This module changes no UI behavior except failure notices and does not claim new native/device
+  coverage. Atomic image quotas, image-provider/COS integration, PNG decoding and legacy public
+  search extraction still require implementation and separate verification.
+
+| ID / behavior | Implementation | Tests | Evidence |
+| --- | --- | --- | --- |
+| NET-01 bounded public asset downloads | `services/outbound_service.py` | `test_outbound_safety.py` | `evidence/m3-outbound-live.json` |
+| IMAGE-01 separate credentials and closed quota failure | `services/image_service.py`, `repositories/image_repository.py` | `test_image_safety.py` | 294-test deterministic regression; no paid image verification claimed |
+
+## Architecture Decisions
 
 - Preserve Taro 4.1.11, MySQL and Chroma; enhance existing modules.
 - Deterministic tests must disable dotenv and network before importing the application.

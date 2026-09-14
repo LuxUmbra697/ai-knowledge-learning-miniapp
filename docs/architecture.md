@@ -74,6 +74,18 @@ Grounded answers use a constrained JSON service, not ReAct tool execution. Exist
 
 ## Current Limitations
 
+Image downloads use `outbound_service`: public HTTPS/443 only, actual connector DNS-result checks,
+manual per-hop redirect validation (at most three requests), no environment proxy/cookie jar,
+verified TLS, exact MIME and streamed byte limits, and a total deadline including semaphore wait.
+The implementation follows the connector-level defense described in the
+[aiohttp SSRF guidance](https://docs.aiohttp.org/en/stable/client_middleware_cookbook.html).
+The image service requires its separate image key; an empty image base still derives the native
+endpoint from the configured compatible base. This preserves the configured
+[Qwen image API](https://help.aliyun.com/zh/model-studio/qwen-image-api) rather than treating an empty optional URL as a broken key.
+Quota storage failures skip paid image generation with a notice. These changes do not yet provide
+atomic image-attempt quotas, durable image calls, decoded image limits, private COS URLs or safe
+legacy Tavily URL extraction; those remain release gates.
+
 - Native WeChat automation and device verification are pending the local tool authorization/service-port gate.
 - Cloud schema selection and backup/migration rehearsal remain pending; test databases are independent loopback schemas.
 - Legacy public search, quiz/image generation, retired-index maintenance and production security headers still need release hardening.

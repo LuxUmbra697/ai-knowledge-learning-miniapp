@@ -1,0 +1,17 @@
+{
+  "measured_at_utc": "2026-09-14T01:11:43Z",
+  "public_source": "https://www.python.org/static/img/python-logo.png",
+  "network_requests": 1,
+  "model_calls": 0,
+  "object_store_writes": 0,
+  "download_bytes": 15770,
+  "content_type": "image/png",
+  "sha256": "9c121e619bfe02eaba582d7080eea46fd53ec0b50717e6794a948fada4ae8f3c",
+  "blocked_before_network": 3,
+  "elapsed_ms": 228,
+  "limitations": [
+    "Not a real image-model or COS integration test",
+    "Redirect and mixed DNS cases are covered by deterministic tests, not this public read",
+    "PNG signature only; image decoding and dimension verification remain pending"
+  ]
+}
