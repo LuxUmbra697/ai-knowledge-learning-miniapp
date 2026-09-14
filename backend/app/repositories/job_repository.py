@@ -37,10 +37,11 @@ def decode(row):
 
 def public(row, replayed=False):
     return dict(task_id=row['task_id'], kind=row['kind'], status=row['status'], stage=row['stage'],
-                title=(row.get('payload_json') or {}).get('file_name') or (row.get('payload_json') or {}).get('query', '')[:80],
+                title=((row.get('payload_json') or {}).get('file_name') or (row.get('payload_json') or {}).get('title') or (row.get('payload_json') or {}).get('query', ''))[:80],
                 created_at=row['created_at'].isoformat()+'Z' if row.get('created_at') else None,
                 result=row.get('result_json'), trace=row.get('trace_json') or {},
                 error_code=row.get('error_code'), error_message=row.get('error_message'),
+                resource_id=(row.get('payload_json') or {}).get('quiz_id') if row['kind'] == 'report' else None,
                 replayed=replayed, config_version=row.get('config_version', 'jobs-v1'))
 
 
@@ -65,6 +66,12 @@ async def insert(cur, user_id, kind, payload, key, status='queued'):
     active = decode(await cur.fetchone())
     if active:
         return public(active, True)
+    if kind == 'report':
+        # A completed report is immutable; another device must reuse it, not buy it again.
+        await cur.execute("SELECT * FROM learning_jobs WHERE user_id=%s AND kind='report' AND fingerprint=%s AND status='completed' ORDER BY created_at DESC LIMIT 1", (user_id, fingerprint))
+        completed = decode(await cur.fetchone())
+        if completed:
+            return public(completed, True)
     await cur.execute("SELECT COUNT(*) AS count FROM learning_jobs WHERE user_id=%s AND status IN ('queued','running','staging')", (user_id,))
     if (await cur.fetchone())['count'] >= 3:
         raise HTTPException(429, '已有三个待处理任务，请等待或取消后再提交')
@@ -245,3 +252,12 @@ async def finish(task_id, lease_token, result, error_code=None, error_message=No
                           "active_fingerprint=NULL,lease_token=NULL,lease_until=CASE WHEN status='failed' THEN lease_until ELSE NULL END,updated_at=UTC_TIMESTAMP() WHERE task_id=%s",
                           (status, status, encoded(result) if result is not None else None, error_code, error_message, task_id))
         return True
+
+
+async def publish_result(cur, row, result):
+    """The caller has locked a running job and commits its domain writes in this transaction."""
+    if row['state_json'].get('call_pending'):
+        raise TaskLeaseLost()
+    await cur.execute("UPDATE learning_jobs SET status='completed',stage='completed',result_json=%s,"
+                      'active_fingerprint=NULL,lease_token=NULL,lease_until=NULL,updated_at=UTC_TIMESTAMP() WHERE task_id=%s',
+                      (encoded(result), row['task_id']))

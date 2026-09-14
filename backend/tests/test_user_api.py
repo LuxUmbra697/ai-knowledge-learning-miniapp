@@ -302,10 +302,10 @@ class TestQuizAuthentication:
 
 
 @pytest.mark.asyncio
-class TestReportWithOptionalAuth:
-    """确保报告接口在有/无 token 时都正常工作"""
+class TestReportAuthenticatedQueue:
+    """报告路由把认证身份传递给持久化任务，模型只在 worker 执行。"""
 
-    async def test_report_generate_with_token_saves_data(self, auth_header, sample_report_request):
+    async def test_report_generate_with_token_queues_owned_data(self, auth_header, sample_report_request):
         from app.models.report import ReportOutput
 
         mock_output = ReportOutput(
@@ -317,15 +317,15 @@ class TestReportWithOptionalAuth:
             share_quote="quote",
         )
         with patch(
-            "app.services.report_service.generate_report",
+            "app.services.report_service.wait_result",
             new_callable=AsyncMock,
-            return_value=mock_output,
+            return_value=mock_output.model_dump(),
         ), patch("app.services.report_service.quiz_repository.get_quiz_detail", new_callable=AsyncMock,
                  return_value={"title": sample_report_request["topic"], "questions": sample_report_request["questions"]}), \
              patch("app.services.report_service.get_attempts", new_callable=AsyncMock,
                    return_value=sample_report_request["answer_records"]), \
-             patch("app.services.report_service.quiz_repository.complete_quiz", new_callable=AsyncMock,
-                   side_effect=lambda quiz_id, user_id, records, score, report: report) as complete:
+             patch("app.services.report_service.jobs.enqueue", new_callable=AsyncMock,
+                   return_value={'task_id': 'job_mock'}) as enqueue:
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 resp = await client.post(
@@ -334,7 +334,7 @@ class TestReportWithOptionalAuth:
                     headers=auth_header,
                 )
             assert resp.status_code == 200
-            complete.assert_awaited_once()
-            assert complete.call_args.args[1] == 1
-            assert complete.call_args.args[3]["correct"] == 4
+            enqueue.assert_awaited_once()
+            assert enqueue.call_args.args[:2] == (1, 'report')
+            assert enqueue.call_args.args[2]['quiz_id'] == sample_report_request['quiz_id']
             assert resp.json()["data"]["accuracy"] == 80

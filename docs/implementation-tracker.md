@@ -153,6 +153,25 @@ M3 still required: migrate legacy quiz/report generation and its image/search ca
 | QUIZ-03 fail closed on persistence errors | `repositories/quiz_repository.py`, `task_repository.py`, `services/quiz_service.py` | five missing-pool tests, sync/async failure tests | 240-test offline regression |
 | REPORT-02 real generated report and replay | `llm/report_chain.py`, `services/report_service.py` | `practice-live.spec.ts`, `scripts/verify_saved_practice.py` | H5 `08-learning-report.png`, provider usage JSON |
 
+## M3 Durable Report Loop
+
+- Reports now use the existing MySQL queue and controlled worker, including the synchronous compatibility endpoint. Admission reads the owned quiz and authoritative attempt IDs; request-supplied topic/questions/answers never become task payload. Already stored legacy reports remain readable even when the old record predates per-question attempts.
+- Active reports coalesce by owned payload across devices and different request keys. Completed immutable reports also reuse their completed task; explicit retries after failure/cancellation use a new key. Report, answer aggregate, XP and task completion commit in one fenced transaction. A cancelled or expired worker cannot publish; a final task-write failure rolls back every preceding domain write.
+- The shared JSON stage revalidates a checkpoint without initializing a provider client. Provider configuration is checked before reserving an external attempt; an empty DeepSeek key cannot fall back to unrelated `OPENAI_API_KEY` credentials. Model/validation attempts share the same three-attempt ceiling and queue-wide daily limits.
+- Report UI now shows actual stages, supports explicit cancellation, restores an account/quiz-namespaced request after refresh, and cancels only transport on page hide. Task history links both the quiz and its task. Restoration validates the task kind and quiz identity before displaying a result.
+- Real isolated MySQL tests cover duplicate admission, cross-user refusal, known-response recovery under a new lease, exactly-once XP, cancellation and transaction rollback. The browser checkpoint fixture is explicitly synthetic and performs zero model calls; it exercises actual API, worker, database and UI behavior. It is not a model-quality score.
+- Actual new report task: one model call, 913 returned tokens, 1711 ms provider-call log time, 5671 ms observed UI completion including polling. Server accuracy was 67% and XP was 14 for the synthetic three-question exercise. Different-device replay and the compatibility endpoint reused the same result. See `evidence/m3-report-live.json`; no currency cost or human diagnosis rating is inferred.
+- After live verification, the API was restarted with provider keys disabled. `report-live.spec.ts` reuse mode verified the saved real report without another call. Actual screenshots: `14-report-task.png` (synthetic checkpoint), `15-durable-report.png` and `16-report-desktop.png` (real generated report).
+- Browser iterations found an incorrect test assumption (`undefined` instead of the API's `null` for no report), zero spacing between report actions, and a history link that could not resume a pending report without local storage. Contract/layout/navigation assertions reproduce these separately; none was fixed by suppressing errors or bypassing persistence.
+- Latest backend suite: 247 deterministic tests; isolated database suite: 18 tests; frontend units: nine. Weapp runtime/device validation remains pending. Full task graph, Socratic mode, diagnosis, legacy quiz/search/image task migration and M4 algorithms remain unfinished.
+- Final browser regression after the history-link fix: five default scenarios passed in 27.1 seconds; three paid scenarios were explicitly skipped by default. The separate real report and no-new-call recovery runs passed. Both artifacts and TypeScript passed; final H5 entry gzip is 118792 bytes and weapp main is 562527 bytes (`evidence/m3-report-build-size.json`). The inherited Webpack uncompressed-entry warning and outdated Browserslist-data notice remain visible, not suppressed.
+
+| ID / behavior | Implementation | Tests | Evidence |
+| --- | --- | --- | --- |
+| REPORT-03 durable, owned report admission | `services/report_service.py`, `repositories/job_repository.py` | `test_report_tasks.py` in separate unit and integration suites | `evidence/m3-report-live.json` |
+| REPORT-04 atomic report/XP/task publication | `repositories/quiz_repository.py` | cancellation, final-write rollback, replay integration tests | 18-case isolated MySQL suite |
+| REPORT-05 pending refresh and cross-device history | Taro report/task pages, `services/reportSession.ts` | `report-tasks.spec.ts`, `reportSession.test.ts` | `evidence/m3-report-task-ui.json`, H5 `14-report-task.png` |
+
 ## Decision Record
 
 - Preserve Taro 4.1.11, MySQL and Chroma; enhance existing modules.

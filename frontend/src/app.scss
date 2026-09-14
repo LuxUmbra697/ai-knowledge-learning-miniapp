@@ -45,6 +45,8 @@ page, body { margin: 0; background: #fff6f9; font-family: 'PingFang SC', 'Micros
 .question-media { width: 100%; height: 220px; }
 .practice-navigation { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin-top: 22px; }
 .report-list { display: flex; flex-direction: column; gap: 12px; padding: 14px 0 26px; }
+.report-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.report-task { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 20px; }
 .report-question { padding: 22px 0; border-top: 1px solid var(--line); }
 .document-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
 .upload-band { padding: 20px 0 28px; border-bottom: 1px solid var(--line); margin-bottom: 24px; }

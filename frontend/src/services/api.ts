@@ -171,6 +171,12 @@ export function generateReport(params: {
   })
 }
 
+export function generateReportAsync(quizId: string, idempotencyKey: string, control?: PollControl) {
+  return request<LearningTask>('/report/generate/async', {
+    method: 'POST', data: { quiz_id: quizId }, idempotencyKey, control, timeout: 15000,
+  })
+}
+
 export function submitAnswer(quizId: string, questionId: string, selectedAnswers: string[], durationMs: number) {
   return request<{record: AnswerRecord; question: Question; replayed: boolean}>(`/quiz/${quizId}/answer`, {
     method: 'POST', data: { question_id: questionId, selected_answers: selectedAnswers, duration_ms: durationMs },
@@ -429,6 +435,7 @@ export function reindexDocument(docId: string) {
 }
 
 export interface LearningTask {
+  resource_id?: string
   task_id: string; kind: 'index' | 'answer' | 'retrieve' | 'quiz' | 'report' | 'cleanup'
   status: 'staging' | 'queued' | 'running' | 'completed' | 'failed' | 'cancelled'
   stage: string; title?: string; created_at?: string; result: any

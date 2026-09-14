@@ -22,11 +22,13 @@ def parse_json(content):
     return json.loads(fenced.group(1) if fenced else content.strip())
 
 
-async def run_json_stage(invoke, validate, *, stage, context=None, input_bytes=lambda _feedback: 0):
+async def run_json_stage(invoke, validate, *, stage, context=None, input_bytes=lambda _feedback: 0, prepare=None):
     history = context.checkpoints.get(stage, {}).get('output', []) if context else []
     feedback = ''
     for attempt in range(3):
         if attempt >= len(history):
+            if prepare:
+                prepare()
             async def call():
                 started = time.monotonic()
                 logger.info('structured_call_started', stage=stage, attempt=attempt + 1, input_bytes=input_bytes(feedback))

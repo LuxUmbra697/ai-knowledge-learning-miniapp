@@ -62,11 +62,12 @@ test('real document practice, authoritative answers and persisted model report',
   await expect(page.getByText(`${Math.round(correct / 5 * 100)}%`, { exact: true })).toBeVisible()
   const reportStarted = Date.now()
   if (!detail.report) {
-    const generated = page.waitForResponse(response => response.url().endsWith('/report/generate'), { timeout: 70000 })
+    const generated = page.waitForResponse(response => response.url().endsWith('/report/generate/async'), { timeout: 15000 })
     await page.getByText('生成学习报告', { exact: true }).click()
     expect((await generated).status()).toBe(200)
+    await page.reload()
   }
-  await expect(page.getByText('本次总结', { exact: true })).toBeVisible()
+  await expect(page.getByText('本次总结', { exact: true })).toBeVisible({ timeout: 70000 })
   const reportReadyMs = Date.now() - reportStarted
   await page.screenshot({ path: '../docs/screenshots/h5/08-learning-report.png', fullPage: true })
   await page.reload()
@@ -91,7 +92,7 @@ test('real document practice, authoritative answers and persisted model report',
     checks: [...(reuse ? [] : ['knowledge_library_entry', 'answer_fields_hidden_before_submission', 'reload_restores_answers']),
       'server_grading_matches_stored_answers', 'report_matches_server_score', 'report_persists_after_refresh', 'report_replay_returns_same_result',
       'xp_awarded_once', 'cross_user_report_404', 'no_browser_errors', '390px_no_horizontal_overflow'],
-    limitations: ['Model-generated question semantics are not human-rated', 'Legacy quiz/report jobs are not yet restart-safe',
+    limitations: ['Model-generated question semantics are not human-rated', 'Legacy quiz jobs are not yet restart-safe',
       'No native WeChat execution', 'Provider usage must be read from redacted stage logs, not inferred from HTTP count'],
   }, null, 2) + '\n')
 })

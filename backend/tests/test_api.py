@@ -181,15 +181,15 @@ class TestReportAPI:
         self, mock_report_output, sample_report_request, authenticated_headers
     ):
         with patch(
-            "app.services.report_service.generate_report",
+            "app.services.report_service.wait_result",
             new_callable=AsyncMock,
-            return_value=mock_report_output,
+            return_value=mock_report_output.model_dump(),
         ), patch("app.services.report_service.quiz_repository.get_quiz_detail", new_callable=AsyncMock,
                  return_value={"title": sample_report_request["topic"], "questions": sample_report_request["questions"]}), \
              patch("app.services.report_service.get_attempts", new_callable=AsyncMock,
                    return_value=sample_report_request["answer_records"]), \
-             patch("app.services.report_service.quiz_repository.complete_quiz", new_callable=AsyncMock,
-                   side_effect=lambda quiz_id, user_id, records, score, report: report):
+             patch("app.services.report_service.jobs.enqueue", new_callable=AsyncMock,
+                   return_value={'task_id': 'job_mock'}) as enqueue:
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test", headers=authenticated_headers) as client:
                 resp = await client.post(
@@ -201,3 +201,5 @@ class TestReportAPI:
             assert body["code"] == 0
             assert body["data"]["accuracy"] == 80
             assert len(body["data"]["weak_points"]) > 0
+            enqueue.assert_awaited_once()
+            assert enqueue.await_args.args[:2] == (1, 'report')

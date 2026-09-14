@@ -10,6 +10,8 @@ from app.core.config import get_settings
 @lru_cache()
 def get_chat_model(temperature: float = 0.4) -> ChatOpenAI:
     settings = get_settings()
+    if not settings.deepseek_api_key:
+        raise ValueError('DEEPSEEK_API_KEY is not configured')
     return ChatOpenAI(
         model=settings.deepseek_model,
         base_url=settings.deepseek_base_url,

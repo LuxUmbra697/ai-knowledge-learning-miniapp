@@ -61,3 +61,13 @@ async def test_cached_response_survives_revalidation_without_new_call():
     assert await run_json_stage(invoke, lambda value: value, stage='quiz', context=context) == {'ok': True}
     context.external.assert_not_called()
     invoke.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_provider_configuration_failure_is_not_counted_as_a_network_attempt():
+    context = SimpleNamespace(checkpoints={}, external=AsyncMock())
+    def prepare():
+        raise ValueError('Missing provider configuration')
+    with pytest.raises(ValueError, match='Missing provider configuration'):
+        await run_json_stage(AsyncMock(), lambda value: value, stage='report', context=context, prepare=prepare)
+    context.external.assert_not_called()

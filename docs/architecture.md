@@ -24,7 +24,11 @@ flowchart LR
   ANSWER --> MODEL[DeepSeek JSON response]
   MODEL --> CHECK[Schema and exact-quote validation]
   CHECK --> SQL
-  API --> LEGACY[Existing quiz/report services: migration in progress]
+  WORKER --> REPORT[Report from authoritative attempts]
+  REPORT --> MODEL
+  REPORT --> COMMIT[Report + score + XP + task transaction]
+  COMMIT --> SQL
+  API --> LEGACY[Existing quiz/search/image services: migration in progress]
 ```
 
 The production gateway prefix is planned as `/ai-learn/api/v1`; it must strip `/ai-learn` before forwarding to the backend's actual `/api/v1` routes. The target public routes have not been deployed. Existing application gateways and data remain untouched.
@@ -35,7 +39,7 @@ H5 uses independent account credentials hashed with salted scrypt. WeChat retain
 
 MySQL is authoritative for documents, active revisions, source chunks, question answers, attempts and task state. Chroma results cannot authorize access. Every dense/BM25/reranker path starts with an owned SQL corpus; Chroma also receives a pre-filtered scope. Source bodies are taken from canonical SQL rows, not arbitrary vector metadata. Document tombstones revoke retrieval immediately; physical cleanup is retried separately.
 
-Practice serialization removes answers and explanations before a submitted attempt. Server grading locks the quiz, deduplicates the attempt and returns the stored result on identical replay. Modified replay returns a conflict. Report scoring uses stored attempts; score/report/XP publication is transactional. Concurrent model generation in legacy quiz/report services is still being migrated and is not covered by the new queue guarantee yet.
+Practice serialization removes answers and explanations before a submitted attempt. Server grading locks the quiz, deduplicates the attempt and returns the stored result on identical replay. Modified replay returns a conflict. Report scoring uses stored attempts; report/score/XP/task publication shares one fenced transaction. A failed final task update rolls back the report and XP. Concurrent quiz generation is still being migrated and is not covered by this guarantee yet.
 
 ## Task Lifecycle
 
@@ -43,7 +47,7 @@ Practice serialization removes answers and explanations before a submitted attem
 stateDiagram-v2
   [*] --> staging: reserve document and task
   staging --> queued: write and verify upload
-  [*] --> queued: admit owned answer/retrieval
+  [*] --> queued: admit owned answer/retrieval/report
   queued --> running: claim lease and fence
   running --> running: checkpoint / renew lease
   running --> completed: fenced publication
@@ -54,7 +58,7 @@ stateDiagram-v2
   running --> queued: conceptual recovery after expired lease
 ```
 
-Recovery is implemented by reclaiming an expired running row directly, not by a separate message delivery step. A persisted `call_pending` marker stops recovery from repeating an external request whose result is unknown. When a known response has already been checkpointed, answer validation can continue without another provider request. SQL idempotency keys bind owner, task kind and canonical payload. An active payload fingerprint also coalesces concurrent submissions with different keys.
+Recovery is implemented by reclaiming an expired running row directly, not by a separate message delivery step. A persisted `call_pending` marker stops recovery from repeating an external request whose result is unknown. When a known response has already been checkpointed, answer/report validation can continue without another provider request. SQL idempotency keys bind owner, task kind and canonical payload. An active payload fingerprint also coalesces concurrent submissions with different keys. Completed immutable reports also reuse their completed task across different keys; failed/cancelled jobs permit an explicit new request. The synchronous report endpoint waits for the same job as the asynchronous endpoint.
 
 The queue is a MySQL table, not an in-memory job dictionary. The Python worker loop only controls execution. It is currently embedded in the single API process so embedded Chroma is not opened by independent writer processes. Deployment must use one process with `WORKER_ENABLED=true` for this configuration. No multi-service or multi-Agent topology is claimed.
 
@@ -72,6 +76,6 @@ Grounded answers use a constrained JSON service, not ReAct tool execution. Exist
 
 - Native WeChat automation and device verification are pending the local tool authorization/service-port gate.
 - Cloud schema selection and backup/migration rehearsal remain pending; test databases are independent loopback schemas.
-- Legacy public search, quiz/report/image generation, retired-index maintenance and production security headers still need release hardening.
+- Legacy public search, quiz/image generation, retired-index maintenance and production security headers still need release hardening.
 - Windows parser subprocess timeouts are tested, but Linux-only memory limits have no equivalent verified Windows hard cap.
 - The small synthetic retrieval dataset proves reproducibility, not real-user learning outcomes or general answer correctness.

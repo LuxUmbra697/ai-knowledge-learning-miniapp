@@ -9,36 +9,33 @@ import structlog
 from fastapi import HTTPException
 
 from app.core.db import get_mysql_pool
+from app.repositories.rag_index_repository import transaction
+from app.repositories import job_repository as jobs
 
 logger = structlog.get_logger()
 
 
-async def complete_quiz(quiz_id: str, user_id: int, records: list, score: dict, report: dict) -> dict:
-    pool = get_mysql_pool()
-    if pool is None:
-        raise HTTPException(503, "学习记录暂时不可用")
-    async with pool.acquire() as conn:
-        await conn.begin()
-        try:
-            async with conn.cursor() as cur:
-                await cur.execute("SELECT quiz_id FROM quiz_sessions WHERE quiz_id=%s AND user_id=%s FOR UPDATE", (quiz_id, user_id))
-                if await cur.fetchone() is None:
-                    raise HTTPException(404, "练习不存在")
-                await cur.execute("SELECT report_json FROM reports WHERE quiz_id=%s AND user_id=%s", (quiz_id, user_id))
-                previous = await cur.fetchone()
-                if previous:
-                    await conn.rollback()
-                    return json.loads(previous[0]) if isinstance(previous[0], str) else previous[0]
-                await cur.execute("INSERT INTO answer_records (quiz_id,user_id,records_json,total_questions,correct_count,accuracy) VALUES (%s,%s,%s,%s,%s,%s)",
-                                  (quiz_id,user_id,json.dumps(records, ensure_ascii=False),score["total"],score["correct"],score["accuracy"]))
-                await cur.execute("INSERT INTO reports (quiz_id,user_id,report_json) VALUES (%s,%s,%s)",
-                                  (quiz_id,user_id,json.dumps(report, ensure_ascii=False)))
-                await cur.execute("UPDATE users SET total_xp=total_xp+%s WHERE id=%s", (10 + score["correct"] * 2, user_id))
-                await conn.commit()
-                return report
-        except BaseException:
-            await conn.rollback()
-            raise
+async def complete_quiz(quiz_id: str, user_id: int, records: list, score: dict, report: dict, context=None) -> dict:
+    async with transaction() as cur:
+        job = await jobs.running(cur, context.task_id, context.lease_token) if context else None
+        if job and (job['kind'] != 'report' or job['user_id'] != user_id or job['payload_json']['quiz_id'] != quiz_id):
+            raise jobs.TaskLeaseLost()
+        await cur.execute("SELECT quiz_id FROM quiz_sessions WHERE quiz_id=%s AND user_id=%s FOR UPDATE", (quiz_id, user_id))
+        if await cur.fetchone() is None:
+            raise HTTPException(404, "练习不存在")
+        await cur.execute("SELECT report_json FROM reports WHERE quiz_id=%s AND user_id=%s", (quiz_id, user_id))
+        previous = await cur.fetchone()
+        if previous:
+            report = json.loads(previous['report_json']) if isinstance(previous['report_json'], str) else previous['report_json']
+        else:
+            await cur.execute("INSERT INTO answer_records (quiz_id,user_id,records_json,total_questions,correct_count,accuracy) VALUES (%s,%s,%s,%s,%s,%s)",
+                              (quiz_id,user_id,json.dumps(records, ensure_ascii=False),score["total"],score["correct"],score["accuracy"]))
+            await cur.execute("INSERT INTO reports (quiz_id,user_id,report_json) VALUES (%s,%s,%s)",
+                              (quiz_id,user_id,json.dumps(report, ensure_ascii=False)))
+            await cur.execute("UPDATE users SET total_xp=total_xp+%s WHERE id=%s", (10 + score["correct"] * 2, user_id))
+        if job:
+            await jobs.publish_result(cur, job, report)
+        return report
 
 
 async def save_quiz_session(

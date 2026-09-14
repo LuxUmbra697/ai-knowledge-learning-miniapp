@@ -1,0 +1,37 @@
+{
+  "recorded_at": "2026-09-14T00:47:12.137Z",
+  "source": "Synthetic exercise with actual model-generated report",
+  "run_mode": "saved report, no new model calls",
+  "observed_ui_ms": 42,
+  "task_trace": {
+    "nodes": [
+      {
+        "stage": "report_input_validated",
+        "duration_ms": 1.66
+      },
+      {
+        "stage": "report_validated",
+        "duration_ms": 3989.29
+      }
+    ],
+    "tokens": 913,
+    "trace_id": "f7f6e8de2f524a3da2ef609127f02cfb",
+    "input_bytes": 2716,
+    "model_calls": 1
+  },
+  "accuracy": 67,
+  "total_xp": 14,
+  "checks": [
+    "actual_provider_output",
+    "server_accuracy",
+    "atomic_report_xp",
+    "compatibility_endpoint_reuses_result",
+    "390_and_1440_width",
+    "no_browser_errors"
+  ],
+  "limitations": [
+    "No human rating of diagnosis",
+    "No native WeChat execution",
+    "Currency billing not queried"
+  ]
+}

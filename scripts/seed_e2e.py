@@ -2,6 +2,7 @@
 import argparse
 import asyncio
 import uuid
+import json
 
 from run_local import configure
 
@@ -11,7 +12,7 @@ from app.core.db import connect_mysql, close_mysql_pool, get_mysql_pool
 from app.repositories.quiz_repository import save_quiz_session
 
 
-async def main(user_id: int, staged_upload=False):
+async def main(user_id: int, staged_upload=False, report_checkpoint=False, release_report=None):
     await connect_mysql()
     try:
         async with get_mysql_pool().acquire() as conn:
@@ -20,6 +21,17 @@ async def main(user_id: int, staged_upload=False):
                 row = await cur.fetchone()
                 if not row or not row[0].startswith("e2e_"):
                     raise ValueError("Only synthetic e2e accounts may receive fixtures")
+        if release_report:
+            from app.repositories.rag_index_repository import transaction
+            from app.repositories import job_repository as jobs
+            async with transaction() as cur:
+                await cur.execute("SELECT * FROM learning_jobs WHERE task_id=%s AND user_id=%s AND kind='report' AND status='running' FOR UPDATE", (release_report, user_id))
+                row = jobs.decode(await cur.fetchone())
+                if not row or row['state_json'].get('fixture') != 'e2e-report-hold':
+                    raise ValueError('Only a held synthetic report checkpoint may be released')
+                await cur.execute('UPDATE learning_jobs SET lease_until=UTC_TIMESTAMP()-INTERVAL 1 SECOND WHERE task_id=%s', (release_report,))
+            print('synthetic_report_released')
+            return
         if staged_upload:
             from app.repositories.rag_index_repository import reserve
             from app.services.vector_store_service import index_version
@@ -46,6 +58,22 @@ async def main(user_id: int, staged_upload=False):
              "knowledge_point": "冷启动", "difficulty": "easy"},
         ]
         await save_quiz_session(quiz_id, user_id, "学习方法与证据意识", "合成验收题库，验证作答流程", "确定性浏览器验收", questions)
+        if report_checkpoint:
+            from app.services.grading_service import submit_question, AnswerSubmission
+            from app.repositories import job_repository as jobs
+            from app.repositories.rag_index_repository import transaction
+            for question in questions:
+                await submit_question(quiz_id, user_id, AnswerSubmission(question_id=question['id'], selected_answers=question['answer']))
+            report = dict(accuracy=100, mastered_points=[q['knowledge_point'] for q in questions], weak_points=[],
+                          three_line_summary=['这是一份合成验收报告。', '三道题均按服务端保存的答案完成。', '恢复过程不调用模型，也不代表真实学习效果。'],
+                          advice=['回到原文复习本次知识点。'], share_quote='记录每一步学习。')
+            async with transaction() as cur:
+                task = await jobs.insert(cur, user_id, 'report', {'quiz_id': quiz_id, 'title': '学习方法与证据意识'}, uuid.uuid4().hex)
+                state = {'fixture': 'e2e-report-hold', 'checkpoints': {'report': {'output': [{'content': json.dumps(report, ensure_ascii=False), 'finish_reason': 'stop'}]}}}
+                await cur.execute("UPDATE learning_jobs SET status='running',stage='report',lease_token=%s,lease_until=UTC_TIMESTAMP()+INTERVAL 120 SECOND,claims=1,started_at=UTC_TIMESTAMP(),state_json=%s WHERE task_id=%s",
+                                  (uuid.uuid4().hex, jobs.encoded(state), task['task_id']))
+            print(json.dumps({'quizId': quiz_id, 'taskId': task['task_id']}))
+            return
         print(quiz_id)
     finally:
         await close_mysql_pool()
@@ -55,5 +83,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--user-id", required=True, type=int)
     parser.add_argument('--staged-upload', action='store_true')
+    parser.add_argument('--report-checkpoint', action='store_true')
+    parser.add_argument('--release-report')
     args = parser.parse_args()
-    asyncio.run(main(args.user_id, args.staged_upload))
+    asyncio.run(main(args.user_id, args.staged_upload, args.report_checkpoint, args.release_report))

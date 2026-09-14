@@ -18,16 +18,12 @@ async def generate_report(
     score_summary: dict,
     context=None,
 ) -> ReportOutput:
-    llm = get_chat_model(temperature=0.5)
-
     prompt = ChatPromptTemplate.from_messages(
         [
             ("system", REPORT_SYSTEM_PROMPT),
             ("human", REPORT_HUMAN_PROMPT + '\n{validation_feedback}'),
         ]
     )
-
-    chain = prompt | llm
 
     values = {
             "topic": topic,
@@ -39,6 +35,10 @@ async def generate_report(
             ),
             "score_summary": json.dumps(score_summary, ensure_ascii=False),
         }
+    chain = None
+    def prepare():
+        nonlocal chain
+        chain = prompt | get_chat_model(temperature=0.5)
     async def invoke(feedback):
         return await chain.ainvoke({**values, 'validation_feedback': feedback})
     def validate(data):
@@ -52,5 +52,5 @@ async def generate_report(
             raise ValueError('Report text must be nonempty and bounded')
         result.accuracy = score_summary['accuracy']
         return result
-    return await run_json_stage(invoke, validate, stage='report', context=context,
+    return await run_json_stage(invoke, validate, stage='report', context=context, prepare=prepare,
                                 input_bytes=lambda feedback: len((REPORT_SYSTEM_PROMPT + REPORT_HUMAN_PROMPT.format(**values) + feedback).encode()))

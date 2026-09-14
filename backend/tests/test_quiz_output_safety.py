@@ -63,10 +63,24 @@ async def test_async_generation_does_not_publish_unsaved_quiz(monkeypatch, sampl
 def test_shared_model_factory_disables_hidden_retries(monkeypatch):
     factory = lambda **kwargs: SimpleNamespace(**kwargs)
     monkeypatch.setattr(langchain_factory, 'ChatOpenAI', factory)
+    settings = langchain_factory.get_settings().model_copy(update={'deepseek_api_key': 'synthetic-test-key'})
+    monkeypatch.setattr(langchain_factory, 'get_settings', lambda: settings)
     langchain_factory.get_chat_model.cache_clear()
     try:
         model = langchain_factory.get_chat_model()
         assert model.max_retries == 0 and model.timeout == 20
+    finally:
+        langchain_factory.get_chat_model.cache_clear()
+
+
+def test_empty_provider_key_cannot_fall_back_to_unrelated_environment_credentials(monkeypatch):
+    settings = langchain_factory.get_settings().model_copy(update={'deepseek_api_key': ''})
+    monkeypatch.setattr(langchain_factory, 'get_settings', lambda: settings)
+    monkeypatch.setenv('OPENAI_API_KEY', 'unrelated-synthetic-key')
+    langchain_factory.get_chat_model.cache_clear()
+    try:
+        with pytest.raises(ValueError, match='DEEPSEEK_API_KEY'):
+            langchain_factory.get_chat_model()
     finally:
         langchain_factory.get_chat_model.cache_clear()
 
