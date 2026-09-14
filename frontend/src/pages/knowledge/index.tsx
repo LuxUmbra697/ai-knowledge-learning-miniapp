@@ -1,11 +1,12 @@
 import { useState, useRef } from 'react'
 import { View, Text, Button } from '@tarojs/components'
 import Taro, { useDidShow, useDidHide } from '@tarojs/taro'
-import { getKnowledgeDocuments, getKnowledgeDocumentStatus, uploadKnowledgeDocument, deleteKnowledgeDocument, generateQuizAsync, pollQuizTask, waitForLogin, getToken, KnowledgeDocumentItem, reindexDocument } from '../../services/api'
+import { getKnowledgeDocuments, getKnowledgeDocumentStatus, uploadKnowledgeDocument, deleteKnowledgeDocument, generateQuizAsync, getLearningTask, getCachedUser, waitForLogin, getToken, KnowledgeDocumentItem, reindexDocument, ApiError } from '../../services/api'
 import { PollControl, pollUntil } from '../../services/polling'
 import { chooseDocument } from '../../services/chooseDocument'
 import { StudioShell, Notice, Empty, navigate } from '../../components/StudioShell'
 import { Icon } from '../../components/Icon'
+import { restorableQuiz } from '../../services/quizSession'
 
 const statusText = { processing: '解析中', ready: '已就绪', failed: '解析失败' }
 export default function KnowledgePage() {
@@ -66,14 +67,25 @@ export default function KnowledgePage() {
   const practice = async (doc: KnowledgeDocumentItem) => {
     if (lock.current || doc.status !== 'ready') return
     lock.current = true; setBusy('正在创建练习'); setError('')
+    const key = `ai-learn:v1:practice:${getCachedUser()?.id}:${doc.doc_id}`
     try {
-      const { task_id } = await generateQuizAsync(`根据文档《${doc.file_name}》生成知识练习`, 5, doc.doc_id)
+      let pending = restorableQuiz(Taro.getStorageSync(key))
+      if (pending?.taskId) {
+        const task = await getLearningTask(pending.taskId)
+        if (['completed', 'failed', 'cancelled'].includes(task.status)) pending = null
+      }
+      pending = pending || { key: `quiz_${Date.now()}_${Math.random().toString(36).slice(2)}` }
+      Taro.setStorageSync(key, pending)
+      if (!pending.taskId) {
+        const created = await generateQuizAsync(`根据文档《${doc.file_name}》生成知识练习`, 5, doc.doc_id, false, pending.key)
+        pending = { ...pending, taskId: created.task_id }; Taro.setStorageSync(key, pending)
+      }
       if (!live.current) return
-      const control = new PollControl(); polls.current.set(task_id, control)
-      const quiz = await pollQuizTask(task_id, stage => setBusy(stage === 'pending' ? '等待处理' : '正在生成练习'), 3000, 100, control)
-      polls.current.delete(task_id)
-      if (live.current) Taro.navigateTo({ url: `/pages/quiz/index?quizId=${quiz.quiz_id}` })
-    } catch (reason) { if (live.current) setError(reason instanceof Error ? reason.message : '练习生成失败') }
+      Taro.navigateTo({ url: `/pages/quiz/index?taskId=${encodeURIComponent(pending.taskId!)}` })
+    } catch (reason) {
+      if (reason instanceof ApiError && [404, 409, 422].includes(reason.statusCode)) Taro.removeStorageSync(key)
+      if (live.current) setError(reason instanceof Error ? reason.message : '练习生成失败')
+    }
     finally { lock.current = false; if (live.current) setBusy('') }
   }
   const rebuild = async (doc: KnowledgeDocumentItem) => {

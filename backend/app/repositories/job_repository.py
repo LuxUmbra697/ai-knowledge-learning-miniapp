@@ -58,6 +58,11 @@ async def insert(cur, user_id, kind, payload, key, status='queued'):
         raise HTTPException(401, '账户不存在')
     await cur.execute('SELECT * FROM learning_jobs WHERE user_id=%s AND kind=%s AND idempotency_key=%s', (user_id, kind, key))
     existing = decode(await cur.fetchone())
+    if not existing:
+        await cur.execute('SELECT j.* FROM learning_job_request_keys k JOIN learning_jobs j ON j.task_id=k.task_id '
+                          'AND j.user_id=k.user_id AND j.kind=k.kind WHERE k.user_id=%s AND k.kind=%s AND k.idempotency_key=%s',
+                          (user_id, kind, key))
+        existing = decode(await cur.fetchone())
     if existing:
         if existing['fingerprint'] != fingerprint:
             raise HTTPException(409, '请求标识已用于不同内容')
@@ -65,12 +70,14 @@ async def insert(cur, user_id, kind, payload, key, status='queued'):
     await cur.execute('SELECT * FROM learning_jobs WHERE user_id=%s AND kind=%s AND active_fingerprint=%s', (user_id, kind, fingerprint))
     active = decode(await cur.fetchone())
     if active:
+        await bind_request_key(cur, user_id, kind, key, active['task_id'])
         return public(active, True)
     if kind == 'report':
         # A completed report is immutable; another device must reuse it, not buy it again.
         await cur.execute("SELECT * FROM learning_jobs WHERE user_id=%s AND kind='report' AND fingerprint=%s AND status='completed' ORDER BY created_at DESC LIMIT 1", (user_id, fingerprint))
         completed = decode(await cur.fetchone())
         if completed:
+            await bind_request_key(cur, user_id, kind, key, completed['task_id'])
             return public(completed, True)
     await cur.execute("SELECT COUNT(*) AS count FROM learning_jobs WHERE user_id=%s AND status IN ('queued','running','staging')", (user_id,))
     if (await cur.fetchone())['count'] >= 3:
@@ -85,6 +92,15 @@ async def insert(cur, user_id, kind, payload, key, status='queued'):
                       (task_id, user_id, kind, key, fingerprint, fingerprint, status, status, payload_text, '{}', encoded(trace)))
     return dict(task_id=task_id, kind=kind, status=status, stage=status, result=None, trace=trace,
                 replayed=False, error_code=None, error_message=None, config_version='jobs-v1')
+
+
+async def bind_request_key(cur, user_id, kind, key, task_id):
+    # The caller holds the user row lock; preserve keys even when coalescing tasks.
+    await cur.execute('SELECT COUNT(*) AS count FROM learning_job_request_keys WHERE task_id=%s', (task_id,))
+    if (await cur.fetchone())['count'] >= 64:
+        raise HTTPException(429, '同一任务的重复请求标识过多，请从任务记录查看')
+    await cur.execute('INSERT INTO learning_job_request_keys(user_id,kind,idempotency_key,task_id) VALUES(%s,%s,%s,%s)',
+                      (user_id, kind, key, task_id))
 
 
 async def enqueue(user_id, kind, payload, key, status='queued'):

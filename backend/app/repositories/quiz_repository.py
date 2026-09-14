@@ -15,6 +15,30 @@ from app.repositories import job_repository as jobs
 logger = structlog.get_logger()
 
 
+async def publish_generated_quiz(context, output):
+    """Lock source revisions before the job, matching index publication's lock order."""
+    async with transaction() as cur:
+        for doc_id, revision, version in sorted(context.payload['scope']):
+            await cur.execute('SELECT m.active,m.revision,m.index_version,d.status FROM kb_index_meta m '
+                              'JOIN kb_documents d ON d.doc_id=m.doc_id WHERE m.doc_id=%s AND m.user_id=%s AND d.user_id=%s FOR UPDATE',
+                              (doc_id, context.user_id, context.user_id))
+            meta = await cur.fetchone()
+            if (not meta or not meta['active'] or meta['revision'] != revision or meta['index_version'] != version
+                    or meta['status'] != 'ready'):
+                raise HTTPException(409, '材料版本已变化，未发布练习，请重新生成')
+        job = await jobs.running(cur, context.task_id, context.lease_token)
+        if job['kind'] != 'quiz' or job['user_id'] != context.user_id or job['payload_json'] != context.payload:
+            raise jobs.TaskLeaseLost()
+        quiz_id = 'quiz_' + context.task_id.removeprefix('job_')
+        await cur.execute('INSERT INTO quiz_sessions(quiz_id,user_id,title,summary,user_input,questions_json) VALUES(%s,%s,%s,%s,%s,%s)',
+                          (quiz_id, context.user_id, output.title, output.summary, context.payload['query'],
+                           json.dumps([q.model_dump() for q in output.questions], ensure_ascii=False)))
+        # Generic task APIs must never return answer-bearing question checkpoints.
+        result = {'quiz_id': quiz_id, 'title': output.title}
+        await jobs.publish_result(cur, job, result)
+        return result
+
+
 async def complete_quiz(quiz_id: str, user_id: int, records: list, score: dict, report: dict, context=None) -> dict:
     async with transaction() as cur:
         job = await jobs.running(cur, context.task_id, context.lease_token) if context else None

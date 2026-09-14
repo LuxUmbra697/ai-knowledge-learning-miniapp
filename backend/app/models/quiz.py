@@ -1,7 +1,7 @@
 """题库相关数据模型"""
 
 from typing import Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class QuestionOption(BaseModel):
@@ -30,6 +30,7 @@ class QuizOutput(BaseModel):
 
 
 class QuizGenerateRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
     user_input: str = Field(
         min_length=1,
         max_length=2000,
@@ -40,7 +41,7 @@ class QuizGenerateRequest(BaseModel):
         default="mixed", description="难度"
     )
     doc_id: str | None = Field(
-        default=None, description="可选，指定基于某篇知识库文档出题"
+        default=None, min_length=1, max_length=64, description="可选，指定基于某篇知识库文档出题"
     )
     generate_images: bool = Field(
         default=False, description="是否为每道题目生成配图"
@@ -75,5 +76,6 @@ class QuizTaskStatusResponse(BaseModel):
     """轮询任务状态的响应"""
     task_id: str
     status: Literal["pending", "running", "completed", "failed"]
+    stage: str | None = None
     result: "QuizGenerateResponse | None" = None
     error_message: str | None = None

@@ -90,6 +90,17 @@ MIGRATIONS = {
         calls INT NOT NULL DEFAULT 0,
         input_bytes BIGINT NOT NULL DEFAULT 0
     ) ENGINE=InnoDB"""],
+    7: ["""CREATE TABLE IF NOT EXISTS learning_job_request_keys (
+        user_id BIGINT UNSIGNED NOT NULL,
+        kind VARCHAR(16) NOT NULL,
+        idempotency_key VARCHAR(100) NOT NULL,
+        task_id VARCHAR(64) NOT NULL,
+        PRIMARY KEY(user_id,kind,idempotency_key),
+        KEY idx_request_task(task_id),
+        CONSTRAINT fk_request_job FOREIGN KEY(task_id) REFERENCES learning_jobs(task_id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"""],
+    8: ["""ALTER TABLE learning_job_request_keys DROP FOREIGN KEY fk_request_job,
+        ADD CONSTRAINT fk_request_owner FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE"""],
 }
 
 

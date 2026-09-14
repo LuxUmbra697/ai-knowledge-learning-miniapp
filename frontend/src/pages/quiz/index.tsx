@@ -1,35 +1,68 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { View, Text, Image, Button } from '@tarojs/components'
-import Taro, { useRouter } from '@tarojs/taro'
-import { getQuizDetail, submitAnswer, QuizDetailResponse, AnswerRecord, getCachedUser } from '../../services/api'
+import Taro, { useRouter, useDidShow, useDidHide } from '@tarojs/taro'
+import { getQuizDetail, submitAnswer, QuizDetailResponse, AnswerRecord, getCachedUser, getLearningTask, cancelLearningTask, LearningTask, waitForLogin, getToken } from '../../services/api'
 import { StudioShell, Notice, navigate } from '../../components/StudioShell'
 import { Icon } from '../../components/Icon'
+import { PollControl, pollUntil } from '../../services/polling'
+import { taskPhase } from '../../services/taskDisplay'
+import { quizTaskResult } from '../../services/quizSession'
 
 export default function QuizPage() {
   const router = useRouter()
-  let quizId = router.params.quizId || ''
-  try { if (!quizId && router.params.quizData) quizId = JSON.parse(decodeURIComponent(router.params.quizData)).quiz_id || '' } catch { /* Legacy malformed links show a recoverable error. */ }
+  let routeQuizId = router.params.quizId || ''
+  try { if (!routeQuizId && router.params.quizData) routeQuizId = JSON.parse(decodeURIComponent(router.params.quizData)).quiz_id || '' } catch { /* Legacy malformed links show a recoverable error. */ }
+  const taskId = router.params.taskId || ''
+  const [quizId, setQuizId] = useState(routeQuizId), [task, setTask] = useState<LearningTask | null>(null)
   const [quiz, setQuiz] = useState<QuizDetailResponse | null>(null)
   const [index, setIndex] = useState(0), [selected, setSelected] = useState<string[]>([])
   const [records, setRecords] = useState<AnswerRecord[]>([])
   const [error, setError] = useState(''), [busy, setBusy] = useState(false)
   const lock = useRef(false), start = useRef(Date.now())
-  const draftKey = `ai-learn:v1:draft:${getCachedUser()?.id}:${quizId}`
+  const live = useRef(true), control = useRef<PollControl>()
+  const draftKeyFor = (id: string) => `ai-learn:v1:draft:${getCachedUser()?.id}:${id}`
+  const draftKey = draftKeyFor(quizId)
   const question = quiz?.questions[index], record = records.find(item => item.question_id === question?.id)
   const load = async () => {
-    if (!quizId) { setError('练习链接不完整，请从学习记录重新进入'); return }
+    control.current?.cancel(); const current = new PollControl(); control.current = current
     try {
-      const result = await getQuizDetail(quizId)
+      await waitForLogin()
+      if (current.cancelled || !live.current) return
+      if (!getToken()) { navigate('/pages/login/index'); return }
+      setError('')
+      let targetId = routeQuizId
+      if (taskId) {
+        const done = await pollUntil(() => getLearningTask(taskId, current), update => {
+          const target = quizTaskResult(update)
+          if (live.current) setTask(update)
+          if (update.status === 'failed' || update.status === 'cancelled') throw new Error(update.error_message || '练习任务已取消，未发布新题目')
+          return !!target
+        }, { control: current, intervalMs: 2000, maxAttempts: 150 })
+        targetId = quizTaskResult(done)!
+        if (routeQuizId && routeQuizId !== targetId) throw new Error('任务与练习不匹配，请从任务记录重新进入')
+      }
+      if (!targetId) throw new Error('练习链接不完整，请从学习记录重新进入')
+      const result = await getQuizDetail(targetId)
+      if (current.cancelled || !live.current) return
+      setQuizId(targetId)
       const attempts = result.answer_records || []
       const next = result.questions.findIndex(q => !attempts.some(a => a.question_id === q.id))
-      const current = next < 0 ? 0 : next
-      const draft = Taro.getStorageSync(draftKey)
-      setQuiz(result); setRecords(attempts); setIndex(current)
-      setSelected(draft?.questionId === result.questions[current]?.id && Array.isArray(draft.selected) ? draft.selected.filter((key: string) => result.questions[current].options.some(o => o.key === key)) : [])
+      const position = next < 0 ? 0 : next
+      const draft = Taro.getStorageSync(draftKeyFor(targetId))
+      setQuiz(result); setRecords(attempts); setIndex(position)
+      setSelected(draft?.questionId === result.questions[position]?.id && Array.isArray(draft.selected) ? draft.selected.filter((key: string) => result.questions[position].options.some(o => o.key === key)) : [])
       setError('')
-    } catch (reason) { setError(reason instanceof Error ? reason.message : '读取练习失败') }
+    } catch (reason) { if (live.current && !current.cancelled) setError(reason instanceof Error ? reason.message : '读取练习失败') }
   }
-  useEffect(() => { load() }, [quizId])
+  useDidShow(() => { live.current = true; load() })
+  useDidHide(() => { live.current = false; control.current?.cancel() })
+  const cancel = async () => {
+    if (!task) return
+    const confirmed = await Taro.showModal({ title: '取消练习', content: '取消后不发布题目。已经开始的模型调用可能仍产生费用。' })
+    if (!confirmed.confirm) return
+    try { await cancelLearningTask(task.task_id) }
+    catch (reason) { if (live.current) setError(reason instanceof Error ? reason.message : '取消失败，请稍后重试') }
+  }
   const choose = (key: string) => {
     if (record || busy || !question) return
     const values = question.type === 'multiple' ? selected.includes(key) ? selected.filter(x => x !== key) : [...selected, key] : [key]
@@ -50,7 +83,8 @@ export default function QuizPage() {
   return <StudioShell title={quiz?.title || '知识练习'} subtitle='先独立思考，再与解析对照。' focus>
     <View className='practice-surface'>
       {error && <Notice message={error} retry={load} />}
-      {!question && !error && <Text className='muted'>正在读取练习</Text>}
+      {!question && !error && <Text className='muted'>{task ? taskPhase(task.stage) : '正在读取练习'}</Text>}
+      {task && !quiz && <View className='report-task'><Text className='muted'>外部调用 {task.trace.model_calls} 次</Text>{!['completed', 'failed', 'cancelled'].includes(task.status) && <Button className='text-button' onClick={cancel}>取消练习</Button>}<Button className='text-button' onClick={() => Taro.navigateTo({ url: '/learning/tasks/index' })}>查看执行记录</Button></View>}
       {question && <>
         <View className='section-heading'><Text className='tag'>{({ single: '单选题', multiple: '多选题', judge: '判断题' })[question.type]}</Text><Text className='muted'>第 {index + 1} / {quiz!.questions.length} 题 · 已完成 {records.length} 题</Text></View>
         <View className='practice-progress'><View className='practice-progress-fill' style={{ width: `${records.length / quiz!.questions.length * 100}%` }} /></View>

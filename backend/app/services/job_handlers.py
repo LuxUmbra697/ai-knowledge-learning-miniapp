@@ -6,7 +6,7 @@ from fastapi import HTTPException
 
 from app.services import knowledge_service, vector_store_service
 from app.repositories import rag_index_repository, job_repository
-from app.services import grounded_answer_service, retrieval_service, report_service
+from app.services import grounded_answer_service, retrieval_service, report_service, quiz_task_service
 
 logger = structlog.get_logger()
 
@@ -22,7 +22,8 @@ async def index_document(context):
 
 
 def handlers():
-    return {'index': index_document, 'answer': answer_question, 'retrieve': retrieve_evidence, 'report': report_service.run_report_task}
+    return {'index': index_document, 'answer': answer_question, 'retrieve': retrieve_evidence,
+            'report': report_service.run_report_task, 'quiz': quiz_task_service.run}
 
 
 async def validate_scope(context):

@@ -79,7 +79,14 @@ async def _fetch_context(req: QuizGenerateRequest, user_id: Optional[int]) -> st
 async def handle_quiz_generate(
     req: QuizGenerateRequest,
     user_id: Optional[int] = None,
+    key: str | None = None,
 ) -> QuizGenerateResponse:
+    if req.doc_id and not req.generate_images:
+        from app.services import quiz_task_service
+        from app.services.learning_task_service import wait_result
+        task = await quiz_task_service.create(req, user_id, key)
+        reference = await wait_result(task['task_id'], user_id, seconds=60)
+        return await quiz_task_service.result_response(reference, user_id)
     # 内容安全检查
     if not check_content(req.user_input):
         raise ContentFilterError("输入内容包含不当内容，请修改后重试")
@@ -136,8 +143,13 @@ async def handle_quiz_generate(
 async def create_quiz_task(
     req: QuizGenerateRequest,
     user_id: Optional[int] = None,
+    key: str | None = None,
 ) -> QuizTaskCreateResponse:
     """创建异步出题任务，立即返回 task_id"""
+    if req.doc_id and not req.generate_images:
+        from app.services import quiz_task_service
+        task = await quiz_task_service.create(req, user_id, key)
+        return QuizTaskCreateResponse(task_id=task['task_id'])
     if not check_content(req.user_input):
         raise ContentFilterError("输入内容包含不当内容，请修改后重试")
 
@@ -224,6 +236,9 @@ async def _run_quiz_task(
 
 async def get_quiz_task_status(task_id: str, user_id: int) -> QuizTaskStatusResponse:
     """查询任务状态"""
+    if task_id.startswith('job_'):
+        from app.services import quiz_task_service
+        return await quiz_task_service.status(task_id, user_id)
     row = await task_repository.get_task(task_id, user_id)
     if row is None:
         raise HTTPException(status_code=404, detail="任务不存在")

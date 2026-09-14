@@ -29,8 +29,10 @@ test('real document practice, authoritative answers and persisted model report',
     await page.goto('pages/knowledge/index')
     await expect(page.getByText('学习率补充讲义.md', { exact: true })).toBeVisible()
     await page.getByText('知识练习', { exact: true }).click()
-    await page.waitForURL(/pages\/quiz\/index\?quizId=/, { timeout: 100000 })
-    quizId = new URL(page.url()).searchParams.get('quizId')!
+    await page.waitForURL(/pages\/quiz\/index\?taskId=/, { timeout: 100000 })
+    const taskId = new URL(page.url()).searchParams.get('taskId')!
+    await expect(page.locator('.question-stem')).toBeVisible({ timeout: 75000 })
+    quizId = (await get(`learning/tasks/${taskId}`)).result.quiz_id
     await writeFile('../.local/practice-browser.json', JSON.stringify({ quizId }) + '\n')
   }
   const quizReadyMs = Date.now() - started
@@ -92,7 +94,7 @@ test('real document practice, authoritative answers and persisted model report',
     checks: [...(reuse ? [] : ['knowledge_library_entry', 'answer_fields_hidden_before_submission', 'reload_restores_answers']),
       'server_grading_matches_stored_answers', 'report_matches_server_score', 'report_persists_after_refresh', 'report_replay_returns_same_result',
       'xp_awarded_once', 'cross_user_report_404', 'no_browser_errors', '390px_no_horizontal_overflow'],
-    limitations: ['Model-generated question semantics are not human-rated', 'Legacy quiz jobs are not yet restart-safe',
+    limitations: ['Model-generated question semantics are not human-rated', 'Legacy image/public-topic quiz jobs are not yet restart-safe',
       'No native WeChat execution', 'Provider usage must be read from redacted stage logs, not inferred from HTTP count'],
   }, null, 2) + '\n')
 })

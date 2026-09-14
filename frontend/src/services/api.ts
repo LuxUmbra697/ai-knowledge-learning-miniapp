@@ -9,6 +9,10 @@ const BASE_URL = API_BASE_URL
 const TOKEN_KEY = 'ai-learn:v1:token'
 const USER_KEY = 'ai-learn:v1:user'
 
+export class ApiError extends Error {
+  constructor(message: string, public statusCode: number) { super(message); this.name = 'ApiError' }
+}
+
 /* ---- 登录就绪机制：确保页面在登录完成后再请求需要鉴权的接口 ---- */
 let _loginResolve: () => void
 const _loginReady = new Promise<void>((resolve) => { _loginResolve = resolve })
@@ -84,7 +88,10 @@ export async function request<T = any>(
   })
 
   const cleanup = options.control?.onCancel(() => task.abort())
-  const res = await task.finally(() => cleanup?.())
+  const res = await task.catch(() => {
+    options.control?.check()
+    throw new ApiError('网络暂不可用，请检查连接后重试', 0)
+  }).finally(() => cleanup?.())
   options.control?.check()
   const body = res.data as ApiResponse<T>
 
@@ -95,7 +102,7 @@ export async function request<T = any>(
   }
 
   if (body.code !== 0) {
-    throw new Error(body.message || (typeof res.data?.detail === 'string' ? res.data.detail : '请求失败'))
+    throw new ApiError(body.message || (typeof res.data?.detail === 'string' ? res.data.detail : '请求失败'), res.statusCode)
   }
 
   return body.data
@@ -109,9 +116,11 @@ export function generateQuizAsync(
   questionCount = 5,
   docId?: string,
   generateImages = false,
+  idempotencyKey?: string,
 ) {
   return request<{ task_id: string }>('/quiz/generate/async', {
     method: 'POST',
+    idempotencyKey,
     data: {
       user_input: userInput,
       question_count: questionCount,

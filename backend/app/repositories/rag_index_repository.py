@@ -21,7 +21,11 @@ async def transaction():
                 yield cur
             await conn.commit()
         except BaseException:
-            await conn.rollback()
+            try:
+                if not conn.closed:
+                    await conn.rollback()
+            except Exception:
+                conn.close()
             raise
 
 

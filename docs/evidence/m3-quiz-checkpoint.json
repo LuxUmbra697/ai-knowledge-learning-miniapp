@@ -1,0 +1,18 @@
+{
+  "verified_on": "2026-09-14",
+  "scope": "Durable private text practice, coalesced request keys, browser restoration and failure handling",
+  "backend_offline": {"command": "python scripts/test_offline.py -q", "passed": 304, "seconds": 11.07, "external_calls": 0},
+  "database": {"command": "python scripts/test_database.py", "passed": 29, "seconds": 6.58, "environment": "Isolated loopback MySQL 8.0.45", "migrations": [7, 8]},
+  "frontend_units": {"directory": "frontend", "command": "npm test", "passed": 11},
+  "typecheck": {"directory": "frontend", "command": "npm run typecheck", "passed": true},
+  "static_checks": {"command": "python -m ruff check backend/app backend/integration --select F", "passed": true},
+  "browser": {
+    "directory": "frontend", "command": "npm run test:e2e", "passed": 7, "skipped_count": 3, "seconds": 41.7,
+    "environment": "Chromium with API provider keys disabled; AI_LEARN_LIVE_QUIZ=1 and AI_LEARN_QUIZ_REUSE=1",
+    "new_provider_calls": 0,
+    "skipped": ["new grounded answer", "full new practice/report", "new report"]
+  },
+  "builds": {"consecutive": ["npm run build:h5", "npm run build:weapp"], "artifact_check": "node scripts/check-build.mjs --both", "passed": true},
+  "warnings": ["DashScope upstream Assistants deprecation on import", "Webpack uncompressed entry size", "Outdated Browserslist data"],
+  "not_verified": ["Native WeChat runtime", "Public deployment", "Quiz exact quotation and semantic coverage", "Public-topic/image job durability"]
+}

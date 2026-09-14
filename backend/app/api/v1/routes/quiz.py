@@ -1,6 +1,6 @@
 """出题路由"""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header
 
 from app.core.auth import get_current_user
 from app.models.common import ApiResponse
@@ -19,8 +19,9 @@ router = APIRouter(prefix="/quiz", tags=["quiz"])
 async def quiz_generate(
     req: QuizGenerateRequest,
     user_id: int = Depends(get_current_user),
+    idempotency_key: str | None = Header(default=None),
 ):
-    result = await handle_quiz_generate(req, user_id=user_id)
+    result = await handle_quiz_generate(req, user_id=user_id, key=idempotency_key)
     return ApiResponse.success(data=public_quiz(result.model_dump()))
 
 
@@ -28,9 +29,10 @@ async def quiz_generate(
 async def quiz_generate_async(
     req: QuizGenerateRequest,
     user_id: int = Depends(get_current_user),
+    idempotency_key: str | None = Header(default=None),
 ):
     """异步创建出题任务，立即返回 task_id"""
-    result = await create_quiz_task(req, user_id=user_id)
+    result = await create_quiz_task(req, user_id=user_id, key=idempotency_key)
     return ApiResponse.success(data=result.model_dump())
 
 

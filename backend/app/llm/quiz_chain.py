@@ -57,7 +57,6 @@ async def generate_quiz(
     context=None,
     private_source=False,
 ) -> QuizOutput:
-    llm = get_chat_model(temperature=0.4)
 
     # 构建搜索上下文段落
     search_context_section = (
@@ -74,11 +73,15 @@ async def generate_quiz(
         ]
     )
 
-    chain = prompt | llm
+    chain = None
+    def prepare():
+        nonlocal chain
+        if chain is None:
+            chain = prompt | get_chat_model(temperature=0.4)
 
     values = {'user_input': user_input, 'question_count': question_count, 'difficulty': difficulty,
               'search_context_section': search_context_section}
     async def invoke(feedback):
         return await chain.ainvoke({**values, 'validation_feedback': feedback})
     return await run_json_stage(invoke, lambda data: validate_quiz(data, question_count, difficulty), stage='quiz', context=context,
-                                input_bytes=lambda feedback: len((system + QUIZ_HUMAN_PROMPT.format(**values) + feedback).encode()))
+                                input_bytes=lambda feedback: len((system + QUIZ_HUMAN_PROMPT.format(**values) + feedback).encode()), prepare=prepare)

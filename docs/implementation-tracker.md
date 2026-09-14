@@ -10,13 +10,16 @@ This ledger records observed results; planned capabilities are not delivery clai
 | M0 | Isolated baseline; authenticated ownership; authoritative grading; safe config | Core checks passed; release hardening continues | `evidence/m0-local.json`; 159 deterministic tests |
 | M1 | Taro H5/weapp, separate outputs, independent login, five themes | H5 core flow passed; native runtime gate pending | `frontend/e2e`; `screenshots/h5`; DevTools service port unavailable |
 | M2 | Bounded parsing, scoped hybrid retrieval, citations, 100-case evaluation | Retrieval/citation checkpoint verified; remaining gates below | 104 synthetic cases; real index and answer evidence; dual builds |
-| M3 | Bounded learning agent, durable worker, cancellation/recovery | Index, retrieval and answer queue checkpoint verified; practice/report migration and tutoring graph pending | MySQL restart/cancellation tests, real index/answer tasks and H5 task history |
+| M3 | Bounded learning agent, durable worker, cancellation/recovery | Index, retrieval, answer, report and private text practice verified; public-topic/image migration and tutoring graph pending | MySQL recovery/cancellation tests, real model tasks and H5 history |
 | M4 | Mastery, FSRS, prerequisites, reproducible offline experiment | Pending | No implementation yet |
 | M5 | Browser and DevTools workflows, screenshots, regression | In progress alongside each module | Actual H5 screenshots exist; no weapp screenshots claimed |
 | M6 | New deployment plus all existing sites healthy | Pending | No gateway mutations |
 | M7 | Bilingual README, documentation, private handoff, GitHub and CI | Pending | Remote history verified |
 
-## Requirement Traceability
+## Initial Audit Findings
+
+This table preserves the initial observations. Current completion and requirement-to-code/test/evidence
+mapping are recorded in the stage table and executed checkpoints below.
 
 | Requirement | Existing implementation | Finding / next change | Regression / evidence |
 | --- | --- | --- | --- |
@@ -198,7 +201,67 @@ M3 still required: migrate legacy quiz/report generation and its image/search ca
 | NET-01 bounded public asset downloads | `services/outbound_service.py` | `test_outbound_safety.py` | `evidence/m3-outbound-live.json` |
 | IMAGE-01 separate credentials and closed quota failure | `services/image_service.py`, `repositories/image_repository.py` | `test_image_safety.py` | 294-test deterministic regression; no paid image verification claimed |
 
-## Architecture Decisions
+## M3 Durable Private Practice Loop
+
+- Private document text exercises now use the same owned queue as indexing, retrieval, answers and
+  reports. The synchronous compatibility endpoint waits for that job; the worker checkpoints its
+  retrieval context and validated JSON response. Public-topic and image-enabled requests retain
+  their old path and remain explicitly pending migration, not silently disabled.
+- Admission rejects forged identity/grading fields, blank input and an empty document ID. It captures
+  server-read document revisions and rechecks them before retrieval and inside the final publication
+  transaction. Cancellation, source deletion/reindexing, a stale lease or a failed final job write
+  cannot publish a quiz. The generic task result contains only its quiz reference and title.
+- The Taro library saves an account/document-namespaced idempotency key and immediately opens a task
+  URL. That URL and task history restore actual stages after refresh; hiding the page stops polling
+  transport, while explicit cancellation changes server state. Completed tasks open the saved
+  exercise, and only submitted questions disclose answers and explanations.
+- A new database regression exposed a real cross-device race: active-task coalescing did not preserve
+  the second request key after completion. Additive migration 7 retains bounded key aliases in the
+  admission transaction. Four task kinds now test replay and conflicting payloads after completion;
+  a 64-alias limit bounds storage while existing keys remain replayable. Both local isolated schemas
+  were migrated; cloud MySQL and production configurations were not changed.
+- A held-job transaction test then reproduced a lock-order hazard in the alias-to-job foreign key.
+  Migration 8 changes its lifecycle constraint to the owner, without changing data. Alias lookups
+  still verify owner and kind; user deletion cascades. Future independent task pruning must remove
+  aliases explicitly. A cancelled-query test also reproduced rollback masking the original
+  cancellation; the shared transaction helper now preserves that signal and closes broken connections.
+- Browser checkpoint verification covers cancellation with no quiz, duplicate admission, refresh,
+  pending/completed history links, no answer leakage, server submission and restoration. The first
+  run exposed a fixture bug: duplicate material reservation returned an existing document ID, but
+  the fixture used its proposed new ID. The fixture now respects the real reservation result;
+  no duplicate/authorization assertion was removed. See `evidence/m3-quiz-task-ui.json`.
+- One actual model run generated five questions across all three supported types. Measured usage:
+  one embedding request (usage unavailable), one quiz request / 1689 returned tokens / 3924 ms model
+  stage; UI ready in 10956 ms including navigation, retrieval and polling. No image, report or web
+  calls. See `evidence/m3-quiz-live.json` and `m3-quiz-provider-usage.json`. Question semantics are not
+  human-rated, and per-question quote/coverage checking is still pending.
+- With model keys disabled again, the saved real quiz resumed without a new call. A submitted answer
+  survived refresh and identical replay, while the other answers remained hidden. Runtime screenshots
+  `17-practice-task.png` and `18-recovered-practice.png` use the synthetic checkpoint;
+  `19-durable-practice.png` and `20-practice-desktop.png` show the real generated exercise.
+- Existing private-quiz unit tests were moved from their former process-local mocks to the actual
+  queue admission/wait contracts. Rejection, no-web-search and no-local-background-task assertions
+  remain; real transaction tests independently cover persistence and recovery.
+- A stale local task reference was reproduced in the real browser: every subsequent library attempt
+  reused a nonexistent task. HTTP errors now retain their status code; a definitive 404/409/422
+  clears that local request reference, while network failure preserves it to avoid duplicate billing.
+- Final checkpoint regression: 304 deterministic backend cases (11.07 s), 29 isolated database
+  cases (6.58 s), 11 frontend units, TypeScript and Pyflakes checks passed. Final H5 run passed
+  seven scenarios in 41.7 s, including saved real-quiz reuse; three other paid scenarios were
+  explicitly skipped. All runtime provider keys were disabled during this final browser run.
+- Final consecutive H5/weapp builds and base-path artifact checks passed. H5 entry gzip is 119252
+  bytes; weapp main is 566869 bytes, with a 21565-byte learning subpackage. Native runtime remains
+  unverified. Webpack's 369 KiB uncompressed-entry warning and outdated Browserslist notice remain.
+  Rechecked target GitHub `main` still points to the initial revision; no remote write was made.
+
+| ID / behavior | Implementation | Tests | Evidence |
+| --- | --- | --- | --- |
+| QUIZ-04 durable private text generation | `services/quiz_task_service.py`, `llm/quiz_chain.py` | `test_quiz_tasks.py` in separate unit/DB suites | `evidence/m3-quiz-live.json` |
+| QUIZ-05 fenced atomic publication | `repositories/quiz_repository.py` | cancel/delete/reindex/rollback/recovery DB tests | Isolated MySQL regression |
+| QUIZ-06 task links and protected answers | Taro quiz/library/tasks, `quizSession.ts` | `quiz-tasks.spec.ts`, `quiz-live.spec.ts`, frontend units | H5 screenshots 17-20 |
+| JOB-05 cross-device request-key binding | `repositories/job_repository.py`, migrations 7-8 | four-kind replay, conflict, alias limit, lock-order and isolation DB tests | `m3-quiz-task-ui.json` |
+
+## Continuing Decisions
 
 - Preserve Taro 4.1.11, MySQL and Chroma; enhance existing modules.
 - Deterministic tests must disable dotenv and network before importing the application.

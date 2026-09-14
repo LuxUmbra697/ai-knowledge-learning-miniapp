@@ -28,7 +28,12 @@ flowchart LR
   REPORT --> MODEL
   REPORT --> COMMIT[Report + score + XP + task transaction]
   COMMIT --> SQL
-  API --> LEGACY[Existing quiz/search/image services: migration in progress]
+  WORKER --> QUIZ[Owned private text practice]
+  QUIZ --> RAG
+  QUIZ --> MODEL
+  QUIZ --> QCOMMIT[Source revision + quiz + task transaction]
+  QCOMMIT --> SQL
+  API --> LEGACY[Public-topic and image quiz services: migration in progress]
 ```
 
 The production gateway prefix is planned as `/ai-learn/api/v1`; it must strip `/ai-learn` before forwarding to the backend's actual `/api/v1` routes. The target public routes have not been deployed. Existing application gateways and data remain untouched.
@@ -39,7 +44,7 @@ H5 uses independent account credentials hashed with salted scrypt. WeChat retain
 
 MySQL is authoritative for documents, active revisions, source chunks, question answers, attempts and task state. Chroma results cannot authorize access. Every dense/BM25/reranker path starts with an owned SQL corpus; Chroma also receives a pre-filtered scope. Source bodies are taken from canonical SQL rows, not arbitrary vector metadata. Document tombstones revoke retrieval immediately; physical cleanup is retried separately.
 
-Practice serialization removes answers and explanations before a submitted attempt. Server grading locks the quiz, deduplicates the attempt and returns the stored result on identical replay. Modified replay returns a conflict. Report scoring uses stored attempts; report/score/XP/task publication shares one fenced transaction. A failed final task update rolls back the report and XP. Concurrent quiz generation is still being migrated and is not covered by this guarantee yet.
+Practice serialization removes answers and explanations before a submitted attempt. Server grading locks the quiz, deduplicates the attempt and returns the stored result on identical replay. Modified replay returns a conflict. Report scoring uses stored attempts; report/score/XP/task publication shares one fenced transaction. A failed final task update rolls back the report and XP. Private text practice publishes the quiz and task reference atomically while locking its owned source revisions; cancelled tasks and deleted/reindexed documents cannot publish. Public-topic/image quiz generation remains outside this guarantee.
 
 ## Task Lifecycle
 
@@ -47,7 +52,7 @@ Practice serialization removes answers and explanations before a submitted attem
 stateDiagram-v2
   [*] --> staging: reserve document and task
   staging --> queued: write and verify upload
-  [*] --> queued: admit owned answer/retrieval/report
+  [*] --> queued: admit owned answer/retrieval/report/private quiz
   queued --> running: claim lease and fence
   running --> running: checkpoint / renew lease
   running --> completed: fenced publication
@@ -59,6 +64,19 @@ stateDiagram-v2
 ```
 
 Recovery is implemented by reclaiming an expired running row directly, not by a separate message delivery step. A persisted `call_pending` marker stops recovery from repeating an external request whose result is unknown. When a known response has already been checkpointed, answer/report validation can continue without another provider request. SQL idempotency keys bind owner, task kind and canonical payload. An active payload fingerprint also coalesces concurrent submissions with different keys. Completed immutable reports also reuse their completed task across different keys; failed/cancelled jobs permit an explicit new request. The synchronous report endpoint waits for the same job as the asynchronous endpoint.
+
+Private text quiz generation also validates a known response without initializing a provider client.
+Its generic job result contains only `quiz_id` and `title`, never the answer-bearing checkpoint.
+The compatibility quiz poll restores the owned saved quiz and applies answer disclosure rules.
+Migration 7 retains up to 64 additional coalesced request keys per task, in the admission transaction.
+Without this binding, a second device whose response was lost could retry after completion and buy
+another task. Original request keys need no backfill; an explicitly new key can still request a new
+practice after completion. User/kind/key ownership and payload mismatch checks apply to aliases too.
+Migration 8 moves the alias lifecycle foreign key to its owner: linking it to a running job took
+a shared job lock while admission held the user row, conflicting with report publication's job-to-XP
+lock order. A real held-job test verifies admission does not wait on the publisher. Alias reads join
+both owner and kind, and account deletion cascades to aliases. Future job-pruning maintenance must
+delete its aliases explicitly; no independent job-pruning operation is currently implemented.
 
 The queue is a MySQL table, not an in-memory job dictionary. The Python worker loop only controls execution. It is currently embedded in the single API process so embedded Chroma is not opened by independent writer processes. Deployment must use one process with `WORKER_ENABLED=true` for this configuration. No multi-service or multi-Agent topology is claimed.
 
@@ -88,6 +106,7 @@ legacy Tavily URL extraction; those remain release gates.
 
 - Native WeChat automation and device verification are pending the local tool authorization/service-port gate.
 - Cloud schema selection and backup/migration rehearsal remain pending; test databases are independent loopback schemas.
-- Legacy public search, quiz/image generation, retired-index maintenance and production security headers still need release hardening.
+- Legacy public search, public-topic/image quiz generation, retired-index maintenance and production security headers still need release hardening.
+- Private quiz prompts include structured source context, but per-question exact quotation, knowledge-point coverage and semantic entailment validation remain unimplemented. Answer citation checks do not automatically prove quiz evidence quality.
 - Windows parser subprocess timeouts are tested, but Linux-only memory limits have no equivalent verified Windows hard cap.
 - The small synthetic retrieval dataset proves reproducibility, not real-user learning outcomes or general answer correctness.

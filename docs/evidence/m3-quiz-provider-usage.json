@@ -1,0 +1,18 @@
+{
+  "observed_at_utc": "2026-09-14T09:27:28Z",
+  "fixture": "Synthetic learning-rate document; one new private text quiz",
+  "embedding_requests": 1,
+  "embedding_tokens": null,
+  "quiz_requests": 1,
+  "quiz_returned_total_tokens": 1689,
+  "quiz_provider_stage_ms": 3924,
+  "image_requests": 0,
+  "report_requests": 0,
+  "web_search_requests": 0,
+  "currency_cost": null,
+  "limitations": [
+    "Embedding usage is not exposed by the current bridge",
+    "UI-ready duration includes navigation, admission, retrieval and polling, not just model latency",
+    "Schema validity does not establish factual correctness or human-rated question quality"
+  ]
+}

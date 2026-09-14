@@ -50,6 +50,7 @@ export default function TasksPage() {
         {!['completed', 'failed', 'cancelled'].includes(task.status) && <Button className='text-button' disabled={!!busy} onClick={() => cancel(task)}><Icon name='close' size={16} />取消任务</Button>}
         {task.kind === 'index' && task.result?.doc_id && task.status === 'completed' && <Button className='text-button' onClick={() => Taro.navigateTo({ url: `/learning/document/index?docId=${encodeURIComponent(task.result.doc_id)}` })}>查看资料</Button>}
         {task.kind === 'answer' && <Button className='text-button' onClick={() => Taro.navigateTo({ url: `/learning/assistant/index?taskId=${encodeURIComponent(task.task_id)}` })}>查看问答</Button>}
+        {task.kind === 'quiz' && <Button className='text-button' onClick={() => Taro.navigateTo({ url: `/pages/quiz/index?taskId=${encodeURIComponent(task.task_id)}` })}>查看练习</Button>}
         {task.kind === 'report' && task.resource_id && <Button className='text-button' onClick={() => Taro.navigateTo({ url: `/pages/report/index?quizId=${encodeURIComponent(task.resource_id!)}&taskId=${encodeURIComponent(task.task_id)}` })}>查看报告</Button>}
       </View>
       {selected === task.task_id && <View className='task-trace'><Text className='tiny-label'>追踪编号 {task.trace.trace_id}</Text><Text className='muted'>外部调用 {task.trace.model_calls} 次 · 已记录 {task.trace.tokens} tokens{task.trace.unmetered_calls ? ` · ${task.trace.unmetered_calls} 次未返回用量` : ''}</Text>
