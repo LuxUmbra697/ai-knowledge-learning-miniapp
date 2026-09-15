@@ -14,6 +14,7 @@
 
 - **能回到原文的问答**：中文 BM25 + 向量检索 + RRF；引用带文档版本、页码或章节、片段。找不到依据、资料冲突和接口失败分别呈现。
 - **自己决定一套题**：总量 1–20 道，单选、多选、填空、判断、问答分别设置数量。服务端判分，作答前不返回标准答案；问答按结构化评分规则复盘。
+- **生成失败可以接着来**：跨批次检查重复题，只修复未通过的批次；最多 10 次模型尝试，展示实际次数。失败后明确重新生成，重复点击复用任务。
 - **循序提示的学习助手**：苏格拉底辅导、错题诊断、引用核验，生成下一套练习需要明确确认。公开主题可选择联网搜索，私人文档不发送给搜索服务。
 - **看得见依据的复习**：BKT 记录掌握估计，FSRS 安排复习，前置关系与可用时间共同约束计划。确认后保存，不偷偷改计划。
 - **自己的错题与梳理图**：新建/选择错题本，主动收藏；复盘生成内容梳理、证据网络和关系图，图与原文可以对照。
@@ -76,7 +77,8 @@ flowchart LR
 
 保留原有 Taro 4.1.11、React 18、FastAPI、MySQL、Chroma，不另起前端或迁移数据库。
 MySQL 同时承担任务租约、幂等和检查点；一个 API 进程内运行一个 worker，
-避免多进程同时写嵌入式 Chroma。每阶段最多三次尝试，超时、取消和供应商结果不确定都有明确状态。
+避免多进程同时写嵌入式 Chroma。普通阶段最多三次尝试；练习生成各批次共享最多十次模型尝试。
+超时、取消、预算耗尽和供应商结果不确定都有明确状态；授权或额度错误不会盲目重试。
 这不是多 Agent 集群，也不承诺外部 API 恰好计费一次。
 
 LangGraph 仅用于受约束辅导；原有 ReAct 不是所有业务的执行入口。
@@ -171,9 +173,10 @@ npm --prefix frontend run test:e2e
 
 | 实测项目 | 结果与条件 |
 | --- | --- |
-| 后端回归 | 新建锁定环境：432 项离线、67 项隔离 MySQL 通过；26 项前端单元通过 |
-| H5 回归 | Chromium：26 项通过、4 项额外付费场景跳过；包含实际 API/数据库、已保存的供应商结果、角色切换与迟到响应回归 |
-| 双端构建 | 连续构建互不覆盖；H5 入口 gzip 122,053 B，weapp 主包 1,062,836 B；官方编译器通过 8 个 WXSS 文件，非真机性能指标 |
+| 后端回归 | 锁定环境：440 项离线、71 项隔离 MySQL 通过；26 项前端单元通过 |
+| H5 回归 | Chromium：27 项通过、4 项额外付费场景跳过；包含实际 API/数据库、已保存的供应商结果、重试入口、角色切换与迟到响应回归 |
+| 双端构建 | 连续构建互不覆盖；H5 入口 gzip 122,083 B，weapp 主包 1,065,181 B；官方编译器通过 8 个 WXSS 文件，非真机性能指标 |
+| 生成重试 | 本地真实模型：8 道五题型练习，4 次模型尝试后完成，题干无重复，作答前答案密封；401、额度不足与第 11 次调用拒绝由确定性测试覆盖 |
 | 公网实测 | 真实讲义索引、4 个引用片段、5 种题型、服务端判分、三类梳理图与指定错题本；无新增旧站路由回归 |
 | RAG | 104 条合成样例；dense MRR 0.950，混合 0.929，词项重排 0.929；三者 Recall@4 均 1.0。**未测出混合优于 dense** |
 | 算法实验 | 800 名合成学习者、24,000 条记录，按学习者划分 480/160/160；BKT 测试 Brier 从默认 0.19552 到拟合 0.18329，仅证明合成实验流程 |
@@ -301,8 +304,11 @@ evaluation, BKT fitting, frontend unit/type checks and actual-browser tests. Bro
 local stack. Default CI does not read real dotenv, touch production or spend provider credits.
 Explicit paid smoke commands are documented in [testing](docs/testing.md).
 
-Fresh locked environment: 432 offline, 67 MySQL and 26 frontend unit tests passed.
-H5 regression: 26 passed, four additional paid cases skipped; saved real-provider outputs were reused.
+Fresh locked environment: 440 offline, 71 MySQL and 26 frontend unit tests passed.
+H5 regression: 27 passed, four additional paid cases skipped; saved real-provider outputs were reused.
+Quiz batches share at most ten model attempts. Duplicate questions are repaired inside the affected
+batch; failed tasks expose explicit, owner-scoped idempotent regeneration. A real local eight-question,
+five-type run completed after four model attempts, including timeout and validation recovery.
 Both builds pass; entry gzip 122,053 bytes, weapp main 1,062,836 bytes, eight official WXSS
 compilations passed. These are build measurements, not device/concurrency benchmarks.
 

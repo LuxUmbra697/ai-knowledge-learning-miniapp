@@ -70,7 +70,7 @@ Private text questions now require 1-3 distinct exact quotations. The server res
 against the structured retrieval context and attaches document/revision/chunk/page/section itself.
 At least two supplied fragments must be covered when available; this is fragment coverage, not
 complete knowledge-point coverage or semantic entailment. Invalid output enters the existing
-three-attempt repair budget. Quotes are withheld with answers before submission. Answer/history
+quiz-specific ten-call repair budget shared across batches. Quotes are withheld with answers before submission. Answer/history
 responses recheck current owner-scoped sources and replace unavailable quotations with a notice.
 Known older quizzes remain readable but do not acquire fabricated citations. Drain active generation
 jobs before deploying a changed output contract; completed stored quizzes are not regenerated.
@@ -108,6 +108,20 @@ delete its aliases explicitly; no independent job-pruning operation is currently
 The queue is a MySQL table, not an in-memory job dictionary. The Python worker loop only controls execution. It is currently embedded in the single API process so embedded Chroma is not opened by independent writer processes. Deployment must use one process with `WORKER_ENABLED=true` for this configuration. No multi-service or multi-Agent topology is claimed.
 
 Limits are recorded in code/config: three per-stage attempts including the first, 12 external requests per task, 60,000 UTF-8 input bytes per task, a pre-next-call guard at 20,000 known tokens, and 180 seconds from first claim. Indexing further limits 100 chunks, batches of 10, and parser/provider timeouts. Site-wide daily UTC request/input limits are transactionally reserved before new queue calls. They are conservative admission limits, not a billed-currency prediction; missing provider usage is explicit.
+
+Quiz generation is the explicit exception: at most **ten model calls total across all batches**,
+160,000 input bytes, a pre-next-call guard at 60,000 known tokens, and 600 seconds from first claim.
+The 12 external-request and site-wide daily budgets still apply. SDK retries remain disabled.
+Per-call timeout is 45 seconds for quizzes; transport and schema repair share the same persisted
+budget. Only explicitly classified rate limits are retried; authorization, permanent parameters and
+quota errors stop early. An in-flight call interrupted by a worker crash is still not silently replayed.
+
+Cross-batch uniqueness is validated before accepting each batch. A repeated stem produces bounded
+feedback identifying the offending question; valid earlier responses are recovered without model calls.
+`POST /learning/tasks/{task_id}/retry` accepts an empty object, not client-supplied identity or prompts.
+It revalidates the owner's original request and current document scope, deriving one retry key from
+the failed/cancelled task ID. Repeating that action, including after completion, returns the same child.
+To retry a failed child, explicitly act on that child. The history refresh icon performs GET only.
 
 The frontends use awaited polling with cancellation of transport and timers. Refresh restores a per-account task reference. Hiding a page does not imply server cancellation. Real stages and trace IDs are exposed to the owner; prompts, raw checkpoints and lease tokens are not. Timeline `duration_ms` values currently measure elapsed intervals between checkpoint observations, not disjoint CPU-time spans, and must not be added as independent tool costs.
 

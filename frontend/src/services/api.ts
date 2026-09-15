@@ -507,6 +507,7 @@ export interface LearningTask {
   status: 'staging' | 'queued' | 'running' | 'completed' | 'failed' | 'cancelled'
   stage: string; title?: string; created_at?: string; result: any
   error_code?: string; error_message?: string
+  generation?: { attempts: number; max_attempts: number } | null
   trace: { trace_id: string; model_calls: number; tokens: number; unmetered_calls?: number; nodes: { stage: string; duration_ms: number }[] }
 }
 export function getLearningTasks(control?: PollControl) {
@@ -517,6 +518,9 @@ export function getLearningTask(taskId: string, control?: PollControl) {
 }
 export function cancelLearningTask(taskId: string) {
   return request<LearningTask>(`/learning/tasks/${encodeURIComponent(taskId)}/cancel`, { method: 'POST' })
+}
+export function retryQuizTask(taskId: string) {
+  return request<LearningTask>(`/learning/tasks/${encodeURIComponent(taskId)}/retry`, { method: 'POST', data: {}, timeout: 15000 })
 }
 
 export interface QuizImage {

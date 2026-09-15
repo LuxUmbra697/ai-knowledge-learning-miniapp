@@ -3,6 +3,7 @@ import { View, Text, Button } from '@tarojs/components'
 import Taro, { useDidHide, useDidShow } from '@tarojs/taro'
 import { StudioShell, Notice, Empty, navigate } from '../../components/StudioShell'
 import { Icon } from '../../components/Icon'
+import { QuizRetry, QuizAttempts } from '../../components/QuizRetry'
 import { cancelLearningTask, getLearningTasks, getToken, LearningTask, waitForLogin } from '../../services/api'
 import { PollControl, pollUntil } from '../../services/polling'
 import { taskPhase as phase } from '../../services/taskDisplay'
@@ -12,18 +13,25 @@ const kinds = { index: '资料索引', answer: '知识问答', retrieve: '资料
 export default function TasksPage() {
   const [tasks, setTasks] = useState<LearningTask[]>([]), [error, setError] = useState(''), [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(''), [busy, setBusy] = useState('')
+  const [refreshing, setRefreshing] = useState(false)
   const live = useRef(true), control = useRef<PollControl>()
-  const load = async () => {
+  const load = async (notify = false) => {
     await waitForLogin()
     if (!getToken()) { navigate('/pages/login/index'); return }
     control.current?.cancel(); const current = new PollControl(); control.current = current
+    if (notify) setRefreshing(true)
+    let first = true
     try {
       await pollUntil(() => getLearningTasks(current), result => {
-        if (live.current) { setTasks(result.items); setLoading(false); setError('') }
+        if (live.current && !current.cancelled) {
+          setTasks(result.items); setLoading(false); setError(''); setRefreshing(false)
+          if (notify && first) Taro.showToast({ title: '任务已刷新', icon: 'none' })
+          first = false
+        }
         return result.items.every(task => ['completed', 'failed', 'cancelled'].includes(task.status))
       }, { control: current, intervalMs: 3000, maxAttempts: 100 })
     } catch (reason) { if (live.current && !current.cancelled) setError(reason instanceof Error ? reason.message : '任务读取失败') }
-    finally { if (live.current) setLoading(false) }
+    finally { if (live.current && !current.cancelled) { setLoading(false); setRefreshing(false) } }
   }
   useDidShow(() => { live.current = true; load() })
   useDidHide(() => { live.current = false; control.current?.cancel() })
@@ -39,15 +47,17 @@ export default function TasksPage() {
     finally { if (live.current) setBusy('') }
   }
   return <StudioShell active='profile' title='任务记录' subtitle='每一次探索，都留下一份清晰的记录。'>
-    <View className='section-heading'><Button className='text-button' onClick={() => navigate('/pages/profile/index')}>学习档案</Button><Button className='icon-button' aria-label='刷新任务' onClick={load}><Icon name='refresh' /></Button></View>
-    {error && <Notice message={error} retry={load} />}
+    <View className='section-heading'><Button className='text-button' onClick={() => navigate('/pages/profile/index')}>学习档案</Button><Button className='icon-button' aria-label='刷新任务' disabled={refreshing} onClick={() => load(true)}><Icon name='refresh' /></Button></View>
+    {error && <Notice message={error} retry={() => load(true)} />}
     {!tasks.length && <Empty title={loading ? '正在读取任务' : '还没有任务记录'} text='添加资料后，可以在这里查看处理状态。' />}
     {tasks.map(task => <View className='task-entry' key={task.task_id}>
       <View className='task-heading'><View className='row-copy'><Text className='tiny-label'>{kinds[task.kind]}</Text><Text className='row-title'>{task.title || kinds[task.kind]}</Text><Text className='muted'>{task.created_at ? task.created_at.replace('T', ' ').replace('Z', ' UTC') : ''}</Text></View><Text className='tag'>{statuses[task.status]}</Text></View>
       {task.status === 'running' && <Text className='muted'>{phase(task.stage)}</Text>}
+      <QuizAttempts task={task} />
       {task.error_message && <Notice message={task.error_message} />}
       {task.kind === 'image' && task.result?.notice && <Text className='muted'>{task.result.notice}</Text>}
       <View className='document-actions'><Button className='text-button' onClick={() => setSelected(selected === task.task_id ? '' : task.task_id)}><Icon name='clock' size={16} />{selected === task.task_id ? '收起记录' : '执行记录'}</Button>
+        <QuizRetry task={task} />
         {!['completed', 'failed', 'cancelled'].includes(task.status) && <Button className='text-button' disabled={!!busy} onClick={() => cancel(task)}><Icon name='close' size={16} />取消任务</Button>}
         {task.kind === 'index' && task.result?.doc_id && task.status === 'completed' && <Button className='text-button' onClick={() => Taro.navigateTo({ url: `/learning/document/index?docId=${encodeURIComponent(task.result.doc_id)}` })}>查看资料</Button>}
         {task.kind === 'answer' && <Button className='text-button' onClick={() => Taro.navigateTo({ url: `/learning/assistant/index?taskId=${encodeURIComponent(task.task_id)}` })}>查看问答</Button>}

@@ -4,6 +4,7 @@ import Taro, { useRouter, useDidShow, useDidHide } from '@tarojs/taro'
 import { getQuizDetail, submitAnswer, QuizDetailResponse, AnswerRecord, getCachedUser, getLearningTask, cancelLearningTask, LearningTask, waitForLogin, getToken } from '../../services/api'
 import { StudioShell, Notice, navigate } from '../../components/StudioShell'
 import { Icon } from '../../components/Icon'
+import { QuizRetry, QuizAttempts } from '../../components/QuizRetry'
 import { NotebookDialog } from '../../components/NotebookDialog'
 import { QuizSources } from '../../components/QuizSources'
 import { QuestionMedia } from '../../components/QuestionMedia'
@@ -45,7 +46,7 @@ export default function QuizPage() {
           if (live.current) setTask(update)
           if (update.status === 'failed' || update.status === 'cancelled') throw new Error(update.error_message || '练习任务已取消，未发布新题目')
           return !!target
-        }, { control: current, intervalMs: 2000, maxAttempts: 150 })
+        }, { control: current, intervalMs: 2000, maxAttempts: 330 })
         targetId = quizTaskResult(done)!
         if (routeQuizId && routeQuizId !== targetId) throw new Error('任务与练习不匹配，请从任务记录重新进入')
       }
@@ -107,7 +108,8 @@ export default function QuizPage() {
   return <StudioShell title={quiz?.title || '知识练习'} subtitle='先独立思考，再与解析对照。' focus>
     {notebook && question && <NotebookDialog target={{ quizId, questionId: question.id }} onClose={() => setNotebook(false)} />}
     <View className='practice-surface'>
-      {error && <Notice message={error} retry={load} />}
+      {error && <Notice message={error} retry={task && ['failed', 'cancelled'].includes(task.status) ? undefined : load} />}
+      {task && !quiz && <><QuizAttempts task={task} /><QuizRetry task={task} replace /></>}
       {!question && !error && <Text className='muted'>{task ? taskPhase(task.stage) : '正在读取练习'}</Text>}
       {task && !quiz && <View className='report-task'><Text className='muted'>外部调用 {task.trace.model_calls} 次</Text>{!['completed', 'failed', 'cancelled'].includes(task.status) && <Button className='text-button' onClick={cancel}>取消练习</Button>}<Button className='text-button' onClick={() => Taro.navigateTo({ url: '/learning/tasks/index' })}>查看执行记录</Button></View>}
       {question && <>

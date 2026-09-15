@@ -6,6 +6,8 @@ from fastapi import HTTPException
 import structlog
 
 from app.repositories import job_repository as jobs
+from app.learning.task_policy import runtime_seconds
+from app.llm.structured_stage import StructuredGenerationError
 
 logger = structlog.get_logger()
 
@@ -63,7 +65,7 @@ async def run_once(handlers):
         handler = handlers.get(row['kind'])
         if handler is None:
             raise RuntimeError('Unsupported worker handler')
-        result = await asyncio.wait_for(handler(context), timeout=170)
+        result = await asyncio.wait_for(handler(context), timeout=max(1, runtime_seconds(row['kind']) - (row.get('elapsed') or 0) - 10))
         await jobs.finish(context.task_id, context.lease_token, result)
     except asyncio.CancelledError:
         if not lease_lost:
@@ -72,11 +74,19 @@ async def run_once(handlers):
     except jobs.TaskLeaseLost:
         pass
     except jobs.TaskBudgetExceeded:
-        await jobs.finish(context.task_id, context.lease_token, None, 'budget_exhausted', '任务调用预算已用完，未继续请求模型')
+        await jobs.finish(context.task_id, context.lease_token, None, 'budget_exhausted', '本轮生成已达到次数或用量上限，请点击“重新生成”再试' if row['kind'] == 'quiz' else '任务调用预算已用完，未继续请求模型')
     except asyncio.TimeoutError:
         await jobs.finish(context.task_id, context.lease_token, None, 'timeout', '任务处理超时，请稍后重试')
     except HTTPException as error:
         await jobs.finish(context.task_id, context.lease_token, None, f'input_{error.status_code}', str(error.detail)[:300])
+    except StructuredGenerationError as error:
+        messages = {'provider_auth': '模型服务授权失败，请联系维护者检查配置',
+                    'provider_quota': '模型服务额度不足或频率受限，请稍后重新生成',
+                    'provider_parameter': '模型服务配置不匹配，请联系维护者检查配置',
+                    'provider_unavailable': '模型服务暂未响应成功，本轮尝试已结束，请点击“重新生成”再试',
+                    'validation_failed': '生成内容未通过完整性校验，本轮尝试已结束，请重新生成'}
+        await jobs.finish(context.task_id, context.lease_token, None, error.failure_code,
+                          messages.get(error.failure_code, '生成结果未通过校验，请重新生成'))
     except Exception as error:
         logger.warning('worker_task_failed', task_id=context.task_id, error_type=type(error).__name__)
         await jobs.finish(context.task_id, context.lease_token, None, 'processing_failed', '处理暂时失败，已保存任务记录')

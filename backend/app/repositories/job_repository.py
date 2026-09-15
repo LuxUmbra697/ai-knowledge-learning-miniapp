@@ -8,6 +8,8 @@ from fastapi import HTTPException
 
 from app.repositories.rag_index_repository import transaction
 from app.core.config import get_settings
+from app.learning.task_policy import (QUIZ_MAX_ATTEMPTS, QUIZ_INPUT_BYTES, QUIZ_TOKENS,
+                                     quiz_stage, quiz_attempts, runtime_seconds, QUIZ_RUNTIME_SECONDS)
 
 KINDS = {'index', 'answer', 'retrieve', 'quiz', 'report', 'cleanup', 'grade', 'image', 'tutor', 'companion'}
 TERMINAL = {'completed', 'failed', 'cancelled'}
@@ -41,6 +43,7 @@ def public(row, replayed=False):
                 created_at=row['created_at'].isoformat()+'Z' if row.get('created_at') else None,
                 result=row.get('result_json'), trace=row.get('trace_json') or {},
                 error_code=row.get('error_code'), error_message=row.get('error_message'),
+                generation={'attempts': quiz_attempts(row.get('state_json') or {}), 'max_attempts': QUIZ_MAX_ATTEMPTS} if row['kind'] == 'quiz' else None,
                 resource_id=(row.get('payload_json') or {}).get('session_id') if row['kind'] == 'tutor' else (row.get('payload_json') or {}).get('quiz_id') if row['kind'] in ('report', 'grade', 'image') else None,
                 replayed=replayed, config_version=row.get('config_version', 'jobs-v1'))
 
@@ -140,7 +143,24 @@ async def list_owned(user_id, limit=30):
         for item in items:
             if item['kind'] in ('answer', 'retrieve'):
                 item['result'] = None
-        return items
+    return items
+
+
+async def quiz_retry_input(task_id, user_id):
+    """Read an owned failed request; its deterministic retry key survives lost responses."""
+    async with transaction() as cur:
+        await cur.execute("SELECT * FROM learning_jobs WHERE task_id=%s AND user_id=%s AND kind='quiz'", (task_id, user_id))
+        row = decode(await cur.fetchone())
+        if not row:
+            raise HTTPException(404, '练习任务不存在')
+        if row['status'] not in {'failed', 'cancelled'}:
+            raise HTTPException(409, '此任务无需重新生成，请查看当前练习或等待处理完成')
+        await cur.execute("SELECT * FROM learning_jobs WHERE user_id=%s AND kind='quiz' AND idempotency_key=%s", (user_id, 'retry:' + task_id))
+        child = decode(await cur.fetchone())
+        if not child:
+            await cur.execute("SELECT j.* FROM learning_job_request_keys k JOIN learning_jobs j ON j.task_id=k.task_id AND j.user_id=k.user_id WHERE k.user_id=%s AND k.kind='quiz' AND k.idempotency_key=%s", (user_id, 'retry:' + task_id))
+            child = decode(await cur.fetchone())
+        return row['payload_json'], public(child, True) if child else None
 
 
 async def cancel(task_id, user_id):
@@ -168,7 +188,7 @@ async def claim():
             error = None
             if row['state_json'].get('call_pending'):
                 error = ('external_outcome_unknown', '服务在外部调用期间中断，结果与费用状态未知，未自动重复调用')
-            elif row['claims'] >= 3 or (row['elapsed'] or 0) >= MAX_RUNTIME_SECONDS:
+            elif row['claims'] >= 3 or (row['elapsed'] or 0) >= runtime_seconds(row['kind']):
                 error = ('execution_budget_exhausted', '任务超过恢复次数或总耗时限制，请重新提交')
             if error:
                 await cur.execute("UPDATE learning_jobs SET status='failed',stage='failed',active_fingerprint=NULL,error_code=%s,error_message=%s,updated_at=UTC_TIMESTAMP() WHERE task_id=%s", (*error, row['task_id']))
@@ -186,14 +206,14 @@ async def heartbeat(task_id, lease_token):
     async with transaction() as cur:
         await cur.execute("UPDATE learning_jobs SET lease_until=TIMESTAMPADD(SECOND,%s,UTC_TIMESTAMP()),updated_at=UTC_TIMESTAMP() "
                           "WHERE task_id=%s AND lease_token=%s AND status='running' AND lease_until>=UTC_TIMESTAMP() "
-                          'AND TIMESTAMPDIFF(SECOND,started_at,UTC_TIMESTAMP())<%s', (LEASE_SECONDS, task_id, lease_token, MAX_RUNTIME_SECONDS))
+                          "AND TIMESTAMPDIFF(SECOND,started_at,UTC_TIMESTAMP())<IF(kind='quiz',%s,%s)", (LEASE_SECONDS, task_id, lease_token, QUIZ_RUNTIME_SECONDS, MAX_RUNTIME_SECONDS))
         return cur.rowcount == 1
 
 
 async def running(cur, task_id, lease_token):
     await cur.execute("SELECT * FROM learning_jobs WHERE task_id=%s AND lease_token=%s AND status='running' "
-                      'AND lease_until>=UTC_TIMESTAMP() AND TIMESTAMPDIFF(SECOND,started_at,UTC_TIMESTAMP())<%s FOR UPDATE',
-                      (task_id, lease_token, MAX_RUNTIME_SECONDS))
+                      "AND lease_until>=UTC_TIMESTAMP() AND TIMESTAMPDIFF(SECOND,started_at,UTC_TIMESTAMP())<IF(kind='quiz',%s,%s) FOR UPDATE",
+                      (task_id, lease_token, QUIZ_RUNTIME_SECONDS, MAX_RUNTIME_SECONDS))
     row = decode(await cur.fetchone())
     if not row:
         raise TaskLeaseLost()
@@ -217,7 +237,11 @@ async def reserve_call(task_id, lease_token, stage, input_bytes=0):
         counts = state.setdefault('attempts', {})
         attempt = counts.get(stage, 0) + 1
         consumed = trace.get('input_bytes', 0) + max(0, int(input_bytes))
-        if state.get('call_pending') or attempt > 3 or trace['model_calls'] >= 12 or trace['tokens'] >= 20000 or consumed > 60000:
+        is_quiz = row['kind'] == 'quiz' and quiz_stage(stage)
+        if is_quiz and quiz_attempts(state) >= QUIZ_MAX_ATTEMPTS:
+            raise TaskBudgetExceeded()
+        token_limit, input_limit = (QUIZ_TOKENS, QUIZ_INPUT_BYTES) if row['kind'] == 'quiz' else (20000, 60000)
+        if state.get('call_pending') or attempt > (QUIZ_MAX_ATTEMPTS if is_quiz else 3) or trace['model_calls'] >= 12 or trace['tokens'] >= token_limit or consumed > input_limit:
             raise TaskBudgetExceeded()
         settings = get_settings()
         await cur.execute('INSERT INTO provider_call_budget(budget_day) VALUES(UTC_DATE()) ON DUPLICATE KEY UPDATE budget_day=budget_day')

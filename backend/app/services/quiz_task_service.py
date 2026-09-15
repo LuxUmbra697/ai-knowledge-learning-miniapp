@@ -7,6 +7,7 @@ from app.core.security import check_content
 from app.core.exceptions import ContentFilterError
 from app.llm.quiz_batches import generate_quiz_set as generate_quiz
 from app.models.quiz import QuizGenerateResponse, QuizTaskStatusResponse
+from app.models.quiz import QuizGenerateRequest
 from app.repositories import job_repository as jobs, quiz_repository, rag_index_repository as index
 from app.services import vector_store_service as vectors, retrieval_service, rag_service
 from app.services import public_search_service
@@ -55,6 +56,17 @@ async def run(context):
                                  question_counts=payload.get('question_counts'))
     await context.checkpoint('quiz_validated', {'question_count': len(output.questions)})
     return await quiz_repository.publish_generated_quiz(context, output)
+
+
+async def retry(task_id, user_id):
+    payload, existing = await jobs.quiz_retry_input(task_id, user_id)
+    if existing:
+        return existing
+    request = QuizGenerateRequest(user_input=payload['query'], question_count=payload['question_count'],
+        difficulty=payload['difficulty'], doc_id=(payload.get('doc_ids') or [None])[0],
+        question_counts=payload.get('question_counts'), generate_images=payload.get('generate_images', False),
+        use_web_search=payload.get('use_web_search', False))
+    return await create(request, user_id, 'retry:' + task_id)
 
 
 async def result_response(reference, user_id):

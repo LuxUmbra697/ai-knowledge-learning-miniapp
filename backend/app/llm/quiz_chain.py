@@ -8,6 +8,7 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from app.llm.langchain_factory import get_chat_model
 from app.llm.structured_stage import run_json_stage
+from app.learning.task_policy import QUIZ_MAX_ATTEMPTS
 from app.models.evidence import Evidence
 from app.models.quiz import QuestionCitation, QuizOutput
 from app.prompts.quiz_prompt import (
@@ -17,7 +18,7 @@ from app.prompts.quiz_prompt import (
 )
 
 
-def validate_quiz(data, question_count, difficulty, evidence=None, question_counts=None):
+def validate_quiz(data, question_count, difficulty, evidence=None, question_counts=None, prior_stems=()):
     result = QuizOutput.model_validate(data)
     if len(result.questions) != question_count:
         raise ValueError(f'Expected exactly {question_count} questions')
@@ -25,6 +26,11 @@ def validate_quiz(data, question_count, difficulty, evidence=None, question_coun
         raise ValueError('Question IDs must be unique')
     if len({re.sub(r'\s+', '', q.stem) for q in result.questions}) != question_count:
         raise ValueError('Question stems must be distinct')
+    previous = {re.sub(r'\s+', '', stem) for stem in prior_stems}
+    duplicates = [q for q in result.questions if re.sub(r'\s+', '', q.stem) in previous]
+    if duplicates:
+        detail = '; '.join(f'{q.id[:64]}: {q.stem[:120]}' for q in duplicates)[:450]
+        raise ValueError('Duplicate questions from earlier batches: ' + detail + '. Replace these with NEW questions on DIFFERENT aspects, not the same wording; keep the required type counts.')
     if question_counts is not None and Counter(q.type for q in result.questions) != Counter({key: value for key, value in question_counts.items() if value}):
         raise ValueError('Question distribution must match the requested type counts exactly')
     if question_counts is None and question_count >= 3 and {q.type for q in result.questions} != {'single', 'multiple', 'judge'}:
@@ -105,6 +111,7 @@ async def generate_quiz(
     private_source=False,
     question_counts=None,
     stage='quiz',
+    prior_stems=(),
 ) -> QuizOutput:
 
     # 构建搜索上下文段落
@@ -125,10 +132,11 @@ async def generate_quiz(
 evidence_id 必须是材料中的 id，quote 为对应 content 中逐字存在的 2 至 500 字摘录，直接支持本题答案与解析。
 不得自行填写文档路径、页码或其他位置字段。全套题至少覆盖两个所给片段；若仅有一个片段则覆盖该片段。
 引用校验是必要条件，不代表事实证明；不为增加题型而编造材料未支持的知识。''' if private_source else '')
+    human_template = QUIZ_HUMAN_PROMPT + '\n{previous_questions}\n{validation_feedback}'
     prompt = ChatPromptTemplate.from_messages(
         [
             ("system", system),
-            ("human", QUIZ_HUMAN_PROMPT + '\n{validation_feedback}'),
+            ("human", human_template),
         ]
     )
 
@@ -136,12 +144,14 @@ evidence_id 必须是材料中的 id，quote 为对应 content 中逐字存在�
     def prepare():
         nonlocal chain
         if chain is None:
-            chain = prompt | get_chat_model(temperature=0.4)
+            chain = prompt | get_chat_model(temperature=0.4, timeout=45)
 
     values = {'user_input': user_input, 'question_count': question_count, 'difficulty': difficulty,
               'search_context_section': search_context_section,
+              'previous_questions': ('以下题干属于已经完成的批次，不是本批次的输入题目。禁止复用这些题干，本批应选择尚未考查的知识侧面：\n' + json.dumps(list(prior_stems), ensure_ascii=False)) if prior_stems else '',
               'question_counts': json.dumps(question_counts, ensure_ascii=False) if question_counts is not None else '默认混合单选、多选、判断；不足 3 题时仅用单选'}
     async def invoke(feedback):
         return await chain.ainvoke({**values, 'validation_feedback': feedback})
-    return await run_json_stage(invoke, lambda data: validate_quiz(data, question_count, difficulty, evidence, question_counts), stage=stage, context=context,
-                                input_bytes=lambda feedback: len((system + QUIZ_HUMAN_PROMPT.format(**values) + feedback).encode()), prepare=prepare)
+    return await run_json_stage(invoke, lambda data: validate_quiz(data, question_count, difficulty, evidence, question_counts, prior_stems), stage=stage, context=context,
+                                input_bytes=lambda feedback: len((system + human_template.format(**values, validation_feedback=feedback)).encode()), prepare=prepare,
+                                max_attempts=QUIZ_MAX_ATTEMPTS)

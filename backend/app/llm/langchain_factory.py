@@ -8,7 +8,7 @@ from app.core.config import get_settings
 
 
 @lru_cache()
-def get_chat_model(temperature: float = 0.4) -> ChatOpenAI:
+def get_chat_model(temperature: float = 0.4, timeout: int = 20) -> ChatOpenAI:
     settings = get_settings()
     if not settings.deepseek_api_key:
         raise ValueError('DEEPSEEK_API_KEY is not configured')
@@ -19,5 +19,5 @@ def get_chat_model(temperature: float = 0.4) -> ChatOpenAI:
         temperature=temperature,
         max_tokens=4096,
         max_retries=0,
-        timeout=20,
+        timeout=timeout,
     )

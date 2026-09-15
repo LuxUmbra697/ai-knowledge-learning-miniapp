@@ -11,10 +11,9 @@ async def generate_quiz_set(user_input, question_count=5, difficulty='mixed', se
                                    context, private_source, question_counts)
     output = None
     for number, quota in enumerate(batches(question_counts or default_counts(question_count)), 1):
-        prior = '\n'.join(q.stem[:180] for q in output.questions) if output else ''
-        query = user_input + ('\n此前批次已有题干，请勿重复：\n' + prior if prior else '')
-        batch = await generate_quiz(query, sum(quota.values()), difficulty, search_context,
-                                   context, private_source, quota, stage=f'quiz_batch_{number}')
+        batch = await generate_quiz(user_input, sum(quota.values()), difficulty, search_context,
+                                   context, private_source, quota, stage=f'quiz_batch_{number}',
+                                   prior_stems=[q.stem for q in output.questions] if output else ())
         for index, question in enumerate(batch.questions, 1):
             question.id = f'b{number}_q{index}'
         if output is None:

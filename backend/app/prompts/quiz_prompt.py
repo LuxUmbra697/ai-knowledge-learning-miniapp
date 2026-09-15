@@ -18,6 +18,7 @@ QUIZ_HUMAN_PROMPT = """请根据用户提供的学习内容生成一组用于小
 11. 填空题(fill)：options=[]，1 至 4 个空按题干顺序使用 ___ 标记；answer 按顺序列标准答案，accepted_answers 为对应每个空的可接受答案数组，每组必须包含标准答案，最多 8 个短语，不用正则表达式。不要在题干暴露答案。
 12. 问答题(written)：options=[]，answer 数组只有一个参考答案；rubric 为 1 至 5 个清晰、可独立检查的评分要点。不要出缺乏明确评分依据的开放作文。
 13. 选择题不使用 accepted_answers 或 rubric；填空题不使用 rubric；问答题不使用 accepted_answers。
+14. 所有数组字段不适用时省略或使用 []，禁止 null；options 的每项必须含 key 和 text。
 
 JSON 输出结构如下（严格按此结构输出）：
 {{
