@@ -332,7 +332,7 @@ The following owner requests are part of the remaining acceptance scope, not com
 | REPORT-04 | Mermaid learning and relationship diagrams | Stored graph data after review; sanitized H5 renderer and tested native equivalent; invalid graphs fail visibly | Pending |
 | REVIEW-03 | Named error notebooks | Create notebook, explicitly add/remove an owned wrong question, select destination, idempotency and cross-user denial | Pending |
 | UI-04 | Visible companion and recovery | Focus pages must not silently remove it; safe collapsed state, restore/hide control, mobile/desktop/native checks | H5 fixed and verified; native build passed, IDE runtime pending |
-| UI-05 | Simpler hand-painted anime visual design | Original nature/study artwork, restrained surfaces and typography, no pervasive dot field or generic AI marketing composition; five themes and real screenshots | Pending |
+| UI-05 | Simpler hand-painted anime visual design | Original nature/study artwork, restrained surfaces and typography, no pervasive dot field or generic AI marketing composition; five themes and real screenshots | H5 simplified and verified across five themes; native runtime pending |
 
 GitHub code pushes are explicitly authorized; credentials must never be uploaded. Local paid model
 providers remain enabled with budgets. Deployment-side paid providers still require actual deployment
@@ -355,6 +355,19 @@ algorithm-experiment, native-testing, documentation or coexistence requirements.
   weapp main 574180 bytes. Native IDE runtime remains unverified, not described as fixed by a build.
 - Evidence: `evidence/companion-visibility.json`, `evidence/companion-build-size.json`, and the actual
   H5 screenshot `screenshots/h5/26-companion-focus.png`. No provider calls or production changes.
+
+### Hand-Painted Interface Loop (2026-09-15)
+
+- Removed pervasive dot/grid backgrounds, reduced the oversized heading reservation and replaced
+  promotional home copy with literal learning labels. Five themes retain stable navigation and
+  individual accent, border and typography choices on restrained surfaces.
+- Added one original 1280x427 study-library illustration (120801 bytes). It is decorative artwork,
+  explicitly attributed in `assets-attribution.md`, not a system screenshot or a reference-project
+  asset. The runtime screenshots show the actual browser interface and real isolated test data.
+- Three browser scenarios passed in 15.3 s: five themes, mobile/small/desktop layouts, artwork load,
+  companion rendering and recovery, and the complete server-backed review flow. H5 and weapp builds
+  passed; native IDE execution still requires verification. Source bounds and UI overlap assertions
+  remain enabled. Evidence: refreshed screenshots 01, 07, 09-10, 23-26 and `theme-*.png`.
 
 - Preserve Taro 4.1.11, MySQL and Chroma; enhance existing modules.
 - Deterministic tests must disable dotenv and network before importing the application.

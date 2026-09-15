@@ -35,7 +35,7 @@ export function StudioShell({ children, active, title, subtitle, guest = false, 
     <View className='studio-topbar'>
       <View className='studio-brand' onClick={() => navigate('/pages/index/index')}>
         <View className='brand-mark'><Icon name='book' size={22} /></View>
-        <View><Text className='brand-name'>星知学园</Text><Text className='brand-english'>AI LEARNING STUDIO</Text></View>
+        <View><Text className='brand-name'>星知学园</Text><Text className='brand-english'>LEARNING NOTEBOOK</Text></View>
       </View>
       <View className='topbar-end'>
         <Text className='theme-caption'>{themes.find(t => t.id === settings.theme)?.name}</Text>

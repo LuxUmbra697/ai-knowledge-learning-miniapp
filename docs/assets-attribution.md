@@ -8,6 +8,20 @@ Files: `frontend/src/assets/companion-pink-{0,1,2}.png` and `companion-orange-{0
 
 Generation prompt: original adult anime study mentor; transparent three-column sprite sheet; identical outfit and scale within each sheet; full-body reading/thinking, waving, celebration poses; pink hair/cardigan or apricot hair/vest; no text, logos or third-party franchise references. Runtime animation is implemented separately from this artwork and can be disabled.
 
+## Library Garden
+
+`frontend/src/assets/library-garden.jpg` was generated with built-in ImageGen on 2026-09-15 for this
+project, then resized without cropping to 1280x427 JPEG (120801 bytes). It is original decorative
+artwork, not a screenshot, and uses no reference-project artwork or existing film characters.
+Distribution follows the repository license to the extent rights in generated output permit;
+copyright eligibility and exclusivity are not guaranteed.
+
+Prompt: original compact 3:1 school-library panorama open to a garden, notebook and pencil in the
+foreground, pale-blue window frames, leaf-green canopy and clouds, a small pink-haired student
+reading on the right; hand-painted 2D animated-film background, irregular ink lines, matte gouache
+and watercolor, gentle daylight, green/blue/white with restrained coral; no text, logos, watermark,
+existing characters or UI mockup. Generated art is never placed in the screenshots directory.
+
 ## Interface Icons
 
 [Lucide](https://lucide.dev/license), ISC license. PNGs are generated from `lucide-static` SVGs for the shared Taro interface. The package version is pinned by `frontend/package-lock.json`. Original SVG geometry is retained; raster export allows a consistent miniapp `Image` implementation.
