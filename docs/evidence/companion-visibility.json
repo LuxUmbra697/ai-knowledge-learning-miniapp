@@ -1,5 +1,5 @@
 {
-  "recorded_at": "2026-09-15T16:24:10.575Z",
+  "recorded_at": "2026-09-15T17:56:02.333Z",
   "runtime": "Chromium, real local API and isolated synthetic answers",
   "provider_calls": 0,
   "checks": [
@@ -12,5 +12,5 @@
     "resize_recovery",
     "hide_persist_and_restore"
   ],
-  "native": "Build only; runtime verification pending"
+  "native": "Separate IDE verification; this receipt covers H5 only"
 }

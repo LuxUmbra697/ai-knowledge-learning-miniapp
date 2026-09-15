@@ -77,7 +77,7 @@ test('completed practice has real Mermaid maps, explicit wrong review and resili
   await writeFile('../docs/evidence/study-maps-ui.json', JSON.stringify({ recorded_at: new Date().toISOString(),
     provider_calls: 0, source: 'Synthetic saved answers, real local API/MySQL/Mermaid/Chromium',
     checks: ['completed_answer_map', 'wrong_question_filter', 'network_view', 'refresh_stable_hash', 'loading_failure_keeps_analysis', 'retry', '320_390_1440_bounds', 'decoded_svg_image', 'readable_chinese_svg_labels', 'question_deep_link', 'untrusted_labels_cannot_create_active_svg'],
-    native_runtime: 'Pending IDE service port',
+    native_runtime: 'Separate IDE verification; this receipt covers H5 only',
   }, null, 2) + '\n')
 })
 

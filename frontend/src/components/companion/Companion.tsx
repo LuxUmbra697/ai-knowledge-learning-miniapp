@@ -1,7 +1,7 @@
 import { ReactNode, useState, useRef, useEffect } from 'react'
 import { MovableArea, MovableView, Image, Button, View } from '@tarojs/components'
 import Taro, { useDidHide, useDidShow, usePageScroll } from '@tarojs/taro'
-import { clampPosition, safePosition, companionSize } from './position'
+import { clampPosition, safePosition, companionSize, protectedContentSelector } from './position'
 import { useCompanion } from './useCompanion'
 import { useInteraction } from './useInteraction'
 import { Icon } from '../Icon'
@@ -21,7 +21,7 @@ export default function Companion({ reducedMotion, onHide, onSafeChange, layout 
   const interaction = useInteraction(state.nextPose, visible && safe)
   const place = () => {
     const next = Taro.getWindowInfo()
-    Taro.createSelectorQuery().selectAll('.primary-button, .secondary-button, .text-button, .icon-button, .answer-option, .studio-input, .studio-textarea, .mobile-navigation, .stat, .page-title, .page-subtitle, .welcome-title, .section-title, .row-title, .field-hint, .question-stem, .answer-explanation, .claim-text, .notebook-toolbar, .diagnosis-picker, .diagram-surface, .map-toolbar').boundingClientRect(rectangles => {
+    Taro.createSelectorQuery().selectAll(protectedContentSelector).boundingClientRect(rectangles => {
       const candidate = safePosition(live.current, next.windowWidth, next.windowHeight, Array.isArray(rectangles) ? rectangles : [])
       setSafe(!!candidate)
       if (candidate) { live.current = candidate; setPosition(previous => previous.x === candidate.x && previous.y === candidate.y ? previous : candidate) }

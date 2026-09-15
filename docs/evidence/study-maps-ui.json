@@ -1,5 +1,5 @@
 {
-  "recorded_at": "2026-09-15T16:24:36.178Z",
+  "recorded_at": "2026-09-15T17:58:39.530Z",
   "provider_calls": 0,
   "source": "Synthetic saved answers, real local API/MySQL/Mermaid/Chromium",
   "checks": [
@@ -15,5 +15,5 @@
     "question_deep_link",
     "untrusted_labels_cannot_create_active_svg"
   ],
-  "native_runtime": "Pending IDE service port"
+  "native_runtime": "Separate IDE verification; this receipt covers H5 only"
 }

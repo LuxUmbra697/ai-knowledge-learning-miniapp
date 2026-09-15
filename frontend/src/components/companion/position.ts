@@ -24,3 +24,11 @@ export function clampPosition(position: Position, width: number, height: number)
 export function dockPosition(position: Position, width: number, height: number): Position {
   return clampPosition({ x: position.x < width / 2 ? 4 : width - companionSize.width - 4, y: position.y }, width, height)
 }
+export const protectedContentSelector = [
+  '.primary-button', '.secondary-button', '.text-button', '.icon-button', '.answer-option',
+  '.studio-input', '.studio-textarea', '.mobile-navigation', '.stat', '.page-title', '.page-subtitle',
+  '.welcome-title', '.section-title', '.row-title', '.field-hint', '.field-label', '.muted', '.tiny-label',
+  '.tag', '.count-row', '.count-total', '.setting-row', '.section-heading', '.trend-day', '.security-summary',
+  '.source-choice', '.original-content', '.question-stem',
+  '.answer-explanation', '.claim-text', '.notebook-toolbar', '.diagnosis-picker', '.diagram-surface', '.map-toolbar',
+].join(', ')

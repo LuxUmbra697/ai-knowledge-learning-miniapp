@@ -1,0 +1,32 @@
+{
+  "recorded_date": "2026-09-16",
+  "source": "Actual Chromium and WeChat DevTools; isolated synthetic learning records and saved provider outputs",
+  "h5": {
+    "configured_routes": 14,
+    "themes": ["sakura", "night", "sea", "forest", "scroll"],
+    "viewport_widths": [320, 390, 768, 1440, 1920],
+    "viewport_height": 900,
+    "states_per_width": 173,
+    "states_total": 865,
+    "checks": ["enabled_text_contrast", "button_text_bounds", "horizontal_overflow", "companion_text_occlusion", "top_and_bottom_scroll", "tabs_and_dialogs"],
+    "contrast_thresholds": {"normal": 4.5, "large": 3},
+    "full_business_regression_passed": 34,
+    "additional_paid_cases_skipped": 4,
+    "unit_tests_passed": 30
+  },
+  "weapp": {
+    "appid": "wx7abde39fb8222887",
+    "actual_pages_opened": 14,
+    "login_choices_checked": 3,
+    "number_inputs_alignment_checked": 6,
+    "official_wxss_files_compiled": 9,
+    "javascript_es2019_files": 20,
+    "development_upload": "2026.9.16.2",
+    "official_upload_bytes": 635409,
+    "official_main_bytes": 542950,
+    "packaged_media_bytes": 0
+  },
+  "new_model_calls": 0,
+  "screenshots": ["docs/screenshots/h5/65-login-mobile.png", "docs/screenshots/h5/66-login-desktop.png", "docs/screenshots/weapp/08-account-login.png", "docs/screenshots/weapp/09-question-counts.png"],
+  "limitations": ["Chromium measurements are not full accessibility certification", "Image-backed headings and diagram internals require separate visual review", "Inactive controls are excluded from WCAG text contrast thresholds but their behavior is tested", "Native DevTools uses its existing disabled domain-validation setting", "No physical-device or official WeChat publication claim"]
+}

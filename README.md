@@ -40,6 +40,7 @@
 
 | 手机端 H5 | PC 端 H5 |
 | --- | --- |
+| ![手机端账号、微信与注册入口](docs/screenshots/h5/65-login-mobile.png) | ![PC端账号、微信与注册入口](docs/screenshots/h5/66-login-desktop.png) |
 | ![手机端知识库，390px](docs/screenshots/h5/31-library-390.png) | ![PC端知识库，1440px](docs/screenshots/h5/31-library-1440.png) |
 | ![手机端伙伴对话，390px](docs/screenshots/h5/52-companion-chat-390.png) | ![PC端伙伴对话，1440px](docs/screenshots/h5/52-companion-chat-1440.png) |
 
@@ -60,16 +61,20 @@
 | --- | --- |
 | ![微信开发工具实际加载 OSS 场景与登录入口](docs/screenshots/weapp/06-oss-login.png) | ![微信原生图谱，使用已完成的真实练习](docs/screenshots/weapp/07-study-map.png) |
 
+| 三种登录入口 | 自选题型数量 |
+| --- | --- |
+| ![微信工具实际账号登录页](docs/screenshots/weapp/08-account-login.png) | ![微信工具实际题型与数量设置](docs/screenshots/weapp/09-question-counts.png) |
+
 账号注册、恢复码找回、旧会话失效均经开发工具实际操作。开发版官方码与真实微信确认已联调；不代表真机摄像头扫码或正式版已通过。
 
 ## 访问状态
 
 | 项目 | 当前状态 |
 | --- | --- |
-| 源码 | [ai-knowledge-learning-miniapp](https://github.com/LuxUmbra697/ai-knowledge-learning-miniapp)，开发分支 `codex/learning-studio-upgrade` |
+| 源码 | [ai-knowledge-learning-miniapp](https://github.com/LuxUmbra697/ai-knowledge-learning-miniapp)，默认分支 `main` |
 | 在线 H5 | [打开星知学园](https://lux-umbra.xyz/ai-learn/)；公网注册、上传、真实模型问答、五题型练习与复盘已验证 |
 | API 前缀 | `https://lux-umbra.xyz/ai-learn/api/v1`；ready、鉴权和 JSON 404 已验证 |
-| 微信小程序 | 开发版本 `2026.9.16.1` 已由官方 CLI 上传；OSS 图片、页面和角色切换经开发工具验证；合法域名校验、真机、体验版、审核及正式发布未验收 |
+| 微信小程序 | 开发版本 `2026.9.16.2` 已由官方 CLI 上传；14 页、登录入口、角色切换与输入框经开发工具验证；合法域名校验、真机、体验版、审核及正式发布未验收 |
 
 ## 为什么这样实现
 
@@ -105,7 +110,7 @@ RAG、学习算法、伙伴记忆各有独立职责，见 [架构](docs/architec
 ```sh
 git clone https://github.com/LuxUmbra697/ai-knowledge-learning-miniapp.git
 cd ai-knowledge-learning-miniapp
-git switch codex/learning-studio-upgrade
+git switch main
 python -m venv .venv
 ```
 
@@ -189,7 +194,8 @@ npm --prefix frontend run test:e2e
 | 实测项目 | 结果与条件 |
 | --- | --- |
 | 后端回归 | 锁定环境：446 项离线、83 项隔离 MySQL 通过；30 项前端单元通过 |
-| H5 回归 | Chromium：29 项通过、4 项额外付费场景跳过；包含实际 API/数据库、账号恢复与会话撤销、已保存的供应商结果、重试入口、角色切换与迟到响应回归 |
+| H5 回归 | Chromium：34 项通过、4 项额外付费场景跳过；包含实际 API/数据库、账号恢复、任务恢复、五题型、报告和伙伴交互 |
+| 布局回归 | 14 页、5 套主题、320/390/768/1440/1920 px；检查文字对比度、按钮裁切、横向溢出与伙伴挡字；[覆盖范围](docs/testing.md#布局与可读性) |
 | 双端构建 | 连续构建互不覆盖；H5 入口 gzip 122,398 B，weapp 构建主包 562,201 B；官方上传主包 542,006 B、总包 634,465 B，包内媒体 0 B；9 个 WXSS、20 个 JS 兼容性检查通过 |
 | 生成重试 | 本地真实模型：8 道五题型练习，4 次模型尝试后完成，题干无重复，作答前答案密封；401、额度不足与第 11 次调用拒绝由确定性测试覆盖 |
 | 公网实测 | 真实讲义索引、4 个引用片段、5 种题型、服务端判分、三类梳理图与指定错题本；无新增旧站路由回归 |
@@ -259,11 +265,12 @@ for organizing documents and larger study maps. The paired screenshots above sho
 ### Availability and Design
 
 Source: [ai-knowledge-learning-miniapp](https://github.com/LuxUmbra697/ai-knowledge-learning-miniapp),
-branch `codex/learning-studio-upgrade`.
+default branch `main`.
 Live H5: [Open AI Learning Studio](https://lux-umbra.xyz/ai-learn/), API: `/ai-learn/api/v1`.
 Public registration, document indexing, paid grounded Q&A, five question types and review passed.
 Both builds, official WXSS compilation and native IDE page/character-switch checks pass.
-Development version `2026.9.16.1` was uploaded with the official CLI. Public artwork and icons are
+Development version `2026.9.16.2` was uploaded with the official CLI. All 14 native pages were opened
+and checked, including login choices and input alignment. Public artwork and icons are
 served from OSS, with no packaged media and on-demand component injection.
 Legal-domain validation, physical devices, experience upload, review and official publication remain unverified.
 
@@ -282,7 +289,7 @@ Clone and create a virtual environment:
 ```sh
 git clone https://github.com/LuxUmbra697/ai-knowledge-learning-miniapp.git
 cd ai-knowledge-learning-miniapp
-git switch codex/learning-studio-upgrade
+git switch main
 python -m venv .venv
 ```
 
@@ -329,7 +336,10 @@ local stack. Default CI does not read real dotenv, touch production or spend pro
 Explicit paid smoke commands are documented in [testing](docs/testing.md).
 
 Fresh locked environment: 446 offline, 83 MySQL and 30 frontend unit tests passed.
-H5 regression: 29 passed, four additional paid cases skipped; saved real-provider outputs were reused.
+H5 regression: 34 passed, four additional paid cases skipped; saved real-provider outputs were reused.
+Layout checks cover 14 pages, five themes and 320/390/768/1440/1920 px widths: text contrast,
+control clipping, horizontal overflow and companion occlusion. These are browser/IDE measurements,
+not a claim of universal device or accessibility certification.
 Native account registration, recovery and session revocation passed in DevTools. Official development
 QR, real WeChat code exchange, explicit native confirmation and H5 login passed together; optical
 navigation was automated, so camera scanning on physical devices remains unverified.
