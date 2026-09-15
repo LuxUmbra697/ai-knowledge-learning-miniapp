@@ -101,6 +101,8 @@ jobs:
       - name: Install test browser
         working-directory: frontend
         run: npx playwright install chromium --with-deps
+      - name: Build the non-root production image from verified H5 and locked runtime
+        run: docker build -f deploy/Dockerfile --build-arg RELEASE_REVISION="$GITHUB_SHA" -t ai-learning-studio:ci .
       - name: Actual H5, API, worker and MySQL regression without model calls
         shell: bash
         run: |

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { writeFile } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 
 test('free placement, tap, long press invitation and owned editable memory work through the actual API', async ({ page, request }) => {
   const response = await request.post('api/v1/user/account/register', { data: { username: `e2e_gesture_${Date.now()}`, password: 'Local-E2E-Only-1976', nickname: '伙伴手札验收' } })
@@ -70,6 +70,7 @@ test('free placement, tap, long press invitation and owned editable memory work 
   const isolated = await request.get('api/v1/companions/pink', { headers: { Authorization: `Bearer ${otherToken}` } })
   expect((await isolated.json()).data.memories).toHaveLength(0)
   expect(errors).toEqual([])
+  await mkdir('../.local/sdlc/companion', { recursive: true })
   await writeFile('../.local/sdlc/companion/gesture-evidence.json', JSON.stringify({ runtime: 'Chromium + local API + isolated MySQL',
     checks: ['free-interior-placement', 'persist-position', 'drag-not-tap', 'tap-reaction', 'long-press-invite', 'invitation-no-paid-job', 'owned-memory', 'character-isolation', 'user-isolation', 'canonical-story', 'mobile-layout'], provider_calls: 0 }, null, 2))
 })
