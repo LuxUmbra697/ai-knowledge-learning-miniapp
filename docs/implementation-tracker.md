@@ -11,7 +11,7 @@ This ledger records observed results; planned capabilities are not delivery clai
 | M1 | Taro H5/weapp, separate outputs, independent login, five themes | H5 core flow passed; native runtime gate pending | `frontend/e2e`; `screenshots/h5`; DevTools service port unavailable |
 | M2 | Bounded parsing, scoped hybrid retrieval, citations, 100-case evaluation | Retrieval/citation checkpoint verified; remaining gates below | 104 synthetic cases; real index and answer evidence; dual builds |
 | M3 | Bounded learning agent, durable worker, cancellation/recovery | Index, retrieval, answer, report and private text practice verified; public-topic/image migration and tutoring graph pending | MySQL recovery/cancellation tests, real model tasks and H5 history |
-| M4 | Mastery, FSRS, prerequisites, reproducible offline experiment | FSRS/BKT, review, named notebooks and study maps verified locally; prerequisite planning and offline fitting experiment pending | Owned atomic learning events, review/notebook/map DB and H5 tests |
+| M4 | Mastery, FSRS, prerequisites, reproducible offline experiment | FSRS/BKT, review, named notebooks, maps and synthetic fitting experiment verified locally; prerequisite planning pending | Owned atomic learning events, DB/H5 tests, `eval/learning` raw experiment |
 | M5 | Browser and DevTools workflows, screenshots, regression | In progress alongside each module | Actual H5 screenshots exist; no weapp screenshots claimed |
 | M6 | New deployment plus all existing sites healthy | Pending | No gateway mutations |
 | M7 | Bilingual README, documentation, private handoff, GitHub and CI | Pending | Remote history verified |
@@ -340,6 +340,26 @@ and verification. This addendum extends the original M0-M7 scope, without removi
 algorithm-experiment, native-testing, documentation or coexistence requirements.
 
 ## Continuing Decisions
+
+### Offline BKT Fitting and Calibration (2026-09-15)
+
+- Actually ran bounded NumPy fitting on 800 explicitly synthetic learners with 30 observations each.
+  Learner-separated train/validation/test splits are 480/160/160. Random-search and coordinate
+  refinement optimize training likelihood; only validation selects temperature and bias. Test labels
+  are used only for the locked-model report. A constant training-rate baseline is included.
+- Test Log Loss/Brier/ECE-10: default BKT .588845/.195521/.106379; fitted BKT
+  .552060/.183290/.011719; calibrated .551767/.183190/.008572. The constant baseline has low ECE but
+  poor predictive loss; the report explicitly warns against interpreting ECE alone as usefulness.
+- Two independent runs produced identical dataset and prediction bytes after fixing a reproduced
+  Windows newline/hash mismatch. Six tests cover runtime-formula equivalence, no future-answer
+  leakage, learner separation, deterministic seeds, bounded fitting, metrics and manifest byte hashes.
+  Full offline suite: 361 passed in 10.76 seconds. No API/UI behavior changed in this offline module.
+- Execution took about .5 seconds, zero external calls. 200 learner-level paired bootstrap samples
+  are saved. Same-family synthetic data favors BKT; neither real retention gains nor personalized
+  training is claimed. Runtime defaults and all user records remain unchanged.
+- Source: `learning/bkt_experiment.py`, `scripts/experiment_bkt.py`; raw dataset, predictions,
+  parameters, fit trace, calibration bins and metrics under `eval/learning`. Reproduction, methods,
+  references and limitations are in `algorithm-experiments.md`. No production/reference mutations.
 
 ### Learning Maps and Wrong-Answer Review (2026-09-15)
 

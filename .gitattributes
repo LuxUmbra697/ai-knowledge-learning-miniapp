@@ -1,0 +1,3 @@
+eval/learning/*.jsonl text eol=lf
+eval/learning/*.json text eol=lf
+eval/learning/*.csv text eol=lf
