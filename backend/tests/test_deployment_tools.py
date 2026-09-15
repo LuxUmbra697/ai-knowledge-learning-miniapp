@@ -48,4 +48,6 @@ def test_production_container_keeps_limits_identity_and_explicit_paid_mode():
     dockerfile = (ROOT / 'deploy/Dockerfile').read_text(encoding='utf8')
     assert 'USER 10001:10001' in dockerfile
     assert 'COPY . .' not in dockerfile and '--require-hashes' in dockerfile
+    assert 'ARG PYPI_INDEX_URL=https://pypi.org/simple' in dockerfile
+    assert '--trusted-host' not in dockerfile and 'http://' not in dockerfile.split('HEALTHCHECK')[0]
     assert '"--workers", "1"' in dockerfile

@@ -1,6 +1,7 @@
 FROM python:3.13.9-slim-bookworm
 
 ARG RELEASE_REVISION=unknown
+ARG PYPI_INDEX_URL=https://pypi.org/simple
 LABEL org.opencontainers.image.title="AI Learning Studio" \
       org.opencontainers.image.source="https://github.com/LuxUmbra697/ai-knowledge-learning-miniapp" \
       org.opencontainers.image.revision=$RELEASE_REVISION
@@ -18,8 +19,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 COPY backend/requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir uv==0.12.5 && \
-    uv pip install --system --no-cache --require-hashes -r /app/requirements.txt && \
+RUN pip install --no-cache-dir --index-url "$PYPI_INDEX_URL" uv==0.12.5 && \
+    UV_CONCURRENT_DOWNLOADS=2 UV_CONCURRENT_INSTALLS=1 uv pip install --system --no-cache --index-url "$PYPI_INDEX_URL" --require-hashes -r /app/requirements.txt && \
     uv pip check --system && \
     groupadd --gid 10001 studio && useradd --uid 10001 --gid studio --no-create-home studio && \
     mkdir /data && chown 10001:10001 /data
