@@ -106,6 +106,14 @@ async def test_global_provider_budget_is_atomic_across_users(users, monkeypatch)
 
 
 @pytest.mark.asyncio
+async def test_isolated_suite_starts_with_fresh_budget_without_disabling_limits(users):
+    async with transaction() as cur:
+        await cur.execute('SELECT calls,input_bytes FROM provider_call_budget WHERE budget_day=UTC_DATE()')
+        assert await cur.fetchone() == {'calls': 0, 'input_bytes': 0}
+    assert jobs.get_settings().worker_daily_provider_calls == 100
+
+
+@pytest.mark.asyncio
 async def test_input_budget_refuses_before_counting_call(users):
     task = await jobs.enqueue(users[0], 'answer', {}, uuid.uuid4().hex)
     claim = await jobs.claim()

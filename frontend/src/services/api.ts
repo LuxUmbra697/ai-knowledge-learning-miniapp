@@ -314,6 +314,32 @@ export interface QuestionCitation {
   section?: string
 }
 
+export interface LearningSummary {
+  total_cards: number; due_count: number; recommended_count: number; today_answers: number; today_reviews: number
+  timezone: string; as_of: string; scheduler_version: string; knowledge_version: string
+  concepts: { concept_id: string; label: string; mastery: number; attempts: number; correct_count: number; mapping_confidence: string }[]
+  trend: { day: string; count: number }[]; trend_truncated: boolean
+}
+export interface ReviewCard {
+  card_id: string; quiz_id: string; version: number; due_at: string; favorite: boolean; last_correct: boolean
+  wrong_count: number; diagnosis: string | null; label: string; mastery: number; attempts: number; question: Question
+}
+export interface ReviewResult {
+  card_id: string; quiz_id: string; version: number; due_at: string; record: AnswerRecord; question: Question; replayed: boolean
+  knowledge: { prior: number; posterior: number; mastery: number; observation_count: number; version: string }
+}
+export function getLearningSummary(control?: PollControl) { return request<LearningSummary>('/learning/summary', { control }) }
+export function getReviewCards(mode: string, control?: PollControl) { return request<{ items: ReviewCard[] }>('/learning/cards?mode=' + mode, { control }) }
+export function submitReview(cardId: string, version: number, answers: string[], control?: PollControl) {
+  return request<ReviewResult>(`/learning/cards/${encodeURIComponent(cardId)}/answer`, { method: 'POST', data: { version, selected_answers: answers }, control })
+}
+export function getReviewResult(cardId: string, version: number, control?: PollControl) {
+  return request<ReviewResult>(`/learning/cards/${encodeURIComponent(cardId)}/events/${version}`, { control })
+}
+export function updateReviewCard(cardId: string, change: { favorite?: boolean; diagnosis?: string | null }) {
+  return request(`/learning/cards/${encodeURIComponent(cardId)}`, { method: 'PUT', data: change })
+}
+
 export interface QuizData {
   quiz_id: string
   title: string

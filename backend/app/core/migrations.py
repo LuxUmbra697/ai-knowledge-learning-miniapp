@@ -101,6 +101,35 @@ MIGRATIONS = {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"""],
     8: ["""ALTER TABLE learning_job_request_keys DROP FOREIGN KEY fk_request_job,
         ADD CONSTRAINT fk_request_owner FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE"""],
+    9: [
+        """CREATE TABLE IF NOT EXISTS learning_concepts (
+            user_id BIGINT UNSIGNED NOT NULL, concept_id CHAR(64) NOT NULL,
+            label VARCHAR(120) NOT NULL, mapping_confidence VARCHAR(40) NOT NULL,
+            mastery DOUBLE NOT NULL DEFAULT 0.2, attempts INT NOT NULL DEFAULT 0,
+            correct_count INT NOT NULL DEFAULT 0, updated_at DATETIME(6) NOT NULL,
+            PRIMARY KEY(user_id,concept_id),
+            CONSTRAINT fk_concept_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci""",
+        """CREATE TABLE IF NOT EXISTS learning_cards (
+            card_id VARCHAR(64) NOT NULL PRIMARY KEY, user_id BIGINT UNSIGNED NOT NULL,
+            quiz_id VARCHAR(64) NOT NULL, question_id VARCHAR(64) NOT NULL, concept_id CHAR(64) NOT NULL,
+            card_json JSON NOT NULL, due_at DATETIME(6) NOT NULL, version INT NOT NULL DEFAULT 1,
+            last_correct BOOLEAN NOT NULL, wrong_count INT NOT NULL DEFAULT 0,
+            favorite BOOLEAN NOT NULL DEFAULT FALSE, diagnosis VARCHAR(40) NULL,
+            created_at DATETIME(6) NOT NULL, updated_at DATETIME(6) NOT NULL,
+            UNIQUE KEY idx_card_question(user_id,quiz_id,question_id),
+            KEY idx_card_due(user_id,due_at),
+            CONSTRAINT fk_card_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+            CONSTRAINT fk_card_quiz FOREIGN KEY(quiz_id) REFERENCES quiz_sessions(quiz_id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci""",
+        """CREATE TABLE IF NOT EXISTS learning_events (
+            user_id BIGINT UNSIGNED NOT NULL, card_id VARCHAR(64) NOT NULL, version INT NOT NULL,
+            source VARCHAR(16) NOT NULL, event_json JSON NOT NULL, created_at DATETIME(6) NOT NULL,
+            PRIMARY KEY(user_id,card_id,version), KEY idx_learning_day(user_id,created_at),
+            CONSTRAINT fk_event_card FOREIGN KEY(card_id) REFERENCES learning_cards(card_id) ON DELETE CASCADE,
+            CONSTRAINT fk_event_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci""",
+    ],
 }
 
 

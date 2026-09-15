@@ -297,6 +297,48 @@ M3 still required: migrate legacy quiz/report generation and its image/search ca
 | QUIZ-07 exact question citations | `llm/quiz_chain.py`, `models/quiz.py` | `test_quiz_citations.py`, cached-response DB test | Bounded real quiz smoke |
 | QUIZ-08 disclosure and current-source check | `quiz_evidence_service.py`, grading/history services | delete/reindex/owner unit and DB tests | Quiz browser scenarios and screenshots 19-22 |
 
+## M4 Review State Loop (2026-09-15)
+
+- First authoritative attempts now atomically update owner-scoped BKT observations, FSRS cards and
+  learning events. A versioned review is server-graded and idempotent; no review XP is added. The
+  frontend restores a lost response after reload and renders real due counts and activity trends.
+- Wrong-answer filtering, favorites and user-confirmed error categories persist; named notebooks
+  are a separate pending request. Default BKT and FSRS parameters are disclosed, not described as
+  personal training. See `learning-algorithms.md` for transaction, timezone and uncertainty details.
+- Verification: 332 offline cases; 33 isolated database cases passed in two consecutive runs; 11
+  frontend units and TypeScript passed. The full real-browser regression passed 8 scenarios in
+  58.1 s, including saved paid-quiz reuse; 3 opt-in paid scenarios skipped, no new paid calls.
+- Repeated database runs exposed an accumulating synthetic provider ledger. The isolated fixture
+  now locks, snapshots and restores its ledger per case. Limits and production data are unchanged.
+- Consecutive builds: H5 entry gzip 119827 bytes; weapp main 572220 bytes and learning subpackage
+  33753 bytes. Entry-size/Browserslist and MySQL 8 `VALUES()` deprecation warnings remain visible.
+- Runtime evidence: `evidence/m4-review-ui.json`, `evidence/m4-review-build-size.json`, and H5
+  screenshots 07, 23-25. Native IDE verification remains pending; no deployment changes were made.
+
+| ID / behavior | Implementation | Tests | Evidence |
+| --- | --- | --- | --- |
+| LEARN-01 authoritative observations | `learning_state_service.py`, migration 9 | `test_learning_state.py` atomic rollback/replay | Real API + MySQL |
+| LEARN-02 explainable BKT / FSRS | `learning/` | `test_learning_algorithms.py` | Versioned events and review UI |
+| REVIEW-01 versioned due review | `learning/review`, `/learning/cards` | lost-response browser test, ownership / time DB tests | Screenshots 07, 23 |
+| REVIEW-02 wrong / favorites / trend | owner-filtered learning routes | `review.spec.ts`, timezone / DST tests | Screenshots 24-25 |
+
+## Scope Addendum (2026-09-15)
+
+The following owner requests are part of the remaining acceptance scope, not completed claims:
+
+| ID | Requested behavior | Acceptance requirement | Status |
+| --- | --- | --- | --- |
+| QUIZ-09 | User-selected total and per-type counts | Single, multiple, fill-in, judgment and written response; exact blueprint validation; bounded task batches and authoritative scoring | Pending |
+| REPORT-04 | Mermaid learning and relationship diagrams | Stored graph data after review; sanitized H5 renderer and tested native equivalent; invalid graphs fail visibly | Pending |
+| REVIEW-03 | Named error notebooks | Create notebook, explicitly add/remove an owned wrong question, select destination, idempotency and cross-user denial | Pending |
+| UI-04 | Visible companion and recovery | Focus pages must not silently remove it; safe collapsed state, restore/hide control, mobile/desktop/native checks | Investigating: shell focus exclusion and no-space hiding confirmed |
+| UI-05 | Simpler hand-painted anime visual design | Original nature/study artwork, restrained surfaces and typography, no pervasive dot field or generic AI marketing composition; five themes and real screenshots | Pending |
+
+GitHub code pushes are explicitly authorized; credentials must never be uploaded. Local paid model
+providers remain enabled with budgets. Deployment-side paid providers still require actual deployment
+and verification. This addendum extends the original M0-M7 scope, without removing pending security,
+algorithm-experiment, native-testing, documentation or coexistence requirements.
+
 ## Continuing Decisions
 
 - Preserve Taro 4.1.11, MySQL and Chroma; enhance existing modules.

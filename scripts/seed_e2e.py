@@ -12,7 +12,7 @@ from app.core.db import connect_mysql, close_mysql_pool, get_mysql_pool
 from app.repositories.quiz_repository import save_quiz_session
 
 
-async def main(user_id: int, staged_upload=False, report_checkpoint=False, release_report=None, quiz_checkpoint=False, release_quiz=None):
+async def main(user_id: int, staged_upload=False, report_checkpoint=False, release_report=None, quiz_checkpoint=False, release_quiz=None, learning_review=False):
     await connect_mysql()
     try:
         async with get_mysql_pool().acquire() as conn:
@@ -88,6 +88,21 @@ async def main(user_id: int, staged_upload=False, report_checkpoint=False, relea
             print(json.dumps({'quizId': 'quiz_' + task['task_id'][4:], 'taskId': task['task_id'], 'docId': doc_id, 'query': query}))
             return
         await save_quiz_session(quiz_id, user_id, "学习方法与证据意识", "合成验收题库，验证作答流程", "确定性浏览器验收", questions)
+        if learning_review:
+            from datetime import datetime, timedelta, timezone
+            from app.services import learning_state_service as learning
+            from app.services.grading_service import submit_question, AnswerSubmission
+            original_clock = learning.utcnow
+            past = datetime.now(timezone.utc) - timedelta(days=2)
+            learning.utcnow = lambda: past
+            try:
+                for question in questions:
+                    selected = ['B'] if question['id'] == 'q1' else question['answer']
+                    await submit_question(quiz_id, user_id, AnswerSubmission(question_id=question['id'], selected_answers=selected))
+            finally:
+                learning.utcnow = original_clock
+            print(json.dumps({'quizId': quiz_id, 'source': 'Synthetic historical observations, no paid model calls'}))
+            return
         if report_checkpoint:
             from app.services.grading_service import submit_question, AnswerSubmission
             from app.repositories import job_repository as jobs
@@ -117,5 +132,6 @@ if __name__ == "__main__":
     parser.add_argument('--release-report')
     parser.add_argument('--quiz-checkpoint', action='store_true')
     parser.add_argument('--release-quiz')
+    parser.add_argument('--learning-review', action='store_true')
     args = parser.parse_args()
-    asyncio.run(main(args.user_id, args.staged_upload, args.report_checkpoint, args.release_report, args.quiz_checkpoint, args.release_quiz))
+    asyncio.run(main(args.user_id, args.staged_upload, args.report_checkpoint, args.release_report, args.quiz_checkpoint, args.release_quiz, args.learning_review))

@@ -1,6 +1,7 @@
 """Authoritative, idempotent question submissions and answer disclosure."""
 
 import json
+import aiomysql
 
 from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict, Field
@@ -45,13 +46,13 @@ async def submit_question(quiz_id: str, user_id: int, submission: AnswerSubmissi
     async with pool.acquire() as conn:
         await conn.begin()
         try:
-            async with conn.cursor() as cur:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
                 # The quiz row serializes submissions across devices, including retries.
                 await cur.execute("SELECT questions_json FROM quiz_sessions WHERE quiz_id=%s AND user_id=%s FOR UPDATE", (quiz_id, user_id))
                 row = await cur.fetchone()
                 if not row:
                     raise HTTPException(404, "练习不存在")
-                questions = decode_json(row[0])
+                questions = decode_json(row['questions_json'])
                 question = next((q for q in questions if q["id"] == submission.question_id), None)
                 if question is None:
                     raise HTTPException(404, "题目不存在")
@@ -60,13 +61,15 @@ async def submit_question(quiz_id: str, user_id: int, submission: AnswerSubmissi
                                   (quiz_id, user_id, submission.question_id))
                 previous = await cur.fetchone()
                 if previous:
-                    saved = decode_json(previous[0])
+                    saved = decode_json(previous['record_json'])
                     if saved["selected_answers"] != record["selected_answers"]:
                         raise HTTPException(409, "该题已作答，不能覆盖原记录")
                     record = saved
                 else:
                     await cur.execute("INSERT INTO quiz_question_attempts (quiz_id,user_id,question_id,record_json) VALUES (%s,%s,%s,%s)",
                                       (quiz_id, user_id, submission.question_id, json.dumps(record, ensure_ascii=False)))
+                    from app.services.learning_state_service import record_initial
+                    await record_initial(cur, user_id, quiz_id, question, record)
                 await conn.commit()
         except BaseException:
             try:

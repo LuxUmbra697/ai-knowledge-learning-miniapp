@@ -1,0 +1,28 @@
+{
+  "recorded_at": "2026-09-15T00:39:42.262Z",
+  "environment": "Chromium + isolated MySQL + real API + FSRS 6.3.2; synthetic historical answers",
+  "provider_calls": 0,
+  "checks": [
+    "cold_start",
+    "home_due_count",
+    "wrong_queue",
+    "favorite_persistence",
+    "confirmed_cause",
+    "no_answers_before_review",
+    "forged_grading_fields_rejected",
+    "server_grading",
+    "FSRS_next_due",
+    "BKT_observation_count",
+    "result_restore",
+    "idempotent_review",
+    "lost_response_recovery_without_duplicate_update",
+    "no_extra_XP",
+    "real_data_trend",
+    "320_and_1440_width",
+    "no_browser_errors"
+  ],
+  "limitations": [
+    "No personalization training or real learning-efficacy claim",
+    "Native WeChat execution pending"
+  ]
+}

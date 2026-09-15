@@ -105,3 +105,17 @@ button:disabled { opacity: .55; cursor: default; }
 .quiz-citation { margin-top: 12px; }
 .citation-quote { display: block; border-left: 3px solid var(--accent); padding-left: 12px; line-height: 1.8; overflow-wrap: anywhere; }
 .quiz-citation .citation-link { white-space: normal; text-align: left; max-width: 100%; }
+.today-review { padding: 8px 0 24px; border-bottom: 1px solid var(--line); margin-bottom: 24px; gap: 16px; flex-wrap: wrap; }
+.today-review .muted { display: block; margin-top: 8px; }
+.review-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid var(--line); margin-bottom: 24px; }
+.studio .review-tabs .text-button { min-width: 0; padding: 12px 4px; white-space: normal; font-size: 14px; border-bottom: 2px solid transparent; }
+.studio .review-tabs .active { border-bottom-color: var(--accent); color: var(--accent); }
+.review-row, .concept-row { padding: 20px 0; border-bottom: 1px solid var(--line); }
+.review-row > .row-title, .review-row > .muted, .concept-row > .muted, .concept-row > .tiny-label { display: block; margin: 10px 0; }
+.review-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 16px; }
+.diagnosis-picker { border-bottom: 1px solid var(--accent); min-height: 44px; display: flex; align-items: center; flex-wrap: wrap; }
+.learning-trend { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 6px; margin: 24px 0 32px; }
+.trend-day { text-align: center; font-size: 12px; min-width: 0; }.trend-track { height: 80px; display: flex; align-items: flex-end; margin: 8px auto; width: 12px; background: var(--line); }.trend-bar { width: 100%; background: var(--secondary); }
+.mastery-track { height: 7px; background: var(--line); margin: 14px 0; }.mastery-track > view, .mastery-track > taro-view-core { height: 100%; background: var(--accent); }
+.next-review { font-weight: 600; color: var(--accent); }.learning-progress > .muted { display: block; margin-top: 12px; }
+@media (max-width: 600px) { .learning-trend { grid-template-columns: repeat(7, minmax(0, 1fr)); row-gap: 20px; } }

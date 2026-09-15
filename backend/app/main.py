@@ -8,7 +8,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.v1.routes import health, knowledge, quiz, report, user, tasks
+from app.api.v1.routes import health, knowledge, quiz, report, user, tasks, learning
 from app.core.config import get_settings
 from app.core.db import close_mysql_pool, connect_mysql
 from app.core.upload_limits import UploadLimitsMiddleware
@@ -63,6 +63,7 @@ app.add_middleware(
 # 注册路由
 app.add_middleware(UploadLimitsMiddleware)
 app.include_router(health.router, prefix="/api/v1")
+app.include_router(learning.router, prefix="/api/v1")
 app.include_router(quiz.router, prefix="/api/v1")
 app.include_router(report.router, prefix="/api/v1")
 app.include_router(user.router, prefix="/api/v1")
