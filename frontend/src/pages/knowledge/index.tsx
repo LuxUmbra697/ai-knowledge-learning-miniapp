@@ -7,12 +7,15 @@ import { chooseDocument } from '../../services/chooseDocument'
 import { StudioShell, Notice, Empty, navigate } from '../../components/StudioShell'
 import { Icon } from '../../components/Icon'
 import { restorableQuiz } from '../../services/quizSession'
+import { QuestionCountsEditor } from '../../components/QuestionCountsEditor'
+import { defaultCounts, countQuestions, validCounts, questionTypes } from '../../services/quizBlueprint'
 
 const statusText = { processing: '解析中', ready: '已就绪', failed: '解析失败' }
 export default function KnowledgePage() {
   const [documents, setDocuments] = useState<KnowledgeDocumentItem[]>([])
   const [busy, setBusy] = useState(''), [error, setError] = useState(''), [loading, setLoading] = useState(true)
   const [notice, setNotice] = useState('')
+  const [practiceDoc, setPracticeDoc] = useState<KnowledgeDocumentItem | null>(null), [counts, setCounts] = useState(defaultCounts)
   const live = useRef(true), lock = useRef(false), polls = useRef(new Map<string, PollControl>())
   const watch = async (docId: string) => {
     if (polls.current.has(docId)) return
@@ -65,9 +68,9 @@ export default function KnowledgePage() {
     finally { lock.current = false }
   }
   const practice = async (doc: KnowledgeDocumentItem) => {
-    if (lock.current || doc.status !== 'ready') return
+    if (lock.current || doc.status !== 'ready' || !validCounts(counts)) return
     lock.current = true; setBusy('正在创建练习'); setError('')
-    const key = `ai-learn:v1:practice:${getCachedUser()?.id}:${doc.doc_id}`
+    const key = `ai-learn:v1:practice:${getCachedUser()?.id}:${doc.doc_id}:${questionTypes.map(type => counts[type]).join('-')}`
     try {
       let pending = restorableQuiz(Taro.getStorageSync(key))
       if (pending?.taskId) {
@@ -77,10 +80,11 @@ export default function KnowledgePage() {
       pending = pending || { key: `quiz_${Date.now()}_${Math.random().toString(36).slice(2)}` }
       Taro.setStorageSync(key, pending)
       if (!pending.taskId) {
-        const created = await generateQuizAsync(`根据文档《${doc.file_name}》生成知识练习`, 5, doc.doc_id, false, pending.key)
+        const created = await generateQuizAsync(`根据文档《${doc.file_name}》生成知识练习`, countQuestions(counts), doc.doc_id, false, pending.key, counts)
         pending = { ...pending, taskId: created.task_id }; Taro.setStorageSync(key, pending)
       }
       if (!live.current) return
+      setPracticeDoc(null)
       Taro.navigateTo({ url: `/pages/quiz/index?taskId=${encodeURIComponent(pending.taskId!)}` })
     } catch (reason) {
       if (reason instanceof ApiError && [404, 409, 422].includes(reason.statusCode)) Taro.removeStorageSync(key)
@@ -96,6 +100,7 @@ export default function KnowledgePage() {
     finally { lock.current = false; if (live.current) setBusy('') }
   }
   return <StudioShell active='knowledge' title='我的知识书架' subtitle='让自己的学习材料，成为每次探索的起点。'>
+    {practiceDoc && <View className='modal-backdrop'><View className='practice-config-dialog'><View className='section-heading'><Text className='section-title'>配置知识练习</Text><Button className='icon-button' aria-label='关闭练习配置' disabled={!!busy} onClick={() => setPracticeDoc(null)}><Icon name='close' /></Button></View><Text className='row-title'>{practiceDoc.file_name}</Text><QuestionCountsEditor value={counts} onChange={setCounts} disabled={!!busy} />{!validCounts(counts) && <Notice message='题型数量合计须为 1 至 20。' />}{error && <Notice message={error} />}<Button className='primary-button' disabled={!!busy || !validCounts(counts)} onClick={() => practice(practiceDoc)}>{busy || '生成这组练习'}</Button></View></View>}
     <View className='shelf-band'><Image className='shelf-panorama' src={require('../../assets/notebook-shelf.jpg')} mode='aspectFit' aria-hidden /></View>
     <View className='upload-band'><Button className='primary-button' disabled={!!busy} onClick={upload}><Icon name='upload' size={18} />{busy || '添加学习材料'}</Button><Text className='field-hint'>PDF / DOCX / TXT / Markdown · 最大 10MB · 暂不支持扫描件 OCR</Text></View>
     {error && <Notice message={error} retry={load} />}
@@ -103,7 +108,7 @@ export default function KnowledgePage() {
     <View className='section-heading'><Text className='section-title'>全部文档</Text><Button className='icon-button' aria-label='刷新文档' onClick={load}><Icon name='refresh' /></Button></View>
     {!documents.length && <Empty title={loading ? '正在读取书架' : '书架上还没有学习材料'} text='添加一份笔记、讲义或课程资料，开启自己的知识积累。' />}
     {documents.map(doc => <View className='document-row' key={doc.doc_id}><Icon name='book' size={26} /><View className='row-copy'><Text className='row-title'>{doc.file_name}</Text><Text className='muted'>{doc.needs_reindex ? '需要重建索引' : statusText[doc.status]} · {(doc.file_size / 1024).toFixed(1)} KB{doc.status === 'ready' ? ` · ${doc.chunk_count} 个片段` : ''}</Text>{doc.error_message && <Text className='muted'>{doc.error_message}</Text>}<View className='document-actions'>
-      {doc.status === 'ready' && !doc.needs_reindex && <><Button className='secondary-button' disabled={!!busy} onClick={() => Taro.navigateTo({ url: `/learning/assistant/index?docId=${doc.doc_id}` })}><Icon name='chat' size={16} />向材料提问</Button><Button className='text-button' onClick={() => Taro.navigateTo({ url: `/learning/document/index?docId=${doc.doc_id}` })}>查看原文</Button><Button className='text-button' disabled={!!busy} onClick={() => practice(doc)}>知识练习</Button></>}
+      {doc.status === 'ready' && !doc.needs_reindex && <><Button className='secondary-button' disabled={!!busy} onClick={() => Taro.navigateTo({ url: `/learning/assistant/index?docId=${doc.doc_id}` })}><Icon name='chat' size={16} />向材料提问</Button><Button className='text-button' onClick={() => Taro.navigateTo({ url: `/learning/document/index?docId=${doc.doc_id}` })}>查看原文</Button><Button className='text-button' disabled={!!busy} onClick={() => { setPracticeDoc(doc); setError('') }}>知识练习</Button></>}
       {(doc.status === 'failed' || doc.needs_reindex) && doc.status !== 'processing' && <Button className='secondary-button' disabled={!!busy} onClick={() => rebuild(doc)}><Icon name='refresh' size={16} />重新建立索引</Button>}
       <Button className='text-button' disabled={!!busy} onClick={() => remove(doc)}>删除文档</Button></View></View></View>)}
   </StudioShell>

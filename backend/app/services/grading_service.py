@@ -1,8 +1,9 @@
 """Authoritative, idempotent question submissions and answer disclosure."""
 
 import json
-import aiomysql
+import unicodedata
 
+import aiomysql
 from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -17,13 +18,42 @@ class AnswerSubmission(BaseModel):
     duration_ms: int = Field(default=0, ge=0, le=86400000)
 
 
-def grade_answer(question: dict, selected: list[str], duration_ms: int) -> dict:
+def text_answer(value):
+    return ''.join(unicodedata.normalize('NFKC', value).casefold().split())
+
+
+def validate_selection(question, selected):
+    if question['type'] in {'fill', 'written'}:
+        expected = len(question['answer']) if question['type'] == 'fill' else 1
+        maximum = 200 if question['type'] == 'fill' else 4000
+        if len(selected) != expected or any(not value.strip() or len(value) > maximum for value in selected):
+            raise HTTPException(422, '请填写完整答案，并保持在字数限制内')
+        return [unicodedata.normalize('NFKC', value).strip() for value in selected]
     options = {option["key"] for option in question["options"]}
     if (not selected or len(set(selected)) != len(selected) or not set(selected) <= options
             or (question["type"] != "multiple" and len(selected) != 1)):
         raise HTTPException(422, "答案选项无效")
-    return {"question_id": question["id"], "selected_answers": sorted(selected),
-            "is_correct": set(selected) == set(question["answer"]), "duration_ms": duration_ms}
+    return sorted(selected)
+
+
+def grade_answer(question: dict, selected: list[str], duration_ms: int, *, verdict=None) -> dict:
+    selected = validate_selection(question, selected)
+    grading = None
+    if question['type'] == 'fill':
+        matches = [text_answer(value) in {text_answer(variant) for variant in variants}
+                   for value, variants in zip(selected, question['accepted_answers'])]
+        correct = all(matches)
+        grading = {'method': 'normalized-exact-v1', 'blank_matches': matches}
+    elif question['type'] == 'written':
+        if verdict is None:
+            raise HTTPException(422, '问答题需要提交评阅任务')
+        correct, grading = verdict['is_correct'], verdict['grading']
+    else:
+        correct = set(selected) == set(question['answer'])
+    result = {'question_id': question['id'], 'selected_answers': selected, 'is_correct': correct, 'duration_ms': duration_ms}
+    if grading is not None:
+        result['grading'] = grading
+    return result
 
 
 def decode_json(value):
@@ -34,12 +64,12 @@ def public_quiz(data: dict, revealed: set[str] | None = None) -> dict:
     visible = revealed or set()
     return {**data, "questions": [
         dict(question) if question["id"] in visible else {
-            key: value for key, value in question.items() if key not in ("answer", "explanation", "citations")
-        } for question in data.get("questions", [])
+            key: value for key, value in question.items() if key not in ("answer", "explanation", "citations", "accepted_answers", "rubric")
+        } | ({'blank_count': len(question['answer'])} if question['type'] == 'fill' else {}) for question in data.get("questions", [])
     ]}
 
 
-async def submit_question(quiz_id: str, user_id: int, submission: AnswerSubmission) -> dict:
+async def submit_question(quiz_id: str, user_id: int, submission: AnswerSubmission, *, context=None, verdict=None) -> dict:
     pool = get_mysql_pool()
     if pool is None:
         raise HTTPException(503, "学习记录服务暂不可用，请稍后重试")
@@ -47,6 +77,11 @@ async def submit_question(quiz_id: str, user_id: int, submission: AnswerSubmissi
         await conn.begin()
         try:
             async with conn.cursor(aiomysql.DictCursor) as cur:
+                if context:
+                    from app.repositories import job_repository as jobs
+                    job = await jobs.running(cur, context.task_id, context.lease_token)
+                    if job['kind'] != 'grade' or job['user_id'] != user_id or job['payload_json'] != context.payload:
+                        raise jobs.TaskLeaseLost()
                 # The quiz row serializes submissions across devices, including retries.
                 await cur.execute("SELECT questions_json FROM quiz_sessions WHERE quiz_id=%s AND user_id=%s FOR UPDATE", (quiz_id, user_id))
                 row = await cur.fetchone()
@@ -56,7 +91,7 @@ async def submit_question(quiz_id: str, user_id: int, submission: AnswerSubmissi
                 question = next((q for q in questions if q["id"] == submission.question_id), None)
                 if question is None:
                     raise HTTPException(404, "题目不存在")
-                record = grade_answer(question, submission.selected_answers, submission.duration_ms)
+                record = grade_answer(question, submission.selected_answers, submission.duration_ms, verdict=verdict)
                 await cur.execute("SELECT record_json FROM quiz_question_attempts WHERE quiz_id=%s AND user_id=%s AND question_id=%s",
                                   (quiz_id, user_id, submission.question_id))
                 previous = await cur.fetchone()
@@ -70,6 +105,8 @@ async def submit_question(quiz_id: str, user_id: int, submission: AnswerSubmissi
                                       (quiz_id, user_id, submission.question_id, json.dumps(record, ensure_ascii=False)))
                     from app.services.learning_state_service import record_initial
                     await record_initial(cur, user_id, quiz_id, question, record)
+                if context:
+                    await jobs.publish_result(cur, job, {'quiz_id': quiz_id, 'question_id': question['id']})
                 await conn.commit()
         except BaseException:
             try:

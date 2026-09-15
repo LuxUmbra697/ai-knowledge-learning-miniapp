@@ -43,6 +43,14 @@ page, body { margin: 0; background: #fcfbfc; font-family: 'PingFang SC', 'Micros
 .option-key { flex: none; font-weight: 700; color: var(--accent); }.option-text { min-width: 0; overflow-wrap: anywhere; }
 .answer-explanation { padding: 18px 0; border-top: 1px solid var(--line); margin-top: 20px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .question-media { width: 100%; height: 220px; }
+.question-counts { margin: 18px 0; border-top: 1px solid var(--line); padding-top: 14px; }
+.count-total, .count-row { display: flex; align-items: center; gap: 12px; justify-content: space-between; }
+.count-total { justify-content: flex-start; margin-bottom: 12px; }.count-total .field-label { margin: 0; }
+.count-types { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 20px; }
+.count-input { width: 64px; flex: none; text-align: center; }.count-row { min-height: 46px; }
+.practice-config-dialog { background: var(--paper); border: 1px solid var(--line); border-radius: 8px; width: 460px; max-width: 100%; max-height: calc(100dvh - 36px); overflow-y: auto; padding: 24px; }
+.text-answer { margin: 18px 0; }.written-answer { min-height: 160px; margin-top: 12px; }.grading-feedback { display: flex; flex-direction: column; gap: 14px; padding: 20px 0; border-top: 1px solid var(--line); overflow-wrap: anywhere; white-space: pre-wrap; }
+@media (max-width: 360px) { .count-types { grid-template-columns: minmax(0, 1fr); }.practice-config-dialog { padding: 16px; } }
 .practice-navigation { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin-top: 22px; }
 .report-list { display: flex; flex-direction: column; gap: 12px; padding: 14px 0 26px; }
 .report-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }

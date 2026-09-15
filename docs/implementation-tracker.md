@@ -341,6 +341,38 @@ algorithm-experiment, native-testing, documentation or coexistence requirements.
 
 ## Continuing Decisions
 
+### Five-Type Practice and Durable Written Assessment (2026-09-15)
+
+- Total 1-20 and individual single/multiple/judge/fill/written counts are validated on both ends.
+  Sets larger than five use quota-preserving batches with independent saved provider checkpoints;
+  repeated stems and incorrect distributions are rejected before publication. Text input drafts
+  survive refresh. Reference answers, accepted fill variants and written rubrics stay server-side
+  until the corresponding submission is published.
+- Fill grading uses ordered normalized accepted variants. Written grading is a durable, bounded
+  DeepSeek task with strict criterion coverage and exact student-quote checks. Correctness is derived
+  by the server from all criteria, not from a client or model-supplied score. This is labeled model
+  judgment, not guaranteed semantic correctness or a human accuracy measurement.
+- Same-answer concurrent request keys coalesce. Changed answers conflict; owner, card version and
+  lease fencing are checked. The grade, learning observation, review event and task publication share
+  one transaction. Cancellation and a failed commit do not publish partial learning updates.
+- Verification: 352 offline tests, 39 isolated MySQL tests, 13 frontend units, TypeScript and backend
+  Ruff F checks passed. Full H5 run: 13 passed in 1.1 minutes, 3 extra paid scenarios explicitly
+  skipped. A saved real model response was rendered without another model call. Both sequential
+  builds and base-path checks passed; H5 entry gzip 120447 bytes, weapp main 977192 bytes.
+- Bounded live integration on the public learning-rate fixture: five requested types returned,
+  four objective submissions and one real rubric assessment completed. Three external calls,
+  2531 provider-reported tokens; currency cost is not known. Reference-answer submission proves
+  integration, not student learning quality. Local paid providers remain enabled.
+- Evidence: `evidence/text-quiz-live.json`, `evidence/text-practice-ui.json`,
+  `evidence/text-practice-build-size.json`, real H5 screenshots 32-36. Contracts, commands and limits:
+  `practice-and-assessment.md`. Native CLI still reports disabled service port; no native runtime
+  success, production deployment or public availability is claimed.
+
+| ID | Implementation | Tests | Evidence |
+| --- | --- | --- | --- |
+| QUIZ-04 | `quiz_blueprint.py`, `quiz_batches.py`, `QuestionCountsEditor.tsx` | `test_quiz_blueprint.py`, `test_text_grading.py`, frontend counts units | H5 screenshot 32, live five-type result |
+| QUIZ-05 | `written_grading.py`, `written_grade_service.py`, `TextAnswer.tsx` | `integration/test_written_grading.py`, `e2e/text-practice.spec.ts` | H5 screenshots 33-36, isolated persistence and real paid response |
+
 ### Page Artwork Loop (2026-09-15)
 
 - Added two original painted scenes after the owner's background-art request: a 1280x853 courtyard

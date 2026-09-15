@@ -3,6 +3,9 @@ import { View, Text, Button, Picker } from '@tarojs/components'
 import Taro, { useDidShow, useDidHide } from '@tarojs/taro'
 import { StudioShell, Notice, Empty, navigate } from '../../components/StudioShell'
 import { Icon } from '../../components/Icon'
+import { TextAnswer, GradingFeedback, answerComplete } from '../../components/TextAnswer'
+import { submitWrittenReview } from '../../services/writtenGrade'
+import { questionLabels } from '../../services/quizBlueprint'
 import { NotebookDialog } from '../../components/NotebookDialog'
 import { Notebook, NotebookTarget, listNotebooks, notebookCards, removeNotebookCard, deleteNotebook } from '../../services/notebooks'
 import { PollControl } from '../../services/polling'
@@ -41,7 +44,7 @@ export default function ReviewPage() {
       setSummary(state); setItems(list.items); setBooks(available.items); setError('')
       const saved = Taro.getStorageSync(key())
       if (saved && /^card_[a-f0-9]{32}$/.test(saved.cardId) && Number.isSafeInteger(saved.version) && saved.version >= 1) {
-        const restored = Array.isArray(saved.answers) ? await submitReview(saved.cardId, saved.version, saved.answers, current) : await getReviewResult(saved.cardId, saved.version, current)
+        const restored = Array.isArray(saved.answers) ? saved.written ? await submitWrittenReview(saved.cardId, saved.version, saved.answers, current) : await submitReview(saved.cardId, saved.version, saved.answers, current) : await getReviewResult(saved.cardId, saved.version, current)
         accept(restored, saved.version)
       }
     } catch (reason) {
@@ -57,11 +60,11 @@ export default function ReviewPage() {
     setSelected(old => active.question.type === 'multiple' ? old.includes(answer) ? old.filter(x => x !== answer) : [...old, answer] : [answer])
   }
   const submit = async () => {
-    if (!active || !selected.length || lock.current) return
+    if (!active || !answerComplete(active.question, selected) || lock.current) return
     lock.current = true; setBusy(true); setError('')
-    Taro.setStorageSync(key(), { cardId: active.card_id, version: active.version, answers: selected })
+    Taro.setStorageSync(key(), { cardId: active.card_id, version: active.version, answers: selected, written: active.question.type === 'written' })
     const current = new PollControl(); control.current = current
-    try { accept(await submitReview(active.card_id, active.version, selected, current), active.version) }
+    try { accept(active.question.type === 'written' ? await submitWrittenReview(active.card_id, active.version, selected, current) : await submitReview(active.card_id, active.version, selected, current), active.version) }
     catch (reason) { if (live.current && !current.cancelled) setError(reason instanceof Error ? reason.message : '提交失败，请重试') }
     finally { lock.current = false; if (live.current) setBusy(false) }
   }
@@ -89,11 +92,13 @@ export default function ReviewPage() {
     {question ? <View className='practice-surface review-practice'>
       <Button className='text-button' onClick={() => back()}>返回复习队列</Button>
       <Text className='question-stem'>{question.stem}</Text>
-      <Text className='muted'>{question.type === 'multiple' ? '多选题' : question.type === 'judge' ? '判断题' : '单选题'}</Text>
+      <Text className='muted'>{questionLabels[question.type]}</Text>
       <View className='answer-options'>{question.options.map(option => <Button key={option.key} className={`answer-option ${(result?.record.selected_answers || selected).includes(option.key) ? 'selected' : ''} ${result && question.answer?.includes(option.key) ? 'correct' : ''}`} onClick={() => choose(option.key)}><Text className='option-key'>{option.key}</Text><Text className='option-text'>{option.text}</Text></Button>)}</View>
-      {!result && <Button className='primary-button' disabled={!selected.length || busy} onClick={submit}>{busy ? '正在提交' : '完成本次复习'}</Button>}
+      <TextAnswer question={question} values={result?.record.selected_answers || selected} disabled={!!result || busy} onChange={setSelected} />
+      {!result && <Button className='primary-button' disabled={!answerComplete(question, selected) || busy} onClick={submit}>{busy ? question.type === 'written' ? '正在逐项评阅' : '正在提交' : '完成本次复习'}</Button>}
       {result && <View className='answer-explanation'><Text className='section-title'>{result.record.is_correct ? '这次记住了' : '再巩固一次'}</Text><Text>参考答案：{question.answer?.join('、')}</Text><Text>{question.explanation}</Text><Text className='next-review'>下次复习：{dateText(result.due_at)}</Text><Text className='muted'>累计 {result.knowledge.observation_count} 次作答 · 默认参数掌握估计 {Math.round(result.knowledge.mastery * 100)}%</Text><Button className='text-button' onClick={() => Taro.navigateTo({ url: `/pages/quiz/index?quizId=${result.quiz_id}` })}>查看原练习与证据<Icon name='book' size={16} /></Button></View>}
       {result && !result.record.is_correct && <Button className='secondary-button' onClick={() => setDialog({ target: { cardId: result.card_id } })}><Icon name='book' size={16} />加入错题本</Button>}
+      {result && <GradingFeedback record={result.record} />}
     </View> : <>
       {summary && <View className='stats-row'><View className='stat'><Text className='muted'>到期题目</Text><Text className='stat-number'>{summary.due_count}</Text></View><View className='stat'><Text className='muted'>今日已复习</Text><Text className='stat-number'>{summary.today_reviews}</Text></View><View className='stat'><Text className='muted'>本轮建议</Text><Text className='stat-number'>{summary.recommended_count}</Text></View></View>}
       <View className='review-tabs'>{modes.map(([value, label]) => <Button key={value} className={`text-button ${mode === value ? 'active' : ''}`} onClick={() => back(value)}>{label}</Button>)}</View>

@@ -8,7 +8,7 @@ import { PollControl, pollUntil } from '../../services/polling'
 import { taskPhase as phase } from '../../services/taskDisplay'
 
 const statuses = { staging: '等待上传完成', queued: '等待处理', running: '处理中', completed: '已完成', failed: '未完成', cancelled: '已取消' }
-const kinds = { index: '资料索引', answer: '知识问答', retrieve: '资料检索', quiz: '练习生成', report: '学习报告', cleanup: '资料清理' }
+const kinds = { index: '资料索引', answer: '知识问答', retrieve: '资料检索', quiz: '练习生成', report: '学习报告', cleanup: '资料清理', grade: '问答评阅' }
 export default function TasksPage() {
   const [tasks, setTasks] = useState<LearningTask[]>([]), [error, setError] = useState(''), [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(''), [busy, setBusy] = useState('')
@@ -51,6 +51,7 @@ export default function TasksPage() {
         {task.kind === 'index' && task.result?.doc_id && task.status === 'completed' && <Button className='text-button' onClick={() => Taro.navigateTo({ url: `/learning/document/index?docId=${encodeURIComponent(task.result.doc_id)}` })}>查看资料</Button>}
         {task.kind === 'answer' && <Button className='text-button' onClick={() => Taro.navigateTo({ url: `/learning/assistant/index?taskId=${encodeURIComponent(task.task_id)}` })}>查看问答</Button>}
         {task.kind === 'quiz' && <Button className='text-button' onClick={() => Taro.navigateTo({ url: `/pages/quiz/index?taskId=${encodeURIComponent(task.task_id)}` })}>查看练习</Button>}
+        {task.kind === 'grade' && task.resource_id && <Button className='text-button' onClick={() => Taro.navigateTo({ url: task.result?.card_id ? '/learning/review/index' : `/pages/quiz/index?quizId=${encodeURIComponent(task.resource_id!)}` })}>查看评阅</Button>}
         {task.kind === 'report' && task.resource_id && <Button className='text-button' onClick={() => Taro.navigateTo({ url: `/pages/report/index?quizId=${encodeURIComponent(task.resource_id!)}&taskId=${encodeURIComponent(task.task_id)}` })}>查看报告</Button>}
       </View>
       {selected === task.task_id && <View className='task-trace'><Text className='tiny-label'>追踪编号 {task.trace.trace_id}</Text><Text className='muted'>外部调用 {task.trace.model_calls} 次 · 已记录 {task.trace.tokens} tokens{task.trace.unmetered_calls ? ` · ${task.trace.unmetered_calls} 次未返回用量` : ''}</Text>

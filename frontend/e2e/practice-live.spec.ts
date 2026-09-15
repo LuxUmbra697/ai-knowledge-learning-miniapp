@@ -29,6 +29,7 @@ test('real document practice, authoritative answers and persisted model report',
     await page.goto('pages/knowledge/index')
     await expect(page.getByText('学习率补充讲义.md', { exact: true })).toBeVisible()
     await page.getByText('知识练习', { exact: true }).click()
+    await page.getByText('生成这组练习', { exact: true }).click()
     await page.waitForURL(/pages\/quiz\/index\?taskId=/, { timeout: 100000 })
     const taskId = new URL(page.url()).searchParams.get('taskId')!
     await expect(page.locator('.question-stem')).toBeVisible({ timeout: 75000 })

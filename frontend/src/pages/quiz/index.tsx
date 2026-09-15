@@ -8,6 +8,9 @@ import { NotebookDialog } from '../../components/NotebookDialog'
 import { PollControl, pollUntil } from '../../services/polling'
 import { taskPhase } from '../../services/taskDisplay'
 import { quizTaskResult } from '../../services/quizSession'
+import { TextAnswer, GradingFeedback, answerComplete } from '../../components/TextAnswer'
+import { questionLabels } from '../../services/quizBlueprint'
+import { pendingWritten, submitWritten } from '../../services/writtenGrade'
 
 export default function QuizPage() {
   const router = useRouter()
@@ -20,6 +23,7 @@ export default function QuizPage() {
   const [records, setRecords] = useState<AnswerRecord[]>([])
   const [error, setError] = useState(''), [busy, setBusy] = useState(false)
   const [notebook, setNotebook] = useState(false)
+  const [gradingTask, setGradingTask] = useState<LearningTask | null>(null)
   const lock = useRef(false), start = useRef(Date.now())
   const live = useRef(true), control = useRef<PollControl>()
   const draftKeyFor = (id: string) => `ai-learn:v1:draft:${getCachedUser()?.id}:${id}`
@@ -52,8 +56,20 @@ export default function QuizPage() {
       const position = next < 0 ? 0 : next
       const draft = Taro.getStorageSync(draftKeyFor(targetId))
       setQuiz(result); setRecords(attempts); setIndex(position)
-      setSelected(draft?.questionId === result.questions[position]?.id && Array.isArray(draft.selected) ? draft.selected.filter((key: string) => result.questions[position].options.some(o => o.key === key)) : [])
+      const target = result.questions[position]
+      setSelected(draft?.questionId === target?.id && Array.isArray(draft.selected) ? draft.selected.filter((key: string) => typeof key === 'string' && (['fill', 'written'].includes(target.type) || target.options.some(o => o.key === key))) : [])
       setError('')
+      const pending = target?.type === 'written' && !attempts.some(item => item.question_id === target.id) ? pendingWritten(targetId, target.id) : null
+      if (pending) {
+        setBusy(true); lock.current = true; setSelected(pending.answers)
+        try {
+          const reviewed = await submitWritten(targetId, target.id, pending.answers, pending.duration, current, setGradingTask)
+          if (live.current && !current.cancelled) {
+            setRecords(previous => [...previous.filter(item => item.question_id !== target.id), reviewed.record])
+            setQuiz(previous => previous && ({ ...previous, questions: previous.questions.map(q => q.id === target.id ? reviewed.question : q) }))
+          }
+        } finally { lock.current = false; if (live.current) setBusy(false) }
+      }
     } catch (reason) { if (live.current && !current.cancelled) setError(reason instanceof Error ? reason.message : '读取练习失败') }
   }
   useDidShow(() => { live.current = true; load() })
@@ -71,17 +87,20 @@ export default function QuizPage() {
     setSelected(values); Taro.setStorageSync(draftKey, { questionId: question.id, selected: values })
   }
   const submit = async () => {
-    if (lock.current || !question || !selected.length || record) return
+    if (lock.current || !question || !answerComplete(question, selected) || record) return
     lock.current = true; setBusy(true); setError('')
     try {
-      const result = await submitAnswer(quizId, question.id, selected, Math.min(86400000, Date.now() - start.current))
+      const current = new PollControl(); control.current = current
+      const duration = Math.min(86400000, Date.now() - start.current)
+      const result = question.type === 'written' ? await submitWritten(quizId, question.id, selected, duration, current, setGradingTask) : await submitAnswer(quizId, question.id, selected, duration)
+      if (!live.current || current.cancelled) return
       setRecords(previous => [...previous.filter(r => r.question_id !== question.id), result.record])
       setQuiz(previous => previous && ({ ...previous, questions: previous.questions.map(q => q.id === question.id ? result.question : q) }))
       Taro.removeStorageSync(draftKey)
     } catch (reason) { setError(reason instanceof Error ? reason.message : '提交失败，请重试') }
     finally { lock.current = false; setBusy(false) }
   }
-  const move = (next: number) => { setIndex(next); setSelected([]); start.current = Date.now() }
+  const move = (next: number) => { if (busy) return; setIndex(next); setSelected([]); setGradingTask(null); start.current = Date.now() }
   return <StudioShell title={quiz?.title || '知识练习'} subtitle='先独立思考，再与解析对照。' focus>
     {notebook && question && <NotebookDialog target={{ quizId, questionId: question.id }} onClose={() => setNotebook(false)} />}
     <View className='practice-surface'>
@@ -89,14 +108,17 @@ export default function QuizPage() {
       {!question && !error && <Text className='muted'>{task ? taskPhase(task.stage) : '正在读取练习'}</Text>}
       {task && !quiz && <View className='report-task'><Text className='muted'>外部调用 {task.trace.model_calls} 次</Text>{!['completed', 'failed', 'cancelled'].includes(task.status) && <Button className='text-button' onClick={cancel}>取消练习</Button>}<Button className='text-button' onClick={() => Taro.navigateTo({ url: '/learning/tasks/index' })}>查看执行记录</Button></View>}
       {question && <>
-        <View className='section-heading'><Text className='tag'>{({ single: '单选题', multiple: '多选题', judge: '判断题' })[question.type]}</Text><Text className='muted'>第 {index + 1} / {quiz!.questions.length} 题 · 已完成 {records.length} 题</Text></View>
+        <View className='section-heading'><Text className='tag'>{questionLabels[question.type]}</Text><Text className='muted'>第 {index + 1} / {quiz!.questions.length} 题 · 已完成 {records.length} 题</Text></View>
         <View className='practice-progress'><View className='practice-progress-fill' style={{ width: `${records.length / quiz!.questions.length * 100}%` }} /></View>
         <Text className='question-stem'>{question.stem}</Text>
         {question.image_url && /^https:\/\//.test(question.image_url) && <Image className='question-media' src={question.image_url} mode='aspectFit' />}
         <View className='answer-options'>{question.options.map(option => <Button key={option.key} className={`answer-option ${(record?.selected_answers || selected).includes(option.key) ? 'selected' : ''} ${record && question.answer?.includes(option.key) ? 'correct' : record && record.selected_answers.includes(option.key) ? 'wrong' : ''}`} onClick={() => choose(option.key)} aria-pressed={(record?.selected_answers || selected).includes(option.key)}><Text className='option-key'>{option.key}</Text><Text className='option-text'>{option.text}</Text></Button>)}</View>
-        {!record && <Button className='primary-button' disabled={!selected.length || busy} onClick={submit}>{busy ? '正在提交' : '确认答案'}</Button>}
+        <TextAnswer question={question} values={record?.selected_answers || selected} disabled={!!record || busy} onChange={values => { setSelected(values); Taro.setStorageSync(draftKey, { questionId: question.id, selected: values }) }} />
+        {!record && <Button className='primary-button' disabled={!answerComplete(question, selected) || busy} onClick={submit}>{busy ? gradingTask ? taskPhase(gradingTask.stage) : '正在提交' : '确认答案'}</Button>}
+        {busy && gradingTask && <Button className='text-button' onClick={async () => { const result = await Taro.showModal({ title: '取消评阅', content: '已开始的模型调用可能产生费用，取消后不发布结果。' }); if (result.confirm) await cancelLearningTask(gradingTask.task_id) }}>取消评阅</Button>}
         {record && <View className='answer-explanation'><Text className='section-title'>{record.is_correct ? '回答正确' : '再理解一次'}</Text><Text className='muted'>你的选择：{record.selected_answers.join('、')} · 参考答案：{question.answer?.join('、')}</Text><Text>{question.explanation}</Text></View>}
         {record && !record.is_correct && <Button className='secondary-button' onClick={() => setNotebook(true)}><Icon name='book' size={16} />加入错题本</Button>}
+        {record && <GradingFeedback record={record} />}
         {record && !!question.citations?.length && <View className='quiz-evidence'><Text className='section-title'>对照原文</Text>{question.citations.map((citation, i) => <View className='quiz-citation' key={`${citation.evidence_id}-${i}`}>
           {citation.status === 'verified' && citation.doc_id && citation.chunk_id ? <><Text className='citation-quote' selectable>{citation.quote}</Text><Button className='text-button citation-link' onClick={() => Taro.navigateTo({ url: `/learning/document/index?docId=${encodeURIComponent(citation.doc_id!)}&chunkId=${encodeURIComponent(citation.chunk_id!)}&revision=${citation.revision}` })}><Icon name='book' size={16} /><Text>{citation.file_name}{citation.page ? ` · 第 ${citation.page} 页` : citation.section ? ` · ${citation.section}` : ''}</Text></Button></> : <Text className='muted'>此引用暂不可用，原材料可能已变更或删除。</Text>}
         </View>)}</View>}

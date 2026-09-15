@@ -9,7 +9,7 @@ from fastapi import HTTPException
 
 from app.core.security import check_content
 from app.core.exceptions import QuizGenerationError, ContentFilterError, KnowledgeBaseError
-from app.llm.quiz_chain import generate_quiz
+from app.llm.quiz_batches import generate_quiz_set as generate_quiz
 from app.models.quiz import (
     QuizGenerateRequest,
     QuizGenerateResponse,
@@ -104,6 +104,7 @@ async def handle_quiz_generate(
             difficulty=req.difficulty,
             search_context=search_context,
             private_source=req.doc_id is not None,
+            question_counts=req.question_counts.model_dump() if req.question_counts is not None else None,
         )
     except Exception as e:
         logger.error("quiz_generation_failed", error_type=type(e).__name__)
@@ -192,6 +193,7 @@ async def _run_quiz_task(
             difficulty=req.difficulty,
             search_context=search_context,
             private_source=req.doc_id is not None,
+            question_counts=req.question_counts.model_dump() if req.question_counts is not None else None,
         )
 
         quiz_id = f"quiz_{uuid.uuid4().hex[:12]}"

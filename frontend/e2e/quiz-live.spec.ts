@@ -58,6 +58,7 @@ test('bounded real private practice task restores and publishes server-graded qu
     await expect(document).toBeVisible()
     const pending = page.waitForResponse(response => response.url().endsWith('/quiz/generate/async'))
     await document.getByText('知识练习', { exact: true }).click()
+    await page.getByText('生成这组练习', { exact: true }).click()
     const response = await pending
     expect(response.status()).toBe(200)
     taskId = (await response.json()).data.task_id

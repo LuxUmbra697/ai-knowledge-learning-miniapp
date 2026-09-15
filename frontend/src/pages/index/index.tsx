@@ -3,6 +3,8 @@ import { View, Text, Textarea, Button, Image } from '@tarojs/components'
 import Taro, { useDidShow, useDidHide } from '@tarojs/taro'
 import { StudioShell, Notice, Empty, navigate } from '../../components/StudioShell'
 import { Icon } from '../../components/Icon'
+import { QuestionCountsEditor } from '../../components/QuestionCountsEditor'
+import { defaultCounts, countQuestions, validCounts } from '../../services/quizBlueprint'
 import { PollControl } from '../../services/polling'
 import { getToken, getCachedUser, getUserProfile, getQuizHistory, getKnowledgeDocuments, generateQuizAsync, pollQuizTask, waitForLogin, getLearningSummary, LearningSummary, UserProfile, QuizHistoryItem } from '../../services/api'
 
@@ -11,6 +13,7 @@ export default function HomePage() {
   const [history, setHistory] = useState<QuizHistoryItem[]>([])
   const [documentCount, setDocumentCount] = useState(0)
   const [input, setInput] = useState('')
+  const [counts, setCounts] = useState(defaultCounts)
   const [learning, setLearning] = useState<LearningSummary | null>(null)
   const [error, setError] = useState('')
   const [stage, setStage] = useState('')
@@ -29,10 +32,10 @@ export default function HomePage() {
   useDidShow(load)
   useDidHide(() => { alive.current = false; polling.current?.cancel() })
   const generate = async () => {
-    if (busy.current || !input.trim()) return
+    if (busy.current || !input.trim() || !validCounts(counts)) return
     busy.current = true; setError(''); setStage('正在创建练习')
     try {
-      const { task_id } = await generateQuizAsync(input.trim())
+      const { task_id } = await generateQuizAsync(input.trim(), countQuestions(counts), undefined, false, undefined, counts)
       if (!alive.current) return
       polling.current = new PollControl()
       const quiz = await pollQuizTask(task_id, status => { if (alive.current) setStage(status === 'pending' ? '等待处理' : '正在生成练习') }, 3000, 100, polling.current)
@@ -46,7 +49,7 @@ export default function HomePage() {
     <View className='today-review section-heading'><View><Text className='section-title'>今日复习</Text><Text className='muted'>{learning ? `${learning.due_count} 道到期 · 今日已复习 ${learning.today_reviews} 道` : '正在读取复习计划'}</Text></View><Button className='secondary-button' onClick={() => Taro.navigateTo({ url: '/learning/review/index' })}><Icon name='review' size={17} />复习与掌握</Button></View>
     <View className='welcome-band'><Text className='welcome-title'>我的知识书架</Text><Button className='primary-button' onClick={() => navigate('/pages/knowledge/index')}><Icon name='upload' size={18} />添加学习材料</Button></View>
     <View className='stats-row'><View className='stat'><Text className='muted'>我的知识文档</Text><Text className='stat-number'>{documentCount}</Text><Text className='tiny-label'>篇学习材料</Text></View><View className='stat'><Text className='muted'>累计练习</Text><Text className='stat-number'>{profile?.quiz_count || 0}</Text><Text className='tiny-label'>次探索与尝试</Text></View><View className='stat'><Text className='muted'>已完成正确率</Text><Text className='stat-number'>{profile?.quiz_count ? `${profile.average_accuracy}%` : '暂无'}</Text><Text className='tiny-label'>{profile?.total_xp || 0} 学习经验</Text></View></View>
-    <View className='dashboard-grid'><View className='section-band'><View className='section-heading'><Text className='section-title'>自由练习</Text><Text className='tag'>主题练习</Text></View><Textarea className='studio-textarea' placeholder='今天想学习什么？例如：Python 列表与字典的区别' value={input} maxlength={2000} onInput={e => setInput(e.detail.value)} /><View className='section-heading' style={{ marginTop: '14px' }}><Text className='muted'>{input.length}/2000</Text><Button className='primary-button' disabled={!input.trim() || !!stage} onClick={generate}><Icon name='sparkle' size={17} />{stage || '生成练习'}</Button></View></View>
+    <View className='dashboard-grid'><View className='section-band'><View className='section-heading'><Text className='section-title'>自由练习</Text><Text className='tag'>主题练习</Text></View><Textarea className='studio-textarea' placeholder='今天想学习什么？例如：Python 列表与字典的区别' value={input} maxlength={2000} onInput={e => setInput(e.detail.value)} /><QuestionCountsEditor value={counts} onChange={setCounts} disabled={!!stage} />{!validCounts(counts) && <Notice message='题型数量合计须为 1 至 20。' />}<View className='section-heading' style={{ marginTop: '14px' }}><Text className='muted'>{input.length}/2000</Text><Button className='primary-button' disabled={!input.trim() || !!stage || !validCounts(counts)} onClick={generate}><Icon name='sparkle' size={17} />{stage || '生成练习'}</Button></View></View>
       <View className='section-band'><View className='section-heading'><Text className='section-title'>最近的学习足迹</Text><Button className='text-button' onClick={() => navigate('/pages/profile/index')}>全部记录<Icon name='arrow' size={16} /></Button></View>{history.length ? history.map(item => <View className='history-row' key={item.quiz_id} onClick={() => Taro.navigateTo({ url: `/pages/report/index?quizId=${item.quiz_id}` })}><View className='row-copy'><Text className='row-title'>{item.title}</Text><Text className='muted'>{item.created_at}</Text></View><Text className='score-badge'>{item.accuracy}%</Text></View>) : <Empty title='第一段足迹，等你留下' text='添加材料或完成一次主题练习，学习记录就会出现在这里。' />}</View>
     </View>
   </StudioShell>

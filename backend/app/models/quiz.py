@@ -1,7 +1,8 @@
 """题库相关数据模型"""
 
 from typing import Literal
-from pydantic import BaseModel, ConfigDict, Field
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class QuestionOption(BaseModel):
@@ -25,7 +26,7 @@ class QuestionCitation(BaseModel):
 
 class Question(BaseModel):
     id: str = Field(description="题目编号，如 q1")
-    type: Literal["single", "multiple", "judge"] = Field(description="题型")
+    type: Literal["single", "multiple", "judge", "fill", "written"] = Field(description="题型")
     stem: str = Field(description="题干")
     options: list[QuestionOption] = Field(description="选项列表")
     answer: list[str] = Field(description="正确答案的 key 列表")
@@ -34,6 +35,8 @@ class Question(BaseModel):
     difficulty: Literal["easy", "medium", "hard"] = Field(description="难度")
     image_url: str | None = Field(default=None, description="AI 生成的题目配图 URL（可选）")
     citations: list[QuestionCitation] = Field(default_factory=list, max_length=3)
+    accepted_answers: list[list[str]] = Field(default_factory=list, max_length=4)
+    rubric: list[str] = Field(default_factory=list, max_length=5)
 
 
 class QuizOutput(BaseModel):
@@ -44,6 +47,15 @@ class QuizOutput(BaseModel):
     questions: list[Question] = Field(description="题目列表")
 
 
+class QuestionCounts(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    single: int = Field(default=0, ge=0, le=20, strict=True)
+    multiple: int = Field(default=0, ge=0, le=20, strict=True)
+    judge: int = Field(default=0, ge=0, le=20, strict=True)
+    fill: int = Field(default=0, ge=0, le=20, strict=True)
+    written: int = Field(default=0, ge=0, le=20, strict=True)
+
+
 class QuizGenerateRequest(BaseModel):
     model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
     user_input: str = Field(
@@ -51,7 +63,8 @@ class QuizGenerateRequest(BaseModel):
         max_length=2000,
         description="用户输入的学习内容",
     )
-    question_count: int = Field(default=5, ge=3, le=10, description="题目数量")
+    question_count: int = Field(default=5, ge=1, le=20, strict=True, description="题目数量")
+    question_counts: QuestionCounts | None = None
     difficulty: Literal["easy", "medium", "hard", "mixed"] = Field(
         default="mixed", description="难度"
     )
@@ -61,6 +74,17 @@ class QuizGenerateRequest(BaseModel):
     generate_images: bool = Field(
         default=False, description="是否为每道题目生成配图"
     )
+
+    @model_validator(mode='after')
+    def validate_counts(self):
+        if self.question_counts is not None:
+            total = sum(self.question_counts.model_dump().values())
+            if not 1 <= total <= 20:
+                raise ValueError('题型数量合计须为 1 至 20')
+            if 'question_count' in self.model_fields_set and self.question_count != total:
+                raise ValueError('题型数量合计必须等于题目总数')
+            self.question_count = total
+        return self
 
 
 class QuizGenerateResponse(BaseModel):

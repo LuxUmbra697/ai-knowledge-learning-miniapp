@@ -7,7 +7,7 @@ QUIZ_HUMAN_PROMPT = """请根据用户提供的学习内容生成一组用于小
 要求：
 1. 输出必须是合法 JSON，不要输出任何 JSON 之外的内容。
 2. 题目总数为 {question_count} 题。
-3. 题型包含：单选题(single)、多选题(multiple)、判断题(judge)，比例大致为 3:1:1。
+3. 严格按照题型配额出题，不要加入数量为 0 的题型：{question_counts}。
 4. 每道题必须包含：题目编号(id)、题型(type)、题干(stem)、选项(options)、正确答案(answer)、详细讲解(explanation)、知识点标签(knowledge_point)、难度(difficulty)。
 5. 讲解必须适合初学者阅读，避免过度学术化。
 6. 如果用户输入内容过短，可以基于常识进行合理补充，但不要偏离主题。
@@ -15,6 +15,9 @@ QUIZ_HUMAN_PROMPT = """请根据用户提供的学习内容生成一组用于小
 8. 判断题选项固定为 A 正确、B 错误。
 9. 多选题的正确答案至少 2 个。
 10. difficulty 只能取值 easy、medium、hard。
+11. 填空题(fill)：options=[]，1 至 4 个空按题干顺序使用 ___ 标记；answer 按顺序列标准答案，accepted_answers 为对应每个空的可接受答案数组，每组必须包含标准答案，最多 8 个短语，不用正则表达式。不要在题干暴露答案。
+12. 问答题(written)：options=[]，answer 数组只有一个参考答案；rubric 为 1 至 5 个清晰、可独立检查的评分要点。不要出缺乏明确评分依据的开放作文。
+13. 选择题不使用 accepted_answers 或 rubric；填空题不使用 rubric；问答题不使用 accepted_answers。
 
 JSON 输出结构如下（严格按此结构输出）：
 {{

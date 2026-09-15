@@ -1,5 +1,6 @@
 import Taro from '@tarojs/taro'
 import { PollControl, pollUntil } from './polling'
+import { QuestionCounts, QuestionType } from './quizBlueprint'
 
 // 由 frontend/config/dev.ts、frontend/config/prod.ts 中的 defineConstants 按环境注入
 declare const API_BASE_URL: string
@@ -117,6 +118,7 @@ export function generateQuizAsync(
   docId?: string,
   generateImages = false,
   idempotencyKey?: string,
+  questionCounts?: QuestionCounts,
 ) {
   return request<{ task_id: string }>('/quiz/generate/async', {
     method: 'POST',
@@ -127,6 +129,7 @@ export function generateQuizAsync(
       difficulty: 'mixed',
       doc_id: docId,
       generate_images: generateImages,
+      question_counts: questionCounts,
     },
   })
 }
@@ -291,7 +294,7 @@ export interface QuestionOption {
 
 export interface Question {
   id: string
-  type: 'single' | 'multiple' | 'judge'
+  type: QuestionType
   stem: string
   options: QuestionOption[]
   answer?: string[]
@@ -300,6 +303,9 @@ export interface Question {
   difficulty: 'easy' | 'medium' | 'hard'
   image_url?: string | null
   citations?: QuestionCitation[]
+  blank_count?: number
+  rubric?: string[]
+  accepted_answers?: string[][]
 }
 
 export interface QuestionCitation {
@@ -360,6 +366,7 @@ export interface AnswerRecord {
   selected_answers: string[]
   is_correct: boolean
   duration_ms: number
+  grading?: { method: string; feedback?: string; contradiction?: boolean; blank_matches?: boolean[]; criteria?: { index: number; met: boolean; quote: string; feedback: string }[] }
 }
 
 export interface ReportData {
@@ -484,7 +491,7 @@ export function reindexDocument(docId: string) {
 
 export interface LearningTask {
   resource_id?: string
-  task_id: string; kind: 'index' | 'answer' | 'retrieve' | 'quiz' | 'report' | 'cleanup'
+  task_id: string; kind: 'index' | 'answer' | 'retrieve' | 'quiz' | 'report' | 'cleanup' | 'grade'
   status: 'staging' | 'queued' | 'running' | 'completed' | 'failed' | 'cancelled'
   stage: string; title?: string; created_at?: string; result: any
   error_code?: string; error_message?: string

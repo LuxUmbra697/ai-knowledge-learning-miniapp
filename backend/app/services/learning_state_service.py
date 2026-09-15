@@ -138,10 +138,15 @@ async def cards(user_id, mode='due', notebook_id=None):
     return result
 
 
-async def submit_review(card_id, user_id, request):
+async def submit_review(card_id, user_id, request, *, context=None, verdict=None):
     from app.services.grading_service import grade_answer
     now = utcnow()
     async with transaction() as cur:
+        if context:
+            from app.repositories import job_repository as jobs
+            job = await jobs.running(cur, context.task_id, context.lease_token)
+            if job['kind'] != 'grade' or job['user_id'] != user_id or job['payload_json'] != context.payload:
+                raise jobs.TaskLeaseLost()
         await cur.execute('SELECT * FROM learning_cards WHERE card_id=%s AND user_id=%s FOR UPDATE', (card_id, user_id))
         card = await cur.fetchone()
         if not card:
@@ -151,7 +156,7 @@ async def submit_review(card_id, user_id, request):
         question = next((q for q in decoded(quiz['questions_json']) if q['id'] == card['question_id']), None) if quiz else None
         if not question:
             raise HTTPException(404, '练习题目不存在')
-        record = grade_answer(question, request.selected_answers, request.duration_ms)
+        record = grade_answer(question, request.selected_answers, request.duration_ms, verdict=verdict)
         await cur.execute('SELECT event_json FROM learning_events WHERE user_id=%s AND card_id=%s AND version=%s', (user_id, card_id, request.version))
         previous = await cur.fetchone()
         if previous:
@@ -172,6 +177,8 @@ async def submit_review(card_id, user_id, request):
                               (encoded(schedule['card']), sql_time(due), record['is_correct'], int(not record['is_correct']), sql_time(now), card_id, user_id))
             await cur.execute('INSERT INTO learning_events(user_id,card_id,version,source,event_json,created_at) VALUES(%s,%s,%s,\'review\',%s,%s)',
                               (user_id, card_id, request.version, encoded(result), sql_time(now)))
+        if context:
+            await jobs.publish_result(cur, job, {'quiz_id': card['quiz_id'], 'question_id': card['question_id'], 'card_id': card_id, 'version': request.version})
     return {key: result[key] for key in ('record', 'version', 'due_at', 'knowledge')} | {'card_id': card_id, 'quiz_id': card['quiz_id'], 'replayed': bool(previous), 'question': await visible_question(question, user_id)}
 
 

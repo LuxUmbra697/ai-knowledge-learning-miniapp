@@ -1,7 +1,7 @@
 """Owned learning state and authoritative, optimistic-versioned reviews."""
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Header, Query
 
 from app.core.auth import get_current_user
 from app.models.common import ApiResponse
@@ -9,6 +9,12 @@ from app.services import learning_state_service as service
 from app.services import notebook_service as books
 
 router = APIRouter(prefix='/learning', tags=['learning'])
+
+
+@router.post('/cards/{card_id}/answer/async')
+async def review_with_model(card_id: str, req: service.ReviewSubmission, user_id: int = Depends(get_current_user), idempotency_key: str | None = Header(default=None)):
+    from app.services.written_grade_service import submit_review
+    return ApiResponse.success(data=await submit_review(card_id, user_id, req, idempotency_key))
 
 
 @router.get('/notebooks')

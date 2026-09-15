@@ -30,9 +30,9 @@ class TestQuizGenerateRequest:
 
     def test_question_count_bounds(self):
         with pytest.raises(ValidationError):
-            QuizGenerateRequest(user_input="test", question_count=2)
+            QuizGenerateRequest(user_input="test", question_count=0)
         with pytest.raises(ValidationError):
-            QuizGenerateRequest(user_input="test", question_count=11)
+            QuizGenerateRequest(user_input="test", question_count=21)
 
     def test_invalid_difficulty_rejected(self):
         with pytest.raises(ValidationError):

@@ -5,7 +5,7 @@ from fastapi import HTTPException
 
 from app.core.security import check_content
 from app.core.exceptions import ContentFilterError
-from app.llm.quiz_chain import generate_quiz
+from app.llm.quiz_batches import generate_quiz_set as generate_quiz
 from app.models.quiz import QuizGenerateResponse, QuizTaskStatusResponse
 from app.repositories import job_repository as jobs, quiz_repository, rag_index_repository as index
 from app.services import vector_store_service as vectors, retrieval_service, rag_service
@@ -24,6 +24,8 @@ async def create(req, user_id, key=None):
     scope = [list(item) for item in sorted({(row['doc_id'], row['revision'], row['index_version']) for row in rows})]
     payload = dict(query=req.user_input, question_count=req.question_count, difficulty=req.difficulty,
                    doc_ids=[req.doc_id], scope=scope, mode='rerank')
+    if req.question_counts is not None:
+        payload['question_counts'] = req.question_counts.model_dump()
     return await jobs.enqueue(user_id, 'quiz', payload, key or uuid.uuid4().hex)
 
 
@@ -38,7 +40,8 @@ async def run(context):
         source = rag_service.serialize_context(result)
         await context.checkpoint('quiz_sources', source)
     output = await generate_quiz(payload['query'], payload['question_count'], payload['difficulty'],
-                                 search_context=source, private_source=True, context=context)
+                                 search_context=source, private_source=True, context=context,
+                                 question_counts=payload.get('question_counts'))
     await context.checkpoint('quiz_validated', {'question_count': len(output.questions)})
     return await quiz_repository.publish_generated_quiz(context, output)
 

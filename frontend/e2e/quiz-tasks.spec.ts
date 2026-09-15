@@ -90,20 +90,21 @@ test('private practice tasks cancel, restore and publish no answers before submi
     await page.locator('.task-entry').filter({ has: page.getByText('已完成', { exact: true }) }).getByText('查看练习', { exact: true }).click()
     await expect(page.getByText('多选题', { exact: true })).toBeVisible()
     expect((await get('user/profile')).total_xp).toBe(0)
-    await page.evaluate(({ userId, docId }) => localStorage.setItem(`ai-learn:v1:practice:${userId}:${docId}`,
+    await page.evaluate(({ userId, docId }) => localStorage.setItem(`ai-learn:v1:practice:${userId}:${docId}:3-1-1-0-0`,
       JSON.stringify({ data: { key: 'e2e-stale-reference', taskId: 'job_' + '0'.repeat(32) } })), { userId: identity.user.id, docId: recovered.docId })
     await page.goto('pages/knowledge/index')
     const document = page.locator('.document-row').filter({ has: page.getByText('合成练习恢复验收.md', { exact: true }) })
     const missingTask = '**/learning/tasks/job_' + '0'.repeat(32)
     await page.route(missingTask, route => route.abort('timedout'))
     await document.getByText('知识练习', { exact: true }).click()
-    await expect(page.getByText('网络暂不可用，请检查连接后重试', { exact: true })).toBeVisible()
-    expect(await page.evaluate(({ userId, docId }) => localStorage.getItem(`ai-learn:v1:practice:${userId}:${docId}`),
+    await page.getByText('生成这组练习', { exact: true }).click()
+    await expect(page.locator('.practice-config-dialog').getByText('网络暂不可用，请检查连接后重试', { exact: true })).toBeVisible()
+    expect(await page.evaluate(({ userId, docId }) => localStorage.getItem(`ai-learn:v1:practice:${userId}:${docId}:3-1-1-0-0`),
       { userId: identity.user.id, docId: recovered.docId })).not.toBeNull()
     await page.unroute(missingTask)
-    await document.getByText('知识练习', { exact: true }).click()
-    await expect(page.getByText('任务不存在', { exact: true })).toBeVisible()
-    expect(await page.evaluate(({ userId, docId }) => localStorage.getItem(`ai-learn:v1:practice:${userId}:${docId}`),
+    await page.getByText('生成这组练习', { exact: true }).click()
+    await expect(page.locator('.practice-config-dialog').getByText('任务不存在', { exact: true })).toBeVisible()
+    expect(await page.evaluate(({ userId, docId }) => localStorage.getItem(`ai-learn:v1:practice:${userId}:${docId}:3-1-1-0-0`),
       { userId: identity.user.id, docId: recovered.docId })).toBeNull()
     expect(errors).toEqual([])
     await writeFile('../docs/evidence/m3-quiz-task-ui.json', JSON.stringify({
