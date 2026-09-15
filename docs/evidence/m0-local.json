@@ -1,0 +1,23 @@
+{
+  "stage": "M0",
+  "python": "3.13.9",
+  "transport": "real HTTP loopback",
+  "database": "isolated MySQL 8.0.45",
+  "external_model_calls": 0,
+  "checks": [
+    "HTTP health",
+    "Unauthenticated task denied",
+    "Answers and explanation withheld",
+    "Cross-user submission denied",
+    "Client correctness injection denied",
+    "Incomplete report denied before model",
+    "Five concurrent submissions commit once",
+    "Previously submitted answer immutable",
+    "Own submitted explanation revealed",
+    "Concurrent report completion awards XP once",
+    "Stored report replay ignores forged client fields"
+  ],
+  "passed": 11,
+  "devices": [],
+  "production_tested": false
+}

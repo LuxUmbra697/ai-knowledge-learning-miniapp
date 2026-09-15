@@ -1,0 +1,38 @@
+{
+  "recorded_at": "2026-09-15T04:55:24.350873+00:00",
+  "data_source": "Public Python list/dictionary topic",
+  "web_search": true,
+  "max_external_calls": 4,
+  "currency_cost": null,
+  "limitations": [
+    "Integration smoke, not question correctness evaluation",
+    "No currency billing returned",
+    "Web references are not verified per-question citations"
+  ],
+  "status": "passed",
+  "checks": [
+    "paid_generation",
+    "same_key_single_job",
+    "exact_three_type_counts",
+    "answer_hiding",
+    "provenance_persisted"
+  ],
+  "elapsed_ms": 9104,
+  "trace": {
+    "nodes": [
+      {
+        "stage": "quiz_sources",
+        "duration_ms": 1986.56
+      },
+      {
+        "stage": "quiz_validated",
+        "duration_ms": 5684.22
+      }
+    ],
+    "tokens": 3253,
+    "trace_id": "f93bc339cab148f5be6b90f85a04ed46",
+    "input_bytes": 9334,
+    "model_calls": 2,
+    "unmetered_calls": 1
+  }
+}

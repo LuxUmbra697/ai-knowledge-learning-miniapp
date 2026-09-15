@@ -1,0 +1,13 @@
+{
+  "recorded_at": "2026-09-14",
+  "environment": "Windows local API and worker, isolated loopback MySQL 8.0.45, Chromium, Taro 4.1.11",
+  "backend_deterministic": {"passed": 247, "seconds": 9.90, "command": "backend/venv/Scripts/python.exe scripts/test_offline.py -q"},
+  "database_integration": {"passed": 18, "seconds": 6.31, "command": "backend/venv/Scripts/python.exe scripts/test_database.py"},
+  "frontend_units": {"passed": 9, "command": "npm test", "cwd": "frontend"},
+  "frontend_types": {"passed": true, "command": "npx tsc --noEmit", "cwd": "frontend"},
+  "default_browser": {"passed": 5, "paid_tests_skipped": 3, "seconds": 27.1, "command": "npx playwright test", "cwd": "frontend"},
+  "actual_provider": {"report_calls": 1, "tokens": 913, "embedding_calls": 0, "image_calls": 0, "currency": null},
+  "recovery_verification": "Real MySQL checkpoint/lease recovery plus actual worker/browser execution; synthetic checkpoint clearly labeled",
+  "builds": ["npm run build:h5", "npm run build:weapp", "node scripts/check-build.mjs --both"],
+  "remaining": ["Native WeChat runtime and devices", "Legacy quiz/search/image migration", "Learning workflow graph and algorithms", "Public deployment and GitHub release"]
+}

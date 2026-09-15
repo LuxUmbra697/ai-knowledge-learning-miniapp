@@ -42,6 +42,35 @@ def test_add_document_chunks_empty_list_returns_zero(persist_dir, fake_embedding
     assert count == 0
 
 
+def test_index_replay_is_idempotent_and_revision_scoped(persist_dir, fake_embeddings):
+    chunks = _make_chunks(["重复处理不应增加向量", "第二段材料"])
+    for _ in range(2):
+        vector_store_service.add_document_chunks(1, 'repeat', chunks, fake_embeddings, revision=1)
+    vector_store_service.add_document_chunks(1, 'repeat', chunks, fake_embeddings, revision=2)
+    store = vector_store_service.get_user_vector_store(1, fake_embeddings)
+    assert len(store.get()['ids']) == 4
+    vector_store_service.delete_document_vectors(1, 'repeat', fake_embeddings, revision=1)
+    remaining = store.get()
+    assert len(remaining['ids']) == 2
+    assert all(meta['revision'] == 2 for meta in remaining['metadatas'])
+
+
+def test_index_version_changes_with_model_and_chunking(monkeypatch):
+    original = vector_store_service.index_version()
+    monkeypatch.setattr(vector_store_service.get_settings(), 'kb_chunk_overlap', 123)
+    assert vector_store_service.index_version() != original
+    original = vector_store_service.index_version()
+    monkeypatch.setattr(vector_store_service.get_settings(), 'dashscope_embedding_model', 'other-model')
+    assert vector_store_service.index_version() != original
+
+
+def test_empty_scope_does_not_embed_or_open_store(monkeypatch):
+    def forbidden(*args, **kwargs):
+        pytest.fail('Empty owned scope must not reach Chroma or Embedding')
+    monkeypatch.setattr(vector_store_service, 'get_user_vector_store', forbidden)
+    assert vector_store_service.search_scoped(1, [], 'question') == []
+
+
 def test_similarity_search_filters_by_doc_id(persist_dir, fake_embeddings):
     chunks_a = _make_chunks(["文档A讲的是猫", "文档A讲的是狗"])
     chunks_b = _make_chunks(["文档B讲的是汽车", "文档B讲的是飞机"])

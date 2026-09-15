@@ -8,6 +8,7 @@ class TestPromptContract:
     def test_quiz_prompt_has_all_placeholders(self):
         assert "{user_input}" in QUIZ_HUMAN_PROMPT
         assert "{question_count}" in QUIZ_HUMAN_PROMPT
+        assert "{question_counts}" in QUIZ_HUMAN_PROMPT
         assert "{difficulty}" in QUIZ_HUMAN_PROMPT
 
     def test_report_prompt_has_all_placeholders(self):
@@ -19,7 +20,7 @@ class TestPromptContract:
     def test_quiz_prompt_formattable(self):
         result = QUIZ_HUMAN_PROMPT.format(
             user_input="test", question_count=5, difficulty="mixed",
-            search_context_section="",
+            search_context_section="", question_counts='{"single": 3, "multiple": 1, "judge": 1}',
         )
         assert "test" in result
         assert "5" in result

@@ -1,12 +1,19 @@
 import Taro from '@tarojs/taro'
+import { PollControl, pollUntil } from './polling'
+import { QuestionCounts, QuestionType } from './quizBlueprint'
+import { networkErrorMessage } from './networkError'
 
 // 由 frontend/config/dev.ts、frontend/config/prod.ts 中的 defineConstants 按环境注入
 declare const API_BASE_URL: string
 
 const BASE_URL = API_BASE_URL
 
-const TOKEN_KEY = 'token'
-const USER_KEY = 'userInfo'
+const TOKEN_KEY = 'ai-learn:v1:token'
+const USER_KEY = 'ai-learn:v1:user'
+
+export class ApiError extends Error {
+  constructor(message: string, public statusCode: number) { super(message); this.name = 'ApiError' }
+}
 
 /* ---- 登录就绪机制：确保页面在登录完成后再请求需要鉴权的接口 ---- */
 let _loginResolve: () => void
@@ -57,6 +64,9 @@ export async function request<T = any>(
     method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
     data?: any
     timeout?: number
+    control?: PollControl
+    idempotencyKey?: string
+    preserveSession?: boolean
   } = {},
 ): Promise<T> {
   const { method = 'GET', data, timeout = 120000 } = options
@@ -66,11 +76,13 @@ export async function request<T = any>(
   }
 
   const token = getToken()
+  if (options.idempotencyKey) header['Idempotency-Key'] = options.idempotencyKey
   if (token) {
     header['Authorization'] = `Bearer ${token}`
   }
 
-  const res = await Taro.request({
+  options.control?.check()
+  const task = Taro.request({
     url: `${BASE_URL}${url}`,
     method,
     data,
@@ -78,16 +90,22 @@ export async function request<T = any>(
     timeout,
   })
 
+  const cleanup = options.control?.onCancel(() => task.abort())
+  const res = await task.catch(reason => {
+    options.control?.check()
+    throw new ApiError(networkErrorMessage(reason), 0)
+  }).finally(() => cleanup?.())
+  options.control?.check()
   const body = res.data as ApiResponse<T>
 
   // 401 未认证 — 清除本地凭证
-  if (body.code === 4010) {
-    clearToken()
-    throw new Error('登录已过期，请重新进入小程序')
+  if (res.statusCode === 401 || body.code === 4010) {
+    if (!options.preserveSession) clearToken()
+    throw new ApiError(body.message || res.data?.detail || '登录已过期，请重新登录', 401)
   }
 
   if (body.code !== 0) {
-    throw new Error(body.message || '请求失败')
+    throw new ApiError(body.message || (typeof res.data?.detail === 'string' ? res.data.detail : '请求失败'), res.statusCode)
   }
 
   return body.data
@@ -101,55 +119,44 @@ export function generateQuizAsync(
   questionCount = 5,
   docId?: string,
   generateImages = false,
+  idempotencyKey?: string,
+  questionCounts?: QuestionCounts,
+  useWebSearch = false,
 ) {
   return request<{ task_id: string }>('/quiz/generate/async', {
     method: 'POST',
+    idempotencyKey,
     data: {
       user_input: userInput,
       question_count: questionCount,
       difficulty: 'mixed',
       doc_id: docId,
-      generate_images: generateImages,
+        generate_images: generateImages,
+        use_web_search: useWebSearch,
+      question_counts: questionCounts,
     },
   })
 }
 
 /** 查询出题任务状态 */
-export function getQuizTaskStatus(taskId: string) {
-  return request<QuizTaskStatus>(`/quiz/task/${taskId}`)
+export function getQuizTaskStatus(taskId: string, control?: PollControl) {
+  return request<QuizTaskStatus>(`/quiz/task/${taskId}`, { control })
 }
 
 /** 轮询等待出题任务完成 */
-export function pollQuizTask(
+export async function pollQuizTask(
   taskId: string,
   onProgress?: (status: string) => void,
   intervalMs = 8000,
   maxAttempts = 100,
+  control?: PollControl,
 ): Promise<QuizData> {
-  return new Promise((resolve, reject) => {
-    let attempts = 0
-    const timer = setInterval(async () => {
-      attempts++
-      try {
-        const res = await getQuizTaskStatus(taskId)
-        onProgress?.(res.status)
-
-        if (res.status === 'completed' && res.result) {
-          clearInterval(timer)
-          resolve(res.result)
-        } else if (res.status === 'failed') {
-          clearInterval(timer)
-          reject(new Error(res.error_message || '题目生成失败'))
-        } else if (attempts >= maxAttempts) {
-          clearInterval(timer)
-          reject(new Error('生成超时，请稍后重试'))
-        }
-      } catch (err) {
-        clearInterval(timer)
-        reject(err)
-      }
-    }, intervalMs)
-  })
+  const result = await pollUntil(() => getQuizTaskStatus(taskId, control), res => {
+    onProgress?.(res.status)
+    if (res.status === 'failed') throw new Error(res.error_message || '题目生成失败')
+    return res.status === 'completed' && !!res.result
+  }, { intervalMs, maxAttempts, control })
+  return result.result!
 }
 
 /** 生成题库（同步，保留兼容） */
@@ -175,8 +182,20 @@ export function generateReport(params: {
 }) {
   return request<ReportData>('/report/generate', {
     method: 'POST',
-    data: params,
+    data: { quiz_id: params.quiz_id },
     timeout: 600000,
+  })
+}
+
+export function generateReportAsync(quizId: string, idempotencyKey: string, control?: PollControl) {
+  return request<LearningTask>('/report/generate/async', {
+    method: 'POST', data: { quiz_id: quizId }, idempotencyKey, control, timeout: 15000,
+  })
+}
+
+export function submitAnswer(quizId: string, questionId: string, selectedAnswers: string[], durationMs: number) {
+  return request<{record: AnswerRecord; question: Question; replayed: boolean}>(`/quiz/${quizId}/answer`, {
+    method: 'POST', data: { question_id: questionId, selected_answers: selectedAnswers, duration_ms: durationMs },
   })
 }
 
@@ -184,9 +203,10 @@ export function generateReport(params: {
 
 /** 微信登录 */
 export function loginByCode(code: string) {
-  return request<LoginResponse>('/user/login', {
+  return request<LoginResponse | { status: 'choice'; ticket: string }>('/user/login', {
     method: 'POST',
     data: { code },
+    preserveSession: true,
   })
 }
 
@@ -248,7 +268,7 @@ export function uploadKnowledgeDocument(filePath: string, fileName: string): Pro
           reject(new Error('上传响应解析失败'))
         }
       },
-      fail: (err) => reject(new Error(err.errMsg || '上传失败')),
+      fail: (err) => reject(new ApiError(networkErrorMessage(err), 0)),
     })
   })
 }
@@ -259,8 +279,8 @@ export function getKnowledgeDocuments() {
 }
 
 /** 查询知识库文档处理状态 */
-export function getKnowledgeDocumentStatus(docId: string) {
-  return request<KnowledgeDocumentStatus>(`/knowledge/documents/${docId}`)
+export function getKnowledgeDocumentStatus(docId: string, control?: PollControl) {
+  return request<KnowledgeDocumentStatus>(`/knowledge/documents/${docId}`, { control })
 }
 
 /** 删除知识库文档 */
@@ -279,14 +299,57 @@ export interface QuestionOption {
 
 export interface Question {
   id: string
-  type: 'single' | 'multiple' | 'judge'
+  type: QuestionType
   stem: string
   options: QuestionOption[]
-  answer: string[]
-  explanation: string
+  answer?: string[]
+  explanation?: string
   knowledge_point: string
   difficulty: 'easy' | 'medium' | 'hard'
   image_url?: string | null
+  image_asset_id?: string | null
+  citations?: QuestionCitation[]
+  blank_count?: number
+  rubric?: string[]
+  accepted_answers?: string[][]
+}
+
+export interface QuestionCitation {
+  evidence_id: string
+  status: 'verified' | 'unavailable'
+  quote?: string
+  doc_id?: string
+  chunk_id?: string
+  revision?: number
+  file_name?: string
+  page?: number
+  section?: string
+}
+
+export interface LearningSummary {
+  total_cards: number; due_count: number; recommended_count: number; today_answers: number; today_reviews: number
+  timezone: string; as_of: string; scheduler_version: string; knowledge_version: string
+  concepts: { concept_id: string; label: string; mastery: number; attempts: number; correct_count: number; mapping_confidence: string }[]
+  trend: { day: string; count: number }[]; trend_truncated: boolean
+}
+export interface ReviewCard {
+  card_id: string; quiz_id: string; version: number; due_at: string; favorite: boolean; last_correct: boolean
+  wrong_count: number; diagnosis: string | null; label: string; mastery: number; attempts: number; question: Question
+}
+export interface ReviewResult {
+  card_id: string; quiz_id: string; version: number; due_at: string; record: AnswerRecord; question: Question; replayed: boolean
+  knowledge: { prior: number; posterior: number; mastery: number; observation_count: number; version: string }
+}
+export function getLearningSummary(control?: PollControl) { return request<LearningSummary>('/learning/summary', { control }) }
+export function getReviewCards(mode: string, control?: PollControl) { return request<{ items: ReviewCard[] }>('/learning/cards?mode=' + mode, { control }) }
+export function submitReview(cardId: string, version: number, answers: string[], control?: PollControl) {
+  return request<ReviewResult>(`/learning/cards/${encodeURIComponent(cardId)}/answer`, { method: 'POST', data: { version, selected_answers: answers }, control })
+}
+export function getReviewResult(cardId: string, version: number, control?: PollControl) {
+  return request<ReviewResult>(`/learning/cards/${encodeURIComponent(cardId)}/events/${version}`, { control })
+}
+export function updateReviewCard(cardId: string, change: { favorite?: boolean; diagnosis?: string | null }) {
+  return request(`/learning/cards/${encodeURIComponent(cardId)}`, { method: 'PUT', data: change })
 }
 
 export interface QuizData {
@@ -295,6 +358,12 @@ export interface QuizData {
   summary: string
   questions: Question[]
   image_notice?: string | null
+  source_context?: QuizSourceContext | null
+}
+
+export interface QuizSourceContext {
+  source_type: 'private_document' | 'model_knowledge' | 'public_web'
+  sources: { title: string; url: string; excerpt: string }[]
 }
 
 export interface QuizTaskStatus {
@@ -309,6 +378,7 @@ export interface AnswerRecord {
   selected_answers: string[]
   is_correct: boolean
   duration_ms: number
+  grading?: { method: string; feedback?: string; contradiction?: boolean; blank_matches?: boolean[]; criteria?: { index: number; met: boolean; quote: string; feedback: string }[] }
 }
 
 export interface ReportData {
@@ -328,6 +398,7 @@ export interface UserBrief {
 }
 
 export interface LoginResponse {
+  recovery_code?: string | null
   token: string
   user: UserBrief
 }
@@ -361,6 +432,8 @@ export interface QuizDetailResponse {
   quiz_id: string
   title: string
   summary: string
+  source_context?: QuizSourceContext | null
+  image_notice?: string | null
   user_input?: string
   questions: Question[]
   answer_records?: AnswerRecord[]
@@ -376,6 +449,7 @@ export interface KnowledgeUploadResponse {
   doc_id: string
   file_name: string
   status: KnowledgeDocumentStatusEnum
+  duplicate: boolean
 }
 
 export interface KnowledgeDocumentItem {
@@ -387,6 +461,8 @@ export interface KnowledgeDocumentItem {
   chunk_count: number
   error_message: string | null
   created_at: string
+  revision?: number
+  needs_reindex?: boolean
 }
 
 export interface KnowledgeListResponse {
@@ -399,4 +475,61 @@ export interface KnowledgeDocumentStatus {
   status: KnowledgeDocumentStatusEnum
   chunk_count: number
   error_message: string | null
+  revision?: number
+  needs_reindex?: boolean
+}
+
+export interface Evidence {
+  id: string; source_type: 'private_document'; doc_id: string; chunk_id: string; revision: number
+  index_version: string; file_name: string; page: number; section: string; content: string; content_hash: string
+}
+export interface GroundedAnswer {
+  query?: string
+  status: 'answered' | 'no_evidence' | 'conflict' | 'retrieval_failed' | 'provider_failed' | 'validation_failed' | 'stale_evidence' | 'timeout'
+  claims: { text: string; citations: { evidence_id: string; quote: string }[] }[]
+  evidence: Evidence[]
+  retrieval_status?: string
+  trace: { model_calls: number; total_tokens: number; validation_failures: number; total_ms: number }
+}
+export function askKnowledge(query: string, docIds: string[], control: PollControl, idempotencyKey: string) {
+  return request<LearningTask>('/knowledge/ask/async', { method: 'POST', data: { query, doc_ids: docIds }, timeout: 15000, control, idempotencyKey })
+}
+export function getDocumentChunks(docId: string, page = 1, control?: PollControl) {
+  return request<{ items: Evidence[]; total: number; page: number }>(`/knowledge/documents/${encodeURIComponent(docId)}/chunks?page=${page}`, { control })
+}
+export function getEvidence(docId: string, chunkId: string, revision: number, control?: PollControl) {
+  return request<Evidence>(`/knowledge/documents/${encodeURIComponent(docId)}/chunks/${encodeURIComponent(chunkId)}?revision=${revision}`, { control })
+}
+export function reindexDocument(docId: string) {
+  return request(`/knowledge/documents/${encodeURIComponent(docId)}/reindex`, { method: 'POST' })
+}
+
+export interface LearningTask {
+  resource_id?: string
+  task_id: string; kind: 'index' | 'answer' | 'retrieve' | 'quiz' | 'report' | 'cleanup' | 'grade' | 'image' | 'tutor' | 'companion'
+  status: 'staging' | 'queued' | 'running' | 'completed' | 'failed' | 'cancelled'
+  stage: string; title?: string; created_at?: string; result: any
+  error_code?: string; error_message?: string
+  generation?: { attempts: number; max_attempts: number } | null
+  trace: { trace_id: string; model_calls: number; tokens: number; unmetered_calls?: number; nodes: { stage: string; duration_ms: number }[] }
+}
+export function getLearningTasks(control?: PollControl) {
+  return request<{ items: LearningTask[] }>('/learning/tasks', { control })
+}
+export function getLearningTask(taskId: string, control?: PollControl) {
+  return request<LearningTask>(`/learning/tasks/${encodeURIComponent(taskId)}`, { control })
+}
+export function cancelLearningTask(taskId: string) {
+  return request<LearningTask>(`/learning/tasks/${encodeURIComponent(taskId)}/cancel`, { method: 'POST' })
+}
+export function retryQuizTask(taskId: string) {
+  return request<LearningTask>(`/learning/tasks/${encodeURIComponent(taskId)}/retry`, { method: 'POST', data: {}, timeout: 15000 })
+}
+
+export interface QuizImage {
+  asset_id: string; task_id: string; status: 'pending' | 'reserved' | 'ready' | 'failed' | 'locked'
+  stage: string; url: string | null; message: string | null; expires_in?: number
+}
+export function getQuizImage(assetId: string, control?: PollControl) {
+  return request<QuizImage>(`/quiz/images/${encodeURIComponent(assetId)}`, { control })
 }

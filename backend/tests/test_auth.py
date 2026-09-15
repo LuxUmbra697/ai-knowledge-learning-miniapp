@@ -1,7 +1,7 @@
 """JWT 鉴权模块单元测试"""
 
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import MagicMock
 
 import jwt
 import pytest

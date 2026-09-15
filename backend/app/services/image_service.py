@@ -16,13 +16,13 @@ import asyncio
 import uuid
 from typing import Optional
 
-import httpx
 import structlog
 
 from app.core.config import get_settings
 from app.models.quiz import Question
 from app.repositories import image_repository
 from app.services.cos_service import upload_image_bytes
+from app.services.outbound_service import fetch_public
 
 logger = structlog.get_logger()
 
@@ -57,13 +57,14 @@ def _call_image_model_sync(prompt: str) -> str:
     from dashscope import MultiModalConversation
 
     settings = get_settings()
-
+    if not settings.dashscope_image_api_key:
+        raise ValueError('DASHSCOPE_IMAGE_API_KEY is not configured')
     base_url = settings.dashscope_image_base_url or _derive_image_base_url(settings.dashscope_base_url)
     if base_url:
         dashscope.base_http_api_url = base_url
 
     response = MultiModalConversation.call(
-        api_key=settings.dashscope_image_api_key or settings.dashscope_api_key,
+        api_key=settings.dashscope_image_api_key,
         model=settings.dashscope_image_model,
         messages=[{"role": "user", "content": [{"text": prompt}]}],
         result_format="message",
@@ -79,10 +80,8 @@ def _call_image_model_sync(prompt: str) -> str:
 
 
 async def _download_image(url: str) -> bytes:
-    async with httpx.AsyncClient(timeout=IMAGE_DOWNLOAD_TIMEOUT) as client:
-        resp = await client.get(url)
-        resp.raise_for_status()
-        return resp.content
+    result = await fetch_public(url, max_bytes=8 * 1024 * 1024, content_types={'image/png'}, timeout=IMAGE_DOWNLOAD_TIMEOUT)
+    return result.content
 
 
 async def generate_image_for_question(question: Question, quiz_id: str) -> Optional[str]:
@@ -100,7 +99,7 @@ async def generate_image_for_question(question: Question, quiz_id: str) -> Optio
             "question_image_generation_failed",
             question_id=question.id,
             quiz_id=quiz_id,
-            error=str(e),
+            error_type=type(e).__name__,
         )
         return None
 
@@ -122,8 +121,8 @@ async def generate_images_for_quiz(
     try:
         used = await image_repository.get_today_usage_count(user_id)
     except Exception as e:
-        logger.warning("image_quota_check_failed", user_id=user_id, error=str(e))
-        used = 0
+        logger.warning("image_quota_check_failed", user_id=user_id, error_type=type(e).__name__)
+        return {}, '配图额度暂时无法确认，未调用生图服务；文字练习仍可继续'
 
     remaining = max(0, settings.image_gen_daily_limit - used)
 
@@ -155,6 +154,10 @@ async def generate_images_for_quiz(
         try:
             await image_repository.log_image_generation(user_id, quiz_id, question_id, url)
         except Exception as e:
-            logger.warning("image_usage_log_failed", user_id=user_id, error=str(e))
+            logger.warning("image_usage_log_failed", user_id=user_id, error_type=type(e).__name__)
+
+    failed = len(target_questions) - len(image_map)
+    if failed:
+        notice = ((notice + '；') if notice else '') + f'{failed} 张配图未完成，文字练习仍可继续'
 
     return image_map, notice

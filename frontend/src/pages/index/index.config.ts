@@ -1,3 +1,4 @@
 export default definePageConfig({
-  navigationBarTitleText: 'LuxUmbra-AI闯关学习',
+  navigationBarTitleText: '星知学园 · 首页',
+  enableShareAppMessage: true,
 })

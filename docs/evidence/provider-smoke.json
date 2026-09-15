@@ -1,0 +1,37 @@
+{
+  "data_origin": "synthetic public phrases; no user documents",
+  "max_calls": 2,
+  "currency_cost": null,
+  "cost_note": "Token counts are measured; billed currency is not queried.",
+  "chat": {
+    "status": "passed",
+    "usage": {
+      "completion_tokens": 1,
+      "prompt_tokens": 11,
+      "total_tokens": 12,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cache_write_tokens": null,
+        "cached_tokens": 0
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 11
+    },
+    "model": "deepseek-chat",
+    "calls": 1,
+    "latency_ms": 2742
+  },
+  "embedding": {
+    "status": "passed",
+    "dimensions": 1024,
+    "usage": {
+      "prompt_tokens": 18,
+      "total_tokens": 18
+    },
+    "model": "text-embedding-v4",
+    "calls": 1,
+    "latency_ms": 2440
+  },
+  "measured_at_utc": "2026-09-12T09:46:24Z"
+}

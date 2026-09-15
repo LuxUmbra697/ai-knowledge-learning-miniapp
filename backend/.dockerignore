@@ -3,6 +3,15 @@
 .env.*
 !.env.example
 wxcloudrun*.env.json
+**/*.env
+**/*.key
+**/*.pem
+**/*.p12
+**/*.pfx
+**/.secrets
+**/id_rsa*
+**/id_ed25519*
+LOCAL_*.md
 
 # 版本控制与 IDE
 .git
@@ -17,9 +26,8 @@ __pycache__/
 .venv/
 venv/
 
-# 本地数据目录：容器磁盘不持久化，运行时会自动重建，无需打包旧数据
-data/chroma/*
-data/uploads/*
+# Never bundle runtime data; production mounts a separate persistent directory.
+data/
 
 # 测试与文档
 tests/

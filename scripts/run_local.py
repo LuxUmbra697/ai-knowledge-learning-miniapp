@@ -1,0 +1,69 @@
+"""Start an isolated local API; paid provider access requires --with-models."""
+
+import argparse
+import asyncio
+import os
+from pathlib import Path
+import secrets
+import sys
+
+from dotenv import dotenv_values
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def configure(with_models=False, with_search=False):
+    if not with_models:
+        for name in ('DEEPSEEK_API_KEY', 'DASHSCOPE_API_KEY', 'DASHSCOPE_IMAGE_API_KEY',
+                     'TAVILY_API_KEY', 'COS_SECRET_ID', 'COS_SECRET_KEY'):
+            os.environ.pop(name, None)
+    config = dotenv_values(ROOT / "backend/.env") if with_models else {}
+    for key, value in config.items():
+        if value is not None:
+            os.environ[key] = value
+    private = ROOT / ".local"
+    private.mkdir(exist_ok=True)
+    signing_key = private / "local-jwt.key"
+    if not signing_key.exists():
+        signing_key.write_text(secrets.token_urlsafe(48), encoding="ascii")
+    os.environ.update(AI_LEARN_ENV_FILE="", MYSQL_HOST="127.0.0.1", MYSQL_PORT="23308",
+                      MYSQL_USER="root", MYSQL_PASSWORD="", MYSQL_DATABASE="ai_learn_local",
+                      MYSQL_AUTO_INIT="false", MYSQL_POOL_MAXSIZE="3", MYSQL_POOL_MINSIZE="1",
+                      JWT_SECRET=signing_key.read_text(encoding="ascii"), APP_DEBUG="true", APP_ENV="development",
+                      REQUIRE_PAID_MODELS="true" if with_models else "false",
+                      CORS_ORIGINS="http://127.0.0.1:18082,http://localhost:18082", H5_STATIC_DIR="",
+                      CHROMA_PERSIST_DIR=str(private / "chroma"), KB_UPLOAD_DIR=str(private / "uploads"),
+                      ENABLE_WEB_SEARCH="true" if with_models and with_search else "false", COS_UPLOAD_PREFIX="ai-learn-local-test/",
+                      ANONYMIZED_TELEMETRY="false")
+    os.environ['WORKER_ENABLED'] = 'true'
+    sys.path.insert(0, str(ROOT / "backend"))
+
+
+async def initialize():
+    from app.core.db import init_mysql, close_mysql_pool
+    from app.core.migrations import migrate
+    try:
+        await init_mysql()
+        await migrate()
+    finally:
+        await close_mysql_pool()
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--with-models", action="store_true")
+    parser.add_argument("--with-search", action="store_true", help="Enable opt-in public-topic Tavily search; requires --with-models")
+    parser.add_argument("--initialize", action="store_true")
+    parser.add_argument("--serve-h5", action="store_true", help="Serve the existing H5 production build from the API process")
+    parser.add_argument("--port", type=int, default=18081)
+    args = parser.parse_args()
+    if args.with_search and not args.with_models:
+        parser.error('--with-search requires --with-models')
+    configure(args.with_models, args.with_search)
+    if args.serve_h5:
+        os.environ['H5_STATIC_DIR'] = str(ROOT / 'frontend/dist/h5')
+    if args.initialize:
+        asyncio.run(initialize())
+    else:
+        import uvicorn
+        uvicorn.run("app.main:app", host="127.0.0.1", port=args.port, access_log=False)

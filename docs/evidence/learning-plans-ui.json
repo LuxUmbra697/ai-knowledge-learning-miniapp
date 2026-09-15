@@ -1,0 +1,27 @@
+{
+  "recorded_at": "2026-09-15T17:58:55.673Z",
+  "environment": "Chromium + actual API + isolated MySQL",
+  "data_source": "Explicit synthetic historical attempts",
+  "provider_calls": 0,
+  "checks": [
+    "cold_start",
+    "preview_without_mutation",
+    "declined_confirmation",
+    "owned_immutable_plan",
+    "actual_review_deep_link",
+    "no_manual_review_completion",
+    "server_event_completion",
+    "explicit_prerequisite_edit",
+    "cycle_rejection",
+    "cross_owner_rejection",
+    "real_mermaid_diagram",
+    "stale_path_notice",
+    "history_refresh",
+    "320_390_1440_bounds",
+    "no_browser_errors"
+  ],
+  "limitations": [
+    "Policy time estimates and default BKT parameters, not student learning efficacy",
+    "Native runtime remains unverified"
+  ]
+}

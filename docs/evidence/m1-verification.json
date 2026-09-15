@@ -1,0 +1,21 @@
+{
+  "stage": "M1",
+  "date": "2026-09-12",
+  "environment": "Windows; loopback HTTP; isolated MySQL 8.0.45",
+  "data_origin": "synthetic test accounts and explicitly authored fixture questions",
+  "backend": { "command": "python scripts/test_offline.py", "passed": 165, "warnings": 1 },
+  "frontend": { "directory": "frontend", "command": "npm test", "passed": 5, "typecheck": "passed" },
+  "browser": {
+    "directory": "frontend",
+    "command": "npm run test:e2e",
+    "passed_test_cases": 2,
+    "viewports": ["320x568", "390x844", "1440x1000"],
+    "coverage": ["account registration and reload", "history fallback versus API 404", "five themes", "two companion forms", "pose selection", "animated pixel difference", "drag and persistence", "input focus hiding", "control and text collision checks", "reduced motion", "single/multiple/judgment grading", "draft and server result recovery", "previous and next navigation", "cross-user denial"]
+  },
+  "external_model_calls": 0,
+  "public_deployment": false,
+  "weapp_runtime": "not verified: DevTools service port activation pending",
+  "real_devices": [],
+  "screenshots": "docs/screenshots/h5; never relabeled as weapp",
+  "remaining": ["real provider integration", "native runtime and device keyboard checks", "all later RAG, task and learning modules", "production and coexistence regression"]
+}

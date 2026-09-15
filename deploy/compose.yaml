@@ -1,0 +1,56 @@
+name: ai-learning-studio
+services:
+  studio:
+    image: ai-learning-studio:${AI_LEARN_RELEASE:?Set an immutable release revision}
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      args:
+        RELEASE_REVISION: ${AI_LEARN_RELEASE:?Set an immutable release revision}
+    container_name: ai-learning-studio
+    env_file:
+      - path: ${AI_LEARN_ENV_PATH:?Set an absolute private production env file}
+        format: raw
+    environment:
+      APP_ENV: production
+      APP_DEBUG: 'false'
+      MYSQL_AUTO_INIT: 'false'
+      REQUIRE_PAID_MODELS: 'true'
+      WORKER_ENABLED: 'true'
+      MYSQL_POOL_MINSIZE: '1'
+      MYSQL_POOL_MAXSIZE: '3'
+      H5_STATIC_DIR: /app/h5
+      CHROMA_PERSIST_DIR: /data/chroma
+      KB_UPLOAD_DIR: /data/uploads
+      AI_LEARN_ENV_FILE: ''
+    volumes:
+      - ${AI_LEARN_DATA_PATH:?Set an absolute isolated data directory}:/data
+    ports:
+      - '127.0.0.1:18083:8000'
+    networks:
+      gateway:
+        aliases:
+          - ai-learn-studio
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m,uid=10001,gid=10001
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 256m
+    memswap_limit: 384m
+    cpus: 0.75
+    pids_limit: 128
+    stop_grace_period: 25s
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: '3'
+networks:
+  gateway:
+    external: true
+    name: ${AI_LEARN_GATEWAY_NETWORK:?Set the inspected shared gateway network}

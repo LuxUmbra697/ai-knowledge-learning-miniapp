@@ -1,0 +1,29 @@
+{
+  "recorded_at": "2026-09-15T17:59:13.609Z",
+  "source": "Synthetic teaching document + real provider output, not real study data",
+  "environment": "Chromium + isolated MySQL/Chroma + controlled worker",
+  "reuse_only": true,
+  "ui_ready_ms": 236,
+  "task_calls": 2,
+  "returned_tokens": 1979,
+  "unmetered_calls": 1,
+  "question_count": 5,
+  "checks": [
+    "task_link_refresh",
+    "generic_task_answer_nondisclosure",
+    "all_three_question_types",
+    "server_grading_and_repeat_submission",
+    "persisted_attempt_after_refresh",
+    "exact_quote_opens_source",
+    "320px_answer_navigation",
+    "no_xp_without_report",
+    "no_browser_errors"
+  ],
+  "limitations": [
+    "Exact quotes and fragment coverage do not prove semantic entailment",
+    "Question semantics are not human rated",
+    "Legacy image and public-topic jobs are not yet durable",
+    "Currency was not measured",
+    "No native WeChat execution"
+  ]
+}

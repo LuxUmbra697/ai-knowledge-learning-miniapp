@@ -1,0 +1,20 @@
+{
+  "recorded_at": "2026-09-15T17:59:37.731Z",
+  "source": "Explicit synthetic saved-response checkpoint, not a live model result",
+  "environment": "Chromium + local API + isolated MySQL + actual worker",
+  "provider_calls": 0,
+  "checks": [
+    "cancel_preserves_answers_without_xp_or_report",
+    "refresh_resumes_pending_task",
+    "worker_revalidates_saved_response",
+    "atomic_report_xp_completion",
+    "different_key_reuses_completed_task",
+    "task_history_links_report",
+    "pending_report_resumes_without_local_reference",
+    "no_browser_errors"
+  ],
+  "limitations": [
+    "No native WeChat execution",
+    "This fixture does not rate model output quality"
+  ]
+}

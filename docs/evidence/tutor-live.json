@@ -1,0 +1,127 @@
+{
+  "recorded_at": "2026-09-15T06:34:54.322938+00:00",
+  "data_source": "Verified public learning-rate fixture and one explicitly synthetic wrong answer",
+  "max_external_calls": 11,
+  "currency_cost": null,
+  "tasks": [
+    {
+      "mode": "socratic",
+      "elapsed_ms": 8951,
+      "trace": {
+        "nodes": [
+          {
+            "stage": "tutor_identify",
+            "duration_ms": 24.11
+          },
+          {
+            "stage": "tutor_learning",
+            "duration_ms": 4.65
+          },
+          {
+            "stage": "tutor_review",
+            "duration_ms": 3.64
+          },
+          {
+            "stage": "tutor_evidence",
+            "duration_ms": 3712.52
+          },
+          {
+            "stage": "tutor_validated",
+            "duration_ms": 3610.36
+          }
+        ],
+        "tokens": 969,
+        "trace_id": "c2ee86ab746f418f9b6d2a9b0ff51d76",
+        "input_bytes": 3093,
+        "model_calls": 2,
+        "unmetered_calls": 1
+      },
+      "status": "completed"
+    },
+    {
+      "mode": "socratic",
+      "elapsed_ms": 3036,
+      "trace": {
+        "nodes": [
+          {
+            "stage": "tutor_identify",
+            "duration_ms": 15.16
+          },
+          {
+            "stage": "tutor_learning",
+            "duration_ms": 4.93
+          },
+          {
+            "stage": "tutor_review",
+            "duration_ms": 16.9
+          },
+          {
+            "stage": "tutor_evidence",
+            "duration_ms": 170.9
+          },
+          {
+            "stage": "tutor_validated",
+            "duration_ms": 2226.85
+          }
+        ],
+        "tokens": 1078,
+        "trace_id": "a7756f81ca0941a7bf80e97a696a0280",
+        "input_bytes": 3508,
+        "model_calls": 2,
+        "unmetered_calls": 1
+      },
+      "status": "completed"
+    },
+    {
+      "mode": "diagnosis",
+      "elapsed_ms": 2030,
+      "trace": {
+        "nodes": [
+          {
+            "stage": "tutor_identify",
+            "duration_ms": 15.34
+          },
+          {
+            "stage": "tutor_learning",
+            "duration_ms": 4.27
+          },
+          {
+            "stage": "tutor_review",
+            "duration_ms": 4.13
+          },
+          {
+            "stage": "tutor_evidence",
+            "duration_ms": 5.57
+          },
+          {
+            "stage": "tutor_validated",
+            "duration_ms": 1307.33
+          }
+        ],
+        "tokens": 912,
+        "trace_id": "0ad045aa077440f59a8dc0d70f8dad7a",
+        "input_bytes": 2900,
+        "model_calls": 1
+      },
+      "status": "completed"
+    }
+  ],
+  "limitations": [
+    "Integration and source/schema checks, not measured student learning outcomes",
+    "Diagnosis is a tentative model suggestion",
+    "No automated semantic guarantee against a too-direct hint"
+  ],
+  "status": "passed",
+  "checks": [
+    "two_paid_socratic_turns",
+    "single_guiding_question",
+    "exact_quotes",
+    "bounded_prior_turn_memory",
+    "idempotent_admission",
+    "owned_persisted_wrong_answer",
+    "tentative_diagnosis",
+    "no_automatic_practice_or_plan_mutation"
+  ],
+  "external_calls": 5,
+  "reported_tokens": 2959
+}

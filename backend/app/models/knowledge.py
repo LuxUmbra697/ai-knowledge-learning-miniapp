@@ -9,6 +9,8 @@ class KnowledgeUploadResponse(BaseModel):
     doc_id: str
     file_name: str
     status: Literal["processing", "ready", "failed"]
+    duplicate: bool = False
+    task_id: str | None = None
 
 
 class KnowledgeDocumentItem(BaseModel):
@@ -21,6 +23,9 @@ class KnowledgeDocumentItem(BaseModel):
     chunk_count: int
     error_message: Optional[str] = None
     created_at: str
+    revision: int | None = None
+    index_version: str | None = None
+    needs_reindex: bool = False
 
 
 class KnowledgeListResponse(BaseModel):
@@ -35,3 +40,6 @@ class KnowledgeStatusResponse(BaseModel):
     status: Literal["processing", "ready", "failed"]
     chunk_count: int
     error_message: Optional[str] = None
+    revision: int | None = None
+    index_version: str | None = None
+    needs_reindex: bool = False

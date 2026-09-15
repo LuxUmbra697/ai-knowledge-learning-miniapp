@@ -1,6 +1,6 @@
 """document_loader_service 单元测试"""
 
-from unittest.mock import MagicMock, patch
+import zipfile
 
 import pytest
 from langchain_core.documents import Document
@@ -49,40 +49,31 @@ def test_load_and_split_respects_chunk_size(tmp_path):
         assert len(chunk.page_content) <= 500
 
 
-def test_load_and_split_pdf_dispatches_to_pypdf_loader(tmp_path):
+def test_load_and_split_pdf_preserves_real_page_text(tmp_path):
+    from pypdf import PdfWriter
+    from pypdf.generic import DictionaryObject, NameObject, DecodedStreamObject
     file_path = tmp_path / "sample.pdf"
-    file_path.write_bytes(b"%PDF-1.4 fake content")
-
-    fake_docs = [Document(page_content="PDF 页面内容 " * 100, metadata={"page": 0})]
-    mock_loader_instance = MagicMock()
-    mock_loader_instance.load.return_value = fake_docs
-
-    with patch(
-        "langchain_community.document_loaders.PyPDFLoader",
-        return_value=mock_loader_instance,
-    ) as mock_loader_cls:
-        chunks = document_loader_service.load_and_split(str(file_path), "pdf")
-
-        mock_loader_cls.assert_called_once_with(str(file_path))
-        assert len(chunks) >= 1
+    writer = PdfWriter()
+    page = writer.add_blank_page(300, 300)
+    font = DictionaryObject({NameObject('/Type'): NameObject('/Font'), NameObject('/Subtype'): NameObject('/Type1'), NameObject('/BaseFont'): NameObject('/Helvetica')})
+    page[NameObject('/Resources')] = DictionaryObject({NameObject('/Font'): DictionaryObject({NameObject('/F1'): writer._add_object(font)})})
+    stream = DecodedStreamObject(); stream.set_data(b'BT /F1 12 Tf 20 200 Td (Evidence stays on page one.) Tj ET')
+    page[NameObject('/Contents')] = writer._add_object(stream)
+    writer.write(file_path)
+    chunks = document_loader_service.load_and_split(str(file_path), "pdf")
+    assert len(chunks) == 1
+    assert 'Evidence stays' in chunks[0].page_content
+    assert chunks[0].metadata['page'] == 1
 
 
-def test_load_and_split_docx_dispatches_to_docx2txt_loader(tmp_path):
+def test_load_and_split_docx_preserves_real_paragraph_text(tmp_path):
     file_path = tmp_path / "sample.docx"
-    file_path.write_bytes(b"fake docx content")
-
-    fake_docs = [Document(page_content="Word 文档内容 " * 100, metadata={})]
-    mock_loader_instance = MagicMock()
-    mock_loader_instance.load.return_value = fake_docs
-
-    with patch(
-        "langchain_community.document_loaders.Docx2txtLoader",
-        return_value=mock_loader_instance,
-    ) as mock_loader_cls:
-        chunks = document_loader_service.load_and_split(str(file_path), "docx")
-
-        mock_loader_cls.assert_called_once_with(str(file_path))
-        assert len(chunks) >= 1
+    with zipfile.ZipFile(file_path, 'w') as archive:
+        archive.writestr('word/document.xml', '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>Word 文档内容</w:t></w:r></w:p></w:body></w:document>')
+    chunks = document_loader_service.load_and_split(str(file_path), "docx")
+    assert len(chunks) == 1
+    assert chunks[0].page_content == 'Word 文档内容'
+    assert chunks[0].metadata['chunk_id']
 
 
 def test_load_and_split_unsupported_format_raises(tmp_path):

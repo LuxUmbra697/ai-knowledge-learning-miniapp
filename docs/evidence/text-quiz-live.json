@@ -1,0 +1,52 @@
+{
+  "recorded_at": "2026-09-15T03:44:02.616784+00:00",
+  "data_source": "Public synthetic learning-rate fixture",
+  "purpose": "Integration smoke with generated reference answer, not a human grading accuracy evaluation",
+  "max_external_calls": 7,
+  "currency_cost": null,
+  "cost_note": "Provider billing was not returned; token/call counts are reported instead.",
+  "status": "passed",
+  "checks": [
+    "exact_five_type_distribution",
+    "answer_rubric_hiding",
+    "four_authoritative_objective_answers",
+    "one_real_model_rubric_assessment",
+    "five_persisted_attempts"
+  ],
+  "tasks": [
+    {
+      "kind": "quiz",
+      "elapsed_ms": 9401,
+      "trace": {
+        "nodes": [
+          {
+            "stage": "quiz_sources",
+            "duration_ms": 3631.33
+          },
+          {
+            "stage": "quiz_validated",
+            "duration_ms": 5285.87
+          }
+        ],
+        "tokens": 2093,
+        "trace_id": "aefa5ff01d7948c28cb8dbe38295f567",
+        "input_bytes": 3992,
+        "model_calls": 2,
+        "unmetered_calls": 1
+      }
+    },
+    {
+      "kind": "grade",
+      "elapsed_ms": 3046,
+      "trace": {
+        "nodes": [],
+        "tokens": 438,
+        "trace_id": "f810601b13b5440a9c278d8ca8f76756",
+        "input_bytes": 1246,
+        "model_calls": 1
+      }
+    }
+  ],
+  "external_calls": 3,
+  "reported_tokens": 2531
+}

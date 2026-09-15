@@ -1,182 +1,85 @@
-import { useState, useEffect, useCallback } from 'react'
-import { View, Text, Textarea, Image } from '@tarojs/components'
-import Taro, { useDidShow } from '@tarojs/taro'
-import { generateQuizAsync, pollQuizTask, getCachedUser, getQuizHistory, waitForLogin } from '../../services/api'
-import type { UserBrief, QuizHistoryItem } from '../../services/api'
-import './index.scss'
+import { useState, useCallback, useRef } from 'react'
+import { View, Text, Textarea, Button, Image, Switch } from '@tarojs/components'
+import Taro, { useDidShow, useDidHide } from '@tarojs/taro'
+import { StudioShell, Notice, Empty, navigate } from '../../components/StudioShell'
+import { Icon } from '../../components/Icon'
+import { useShareEntry } from '../../services/useShareEntry'
+import { QuestionCountsEditor } from '../../components/QuestionCountsEditor'
+import { assetUrl } from '../../services/assets'
+import { defaultCounts, countQuestions, validCounts } from '../../services/quizBlueprint'
+import { restorableTopic, TopicPractice } from '../../services/quizSession'
+import { getToken, getCachedUser, getUserProfile, getQuizHistory, getKnowledgeDocuments, generateQuizAsync, getLearningTask, ApiError, waitForLogin, getLearningSummary, LearningSummary, UserProfile, QuizHistoryItem } from '../../services/api'
 
-export default function IndexPage() {
-  const [inputValue, setInputValue] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [loadingText, setLoadingText] = useState('生成中...')
-  const [generateImages, setGenerateImages] = useState(false)
-  const [user, setUser] = useState<UserBrief | null>(null)
-  const [historyItems, setHistoryItems] = useState<QuizHistoryItem[]>([])
-
-  const loadData = useCallback(async () => {
+export default function HomePage() {
+  useShareEntry()
+  const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [history, setHistory] = useState<QuizHistoryItem[]>([])
+  const [documentCount, setDocumentCount] = useState(0)
+  const [input, setInput] = useState('')
+  const [counts, setCounts] = useState(defaultCounts)
+  const [web, setWeb] = useState(false)
+  const [illustrated, setIllustrated] = useState(false)
+  const [pending, setPending] = useState<TopicPractice | null>(null)
+  const [learning, setLearning] = useState<LearningSummary | null>(null)
+  const [error, setError] = useState('')
+  const [stage, setStage] = useState('')
+  const busy = useRef(false)
+  const alive = useRef(true)
+  const storageKey = () => `ai-learn:v1:topic-practice:${getCachedUser()?.id}`
+  const load = useCallback(async () => {
+    alive.current = true
     await waitForLogin()
-    const cached = getCachedUser()
-    if (cached) setUser(cached)
-
-    getQuizHistory(1, 4)
-      .then((res) => setHistoryItems(res.items))
-      .catch(() => {})
-  }, [])
-
-  useEffect(() => { loadData() }, [loadData])
-
-  // 每次页面显示时刷新（从其他页面返回后）
-  useDidShow(() => {
-    const cached = getCachedUser()
-    if (cached) setUser(cached)
-    // 刷新闯关历史（从报告页返回或新完成闯关后）
-    getQuizHistory(1, 4)
-      .then((res) => setHistoryItems(res.items))
-      .catch(() => {})
-  })
-
-  const handleGenerate = async () => {
-    const trimmed = inputValue.trim()
-    if (!trimmed) {
-      Taro.showToast({ title: '请输入学习内容', icon: 'none' })
-      return
-    }
-
-    setLoading(true)
-    setLoadingText('正在创建任务...')
+    if (!getToken()) { navigate('/pages/login/index'); return }
+    const saved = restorableTopic(Taro.getStorageSync(storageKey()))
+    setPending(saved)
+    if (saved) { setInput(saved.input); setCounts(saved.counts); setWeb(saved.web); setIllustrated(saved.illustrated) }
+    if (!busy.current) setStage('')
     try {
-      // 1. 创建异步任务（秒级返回）
-      const { task_id } = await generateQuizAsync(trimmed, 5, undefined, generateImages)
-
-      setLoadingText('AI 正在联网搜索并生成题目...')
-
-      // 2. 轮询等待任务完成
-      const quizData = await pollQuizTask(task_id, (status) => {
-        if (status === 'running') setLoadingText('AI 正在生成题目...')
-      })
-
-      // 若配图有提示（如未登录/额度不足），友好告知，不阻断闯关
-      if (quizData.image_notice) {
-        Taro.showToast({ title: quizData.image_notice, icon: 'none', duration: 3000 })
+      const [user, quizzes, documents, state] = await Promise.all([getUserProfile(), getQuizHistory(1, 4), getKnowledgeDocuments(), getLearningSummary()])
+      if (alive.current) { setProfile(user); setHistory(quizzes.items); setDocumentCount(documents.items.length); setLearning(state); setError('') }
+    } catch (reason) { if (alive.current) setError(reason instanceof Error ? reason.message : '加载失败') }
+  }, [])
+  useDidShow(load)
+  useDidHide(() => { alive.current = false })
+  const generate = async () => {
+    if (busy.current || !input.trim() || !validCounts(counts)) return
+    busy.current = true; setError(''); setStage('正在创建练习')
+    const key = storageKey()
+    try {
+      let saved = restorableTopic(Taro.getStorageSync(key)) || { key: `topic_${Date.now()}_${Math.random().toString(36).slice(2)}`, input: input.trim(), counts, web, illustrated }
+      Taro.setStorageSync(key, saved); setPending(saved)
+      if (!saved.taskId) {
+        const { task_id } = await generateQuizAsync(saved.input, countQuestions(saved.counts), undefined, saved.illustrated, saved.key, saved.counts, saved.web)
+        saved = { ...saved, taskId: task_id }; Taro.setStorageSync(key, saved); setPending(saved)
       }
-
-      // 3. 跳转闯关页
-      Taro.navigateTo({
-        url: `/pages/quiz/index?quizData=${encodeURIComponent(JSON.stringify(quizData))}`,
-      })
-    } catch (err: any) {
-      Taro.showToast({ title: err.message || '生成失败，请稍后重试', icon: 'none' })
-    } finally {
-      setLoading(false)
-      setLoadingText('生成中...')
+      if (!alive.current) return
+      Taro.navigateTo({ url: `/pages/quiz/index?taskId=${encodeURIComponent(saved.taskId!)}` })
+    } catch (reason) {
+      if (reason instanceof ApiError && [400, 404, 409, 422].includes(reason.statusCode)) { Taro.removeStorageSync(key); setPending(null) }
+      if (alive.current) setError(reason instanceof Error ? reason.message : '生成失败，请重试')
     }
+    finally { busy.current = false; if (alive.current) setStage('') }
   }
-
-  return (
-    <View className='index-page'>
-      {/* 顶部工具栏 */}
-      <View className='toolbar'>
-        <View className='hello-user'>
-          {user?.avatar_url ? (
-            <Image className='hello-avatar-img' src={user.avatar_url} mode='aspectFill' />
-          ) : (
-            <View className='hello-avatar'>
-              <Text>{user?.nickname?.[0] || '鱼'}</Text>
-            </View>
-          )}
-          <Text className='hello-name'>你好，{user?.nickname || '同学'}</Text>
-        </View>
-        <View className='coin-badge'>
-          <Text className='coin-text'>{user?.total_xp ?? 0}</Text>
-          <Text className='coin-icon'>⭐</Text>
-        </View>
-      </View>
-
-      {/* 标题 */}
-      <Text className='page-title'>今天想闯哪一关？</Text>
-
-      {/* 输入区域 */}
-      <View className='quick-input'>
-        <View className='input-head'>
-          <View className='input-label'>输入你想学的内容</View>
-          <View className='mini-mascot'>🐟</View>
-        </View>
-        <Textarea
-          className='input-area'
-          placeholder={'例如：RAG 和传统搜索有什么区别？\n我想搞懂向量数据库是怎么配合工作的。\n最好通过闯关题帮我记住重点。'}
-          value={inputValue}
-          onInput={(e) => setInputValue(e.detail.value)}
-          maxlength={500}
-          autoHeight
-        />
-        <View
-          className={`image-toggle-row ${generateImages ? 'is-active' : ''}`}
-          onClick={() => setGenerateImages((prev) => !prev)}
-        >
-          <View className='image-toggle-info'>
-            <Text className='image-toggle-icon'>🖼️</Text>
-            <Text className='image-toggle-label'>为题目生成配图</Text>
-          </View>
-          <View className={`toggle-pill ${generateImages ? 'is-on' : ''}`}>
-            <View className='toggle-knob' />
-          </View>
-        </View>
-        <View className='input-actions'>
-          <View
-            className={`btn-primary generate-btn ${loading ? 'is-loading' : ''}`}
-            onClick={!loading ? handleGenerate : undefined}
-          >
-            {loading ? (
-              <Text>{loadingText}</Text>
-            ) : (
-              <>
-                <Text className='btn-arrow'>→</Text>
-                <Text>开始生成题目</Text>
-              </>
-            )}
-          </View>
-        </View>
-      </View>
-
-      {/* 已完成关卡 */}
-      {historyItems.length > 0 && (
-        <View className='cards-grid'>
-          {historyItems.map((item) => (
-            <View
-              key={item.quiz_id}
-              className='quiz-card'
-              onClick={() => {
-                Taro.navigateTo({
-                  url: `/pages/report/index?quizId=${item.quiz_id}`,
-                })
-              }}
-            >
-              <View className='quiz-dot'>✓</View>
-              <View className='quiz-body'>
-                <Text className='quiz-name'>{item.title}</Text>
-                <Text className='quiz-meta'>正确率：{Math.round(item.accuracy)}% · {item.question_count} 题</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-      )}
-
-      {/* 学习小贴士 */}
-      <Text className='section-title'>💡 学习小贴士</Text>
-      <View className='tip-list'>
-        <View className='tip-item'>
-          <Text className='tip-icon'>🎯</Text>
-          <Text className='tip-text'>每天坚持闯关一次，知识积累看得见</Text>
-        </View>
-        <View className='tip-item'>
-          <Text className='tip-icon'>📝</Text>
-          <Text className='tip-text'>完成闯关后查看报告，重点复习薄弱知识点</Text>
-        </View>
-        <View className='tip-item'>
-          <Text className='tip-icon'>⭐</Text>
-          <Text className='tip-text'>答对越多，经验值涨得越快哦</Text>
-        </View>
-      </View>
+  const newPractice = async () => {
+    if (busy.current || !pending?.taskId) return
+    busy.current = true
+    try {
+      const task = await getLearningTask(pending.taskId)
+      if (!['completed', 'failed', 'cancelled'].includes(task.status)) { setError('上一组仍在处理，请继续查看或取消后再新建。'); return }
+      Taro.removeStorageSync(storageKey()); setPending(null); setError('')
+    } catch (reason) {
+      if (reason instanceof ApiError && reason.statusCode === 404) { Taro.removeStorageSync(storageKey()); setPending(null) }
+      else setError(reason instanceof Error ? reason.message : '读取任务失败')
+    } finally { busy.current = false }
+  }
+  return <StudioShell active='home' title='学习手帐' subtitle={`${profile?.nickname || getCachedUser()?.nickname || '同学'}，今天想读些什么？`}>
+    {error && <Notice message={error} retry={load} />}
+    <View className='study-window'><Image className='study-panorama' src={assetUrl('library-garden.jpg')} mode='aspectFit' /></View>
+    <View className='today-review section-heading'><View><Text className='section-title'>今日复习</Text><Text className='muted'>{learning ? `${learning.due_count} 道到期 · 今日已复习 ${learning.today_reviews} 道` : '正在读取复习计划'}</Text></View><Button className='secondary-button' onClick={() => Taro.navigateTo({ url: '/learning/review/index' })}><Icon name='review' size={17} />复习与掌握</Button></View>
+    <View className='stats-row home-stats'><View className='stat'><Text className='muted'>我的知识文档</Text><Text className='stat-number'>{documentCount}</Text><Text className='tiny-label'>篇学习材料</Text></View><View className='stat'><Text className='muted'>累计练习</Text><Text className='stat-number'>{profile?.quiz_count || 0}</Text><Text className='tiny-label'>次探索与尝试</Text></View><View className='stat'><Text className='muted'>已完成正确率</Text><Text className='stat-number'>{profile?.quiz_count ? `${profile.average_accuracy}%` : '暂无'}</Text><Text className='tiny-label'>{profile?.total_xp || 0} 学习经验</Text></View></View>
+    <View className='home-tools'><Button className='secondary-button' onClick={() => navigate('/pages/knowledge/index')}><Icon name='upload' size={18} />添加学习材料</Button><Button className='text-button' onClick={() => Taro.navigateTo({ url: '/learning/path/index' })}><Icon name='review' size={17} />学习路径与计划</Button></View>
+    <View className='dashboard-grid'><View className='section-band'><View className='section-heading'><Text className='section-title'>自由练习</Text><Text className='tag'>主题练习</Text></View><Textarea className='studio-textarea' placeholder='今天想学习什么？例如：Python 列表与字典的区别' value={input} maxlength={2000} disabled={!!pending || !!stage} onInput={e => setInput(e.detail.value)} /><QuestionCountsEditor value={counts} onChange={setCounts} disabled={!!stage || !!pending} illustrated={illustrated} onIllustratedChange={setIllustrated} />{!validCounts(counts) && <Notice message='题型数量合计须为 1 至 20。' />}<View className='section-heading'><Text>网页参考</Text><Switch checked={web} disabled={!!pending || !!stage} onChange={e => setWeb(e.detail.value)} /></View>{web && <Text className='muted'>本次主题将发送给网页搜索服务。请勿输入私人材料或个人信息。</Text>}<View className='section-heading' style={{ marginTop: '14px' }}><Text className='muted'>{input.length}/2000</Text><Button className='primary-button' disabled={!input.trim() || !!stage || !validCounts(counts)} onClick={generate}><Icon name='sparkle' size={17} />{stage || (pending ? '继续上次练习' : '生成练习')}</Button></View>{pending?.taskId && <Button className='text-button' onClick={newPractice}><Icon name='add' size={16} />新一组练习</Button>}</View>
+      <View className='section-band'><View className='section-heading'><Text className='section-title'>最近的学习足迹</Text><Button className='text-button' onClick={() => navigate('/pages/profile/index')}>全部记录<Icon name='arrow' size={16} /></Button></View>{history.length ? history.map(item => <View className='history-row' key={item.quiz_id} onClick={() => Taro.navigateTo({ url: `/pages/report/index?quizId=${item.quiz_id}` })}><View className='row-copy'><Text className='row-title'>{item.title}</Text><Text className='muted'>{item.created_at}</Text></View><Text className='score-badge'>{item.accuracy}%</Text></View>) : <Empty title='第一段足迹，等你留下' text='添加材料或完成一次主题练习，学习记录就会出现在这里。' />}</View>
     </View>
-  )
+  </StudioShell>
 }

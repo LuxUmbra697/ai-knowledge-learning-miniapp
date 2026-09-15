@@ -1,0 +1,23 @@
+{
+  "recorded_date": "2026-09-16",
+  "origin": "https://ai-knowledge-learn.oss-cn-guangzhou.aliyuncs.com/assets/",
+  "verified_objects": 33,
+  "native_decoded_images": 10,
+  "packaged_media_bytes": 0,
+  "js_minification": true,
+  "lazy_code_loading": "requiredComponents",
+  "es2019_files_passed": 20,
+  "official_wxss_files_passed": 9,
+  "official_upload_version": "2026.9.16.1",
+  "official_upload_bytes": { "main": 542006, "learning": 92459, "total": 634465 },
+  "offline_tests_passed": 446,
+  "mysql_tests_passed": 83,
+  "frontend_unit_tests_passed": 30,
+  "h5_tests_passed": 29,
+  "h5_additional_paid_tests_skipped": 4,
+  "native_canvas": { "width": 350, "height": 380, "sampled_colors": 309 },
+  "new_model_calls": 0,
+  "native_environment": "WeChat DevTools; private domain validation disabled",
+  "physical_device_verified": false,
+  "formal_publication_verified": false
+}

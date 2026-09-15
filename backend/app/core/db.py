@@ -174,6 +174,22 @@ async def init_mysql() -> None:
     finally:
         bootstrap_conn.close()
 
+    await connect_mysql()
+
+    async with _pool.acquire() as conn:
+        async with conn.cursor() as cursor:
+            for statement in SCHEMA_STATEMENTS:
+                await cursor.execute(statement)
+
+    logger.info("mysql_initialized")
+
+
+async def connect_mysql() -> None:
+    """Open the configured database without creating or migrating anything."""
+    global _pool
+    if _pool is not None:
+        return
+    settings = get_settings()
     _pool = await aiomysql.create_pool(
         host=settings.mysql_host,
         port=settings.mysql_port,
@@ -184,14 +200,9 @@ async def init_mysql() -> None:
         minsize=settings.mysql_pool_minsize,
         maxsize=settings.mysql_pool_maxsize,
         autocommit=True,
+        connect_timeout=10,
+        init_command="SET time_zone = '+00:00'",
     )
-
-    async with _pool.acquire() as conn:
-        async with conn.cursor() as cursor:
-            for statement in SCHEMA_STATEMENTS:
-                await cursor.execute(statement)
-
-    logger.info("mysql_initialized", database=settings.mysql_database)
 
 
 def get_mysql_pool() -> aiomysql.Pool | None:

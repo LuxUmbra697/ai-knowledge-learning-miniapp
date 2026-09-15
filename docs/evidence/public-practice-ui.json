@@ -1,0 +1,20 @@
+{
+  "recorded_at": "2026-09-15T17:59:09.576Z",
+  "environment": "Chromium + actual local API + isolated MySQL + actual worker",
+  "data_source": "Explicit synthetic checkpoint",
+  "provider_calls": 0,
+  "checks": [
+    "cancel_without_publication",
+    "lost_admission_response_reuses_key",
+    "exact_counts_restored",
+    "refresh_resumes_worker",
+    "provenance_label",
+    "completed_task_reopens_without_new_admission",
+    "explicit_new_practice",
+    "no_browser_errors"
+  ],
+  "limitations": [
+    "No native WeChat runtime verification",
+    "Separate paid smoke is required for provider integration"
+  ]
+}

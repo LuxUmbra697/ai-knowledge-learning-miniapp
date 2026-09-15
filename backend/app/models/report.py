@@ -6,9 +6,9 @@ from .quiz import Question, AnswerRecord
 
 class ReportGenerateRequest(BaseModel):
     quiz_id: str
-    topic: str
-    questions: list[Question]
-    answer_records: list[AnswerRecord]
+    topic: str = ""
+    questions: list[Question] = Field(default_factory=list)
+    answer_records: list[AnswerRecord] = Field(default_factory=list)
 
 
 class ReportOutput(BaseModel):

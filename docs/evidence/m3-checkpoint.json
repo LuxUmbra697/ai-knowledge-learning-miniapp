@@ -1,0 +1,36 @@
+{
+  "recorded_at": "2026-09-13T10:00:55Z",
+  "scope": "Durable indexing, retrieval, grounded answers and task monitoring; not the whole M3 learning agent",
+  "collection": "Recorded from individually executed commands and inspected runtime evidence",
+  "environment": "Windows, Python 3.13.9, Node 22.19.0, Taro 4.1.11, isolated loopback MySQL 8.0.45 and Chroma",
+  "checks": [
+    {"command": "backend/venv/Scripts/python.exe scripts/test_offline.py", "passed": 211, "elapsed_seconds": 9.03, "external_calls": 0},
+    {"command": "backend/venv/Scripts/python.exe scripts/test_database.py -q", "passed": 15, "external_calls": 0, "includes": "Actual worker child-process termination and restart, duplicate result rejection, cancellation and timeout cleanup grace"},
+    {"command": "npm test", "cwd": "frontend", "passed": 7},
+    {"command": "npm run typecheck", "cwd": "frontend", "exit_code": 0},
+    {"command": "npm run test:e2e", "cwd": "frontend", "passed": 4, "skipped": 1, "elapsed_seconds": 16.1, "external_calls": 0},
+    {"command": "python -m ruff check backend/app backend/integration --select F", "exit_code": 0},
+    {"command": "npm run build:h5", "cwd": "frontend", "exit_code": 0, "warnings": ["Uncompressed entry exceeds webpack recommendation", "Browserslist dataset age"]},
+    {"command": "npm run build:weapp", "cwd": "frontend", "exit_code": 0},
+    {"command": "node scripts/check-build.mjs --both", "cwd": "frontend", "exit_code": 0}
+  ],
+  "real_provider_verification": {
+    "new_answer_runs": 2,
+    "chat_calls": 2,
+    "returned_chat_tokens": 1110,
+    "embedding_calls_in_answers": 2,
+    "embedding_calls_in_index_lifecycle": 4,
+    "reuse_only_browser_runs": 1,
+    "startup_race_run_provider_calls": 0,
+    "billed_currency": null,
+    "results": ["m3-live-answer.json", "m3-answer-resume.json", "m3-live-index.json"]
+  },
+  "build_measurement": "m3-build-size.json",
+  "limitations": [
+    "Native WeChat execution and real devices not verified",
+    "No production deployment or shared gateway mutation",
+    "Legacy quiz/report/search/image work still needs durable budget integration",
+    "Broader lint/style rules and CI setup remain pending",
+    "These checks do not measure concurrency capacity or human answer correctness"
+  ]
+}

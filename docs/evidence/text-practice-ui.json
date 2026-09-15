@@ -1,0 +1,17 @@
+{
+  "recorded_at": "2026-09-15T17:59:52.518Z",
+  "provider_calls": 0,
+  "source": "Synthetic questions and persisted synthetic grading response; real API/MySQL/worker/Chromium",
+  "checks": [
+    "per_type_counts",
+    "five_question_types",
+    "answer_and_rubric_disclosure",
+    "ordered_fill_grading",
+    "draft_restore",
+    "written_task_restore",
+    "criteria_rendering",
+    "five_authoritative_attempts",
+    "mobile_desktop_bounds"
+  ],
+  "native_runtime": "Pending"
+}

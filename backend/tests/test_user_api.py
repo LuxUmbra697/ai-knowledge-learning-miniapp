@@ -1,6 +1,6 @@
 """用户系统 API 集成测试"""
 
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -18,70 +18,30 @@ def auth_header():
 
 @pytest.mark.asyncio
 class TestLoginAPI:
-    async def test_login_success(self):
-        """模拟微信登录成功"""
-        mock_user = {
-            "id": 1,
-            "openid": "mock_openid",
-            "nickname": "学习者",
-            "avatar_url": "",
-            "total_xp": 0,
-        }
+    async def test_unknown_login_returns_explicit_choice(self):
+        from app.api.v1.routes import user
+        with patch.object(user, 'check_login_rate', new_callable=AsyncMock), patch(
+            'app.services.user_service.wx_code_to_openid', new_callable=AsyncMock, return_value='verified-openid'
+        ), patch('app.services.identity_service.begin_wechat', new_callable=AsyncMock,
+                 return_value={'status': 'choice', 'ticket': 'one-time-private-proof'}) as begin:
+            async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as client:
+                response = await client.post('/api/v1/user/login', json={'code': 'fresh-wechat-code'})
+            assert response.status_code == 200
+            assert response.json()['data']['status'] == 'choice'
+            assert 'token' not in response.json()['data']
+            begin.assert_awaited_once_with('verified-openid')
 
-        with patch(
-            "app.services.user_service.wx_code_to_openid",
-            new_callable=AsyncMock,
-            return_value="mock_openid",
-        ), patch(
-            "app.services.user_service.user_repository.find_user_by_openid",
-            new_callable=AsyncMock,
-            return_value=None,
-        ), patch(
-            "app.services.user_service.user_repository.create_user",
-            new_callable=AsyncMock,
-            return_value=mock_user,
-        ):
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
-                resp = await client.post(
-                    "/api/v1/user/login",
-                    json={"code": "mock_wx_code"},
-                )
-            assert resp.status_code == 200
-            body = resp.json()
-            assert body["code"] == 0
-            assert "token" in body["data"]
-            assert body["data"]["user"]["nickname"] == "学习者"
-
-    async def test_login_existing_user(self):
-        """已注册用户登录"""
-        mock_user = {
-            "id": 5,
-            "openid": "existing_openid",
-            "nickname": "LuxUmbra同学",
-            "avatar_url": "https://example.com/avatar.png",
-            "total_xp": 100,
-        }
-
-        with patch(
-            "app.services.user_service.wx_code_to_openid",
-            new_callable=AsyncMock,
-            return_value="existing_openid",
-        ), patch(
-            "app.services.user_service.user_repository.find_user_by_openid",
-            new_callable=AsyncMock,
-            return_value=mock_user,
-        ):
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
-                resp = await client.post(
-                    "/api/v1/user/login",
-                    json={"code": "mock_wx_code"},
-                )
-            assert resp.status_code == 200
-            body = resp.json()
-            assert body["data"]["user"]["id"] == 5
-            assert body["data"]["user"]["total_xp"] == 100
+    async def test_registered_wechat_login_returns_existing_identity(self):
+        from app.api.v1.routes import user
+        expected = {'token': create_token(5, ''), 'user': {'id': 5, 'nickname': '学习者', 'avatar_url': '', 'total_xp': 100}}
+        with patch.object(user, 'check_login_rate', new_callable=AsyncMock), patch(
+            'app.services.user_service.wx_code_to_openid', new_callable=AsyncMock, return_value='verified-existing'
+        ), patch('app.services.identity_service.begin_wechat', new_callable=AsyncMock, return_value=expected):
+            async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as client:
+                response = await client.post('/api/v1/user/login', json={'code': 'fresh-wechat-code'})
+            assert response.status_code == 200
+            assert response.json()['data']['user']['id'] == 5
+            assert response.json()['data']['user']['total_xp'] == 100
 
     async def test_login_empty_code_rejected(self):
         transport = ASGITransport(app=app)
@@ -222,17 +182,18 @@ class TestQuizHistoryAPI:
                     "/api/v1/user/quizzes/quiz_nonexist",
                     headers=auth_header,
                 )
-            assert resp.status_code == 200
+            assert resp.status_code == 404
             body = resp.json()
             assert body["code"] == 4004
+            assert body["data"] is None
 
 
 @pytest.mark.asyncio
-class TestQuizWithOptionalAuth:
-    """确保出题接口在有/无 token 时都正常工作"""
+class TestQuizAuthentication:
+    """Costly generation requires a verified identity."""
 
     async def test_quiz_generate_without_token(self):
-        """匿名模式应正常工作"""
+        """Anonymous requests must not invoke a paid model."""
         from app.models.quiz import QuizOutput, Question, QuestionOption
 
         mock_output = QuizOutput(
@@ -250,20 +211,20 @@ class TestQuizWithOptionalAuth:
             ],
         )
         with patch(
-            "app.services.quiz_service.generate_quiz",
+            "app.services.quiz_task_service.generate_quiz",
             new_callable=AsyncMock,
             return_value=mock_output,
-        ):
+        ) as model:
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 resp = await client.post(
                     "/api/v1/quiz/generate",
                     json={"user_input": "Python basic", "question_count": 3, "difficulty": "easy"},
                 )
-            assert resp.status_code == 200
-            assert resp.json()["code"] == 0
+            assert resp.status_code == 401
+            model.assert_not_awaited()
 
-    async def test_quiz_generate_with_token(self, auth_header):
+    async def test_quiz_generate_with_token(self, auth_header, durable_quiz_transport):
         """有 token 时应正常工作且落库"""
         from app.models.quiz import QuizOutput, Question, QuestionOption
 
@@ -281,12 +242,13 @@ class TestQuizWithOptionalAuth:
                 ),
             ],
         )
+        queue = durable_quiz_transport(mock_output)
         with patch(
-            "app.services.quiz_service.generate_quiz",
+            "app.services.quiz_task_service.generate_quiz",
             new_callable=AsyncMock,
             return_value=mock_output,
         ), patch(
-            "app.services.quiz_service.quiz_repository.save_quiz_session",
+            "app.repositories.quiz_repository.save_quiz_session",
             new_callable=AsyncMock,
         ) as mock_save:
             transport = ASGITransport(app=app)
@@ -297,14 +259,17 @@ class TestQuizWithOptionalAuth:
                     headers=auth_header,
                 )
             assert resp.status_code == 200
-            mock_save.assert_called_once()
+            queue.create.assert_awaited_once()
+            assert queue.create.await_args.args[1] == 1
+            queue.wait.assert_awaited_once_with('job_' + 'a' * 32, 1, seconds=60)
+            mock_save.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-class TestReportWithOptionalAuth:
-    """确保报告接口在有/无 token 时都正常工作"""
+class TestReportAuthenticatedQueue:
+    """报告路由把认证身份传递给持久化任务，模型只在 worker 执行。"""
 
-    async def test_report_generate_with_token_saves_data(self, auth_header, sample_report_request):
+    async def test_report_generate_with_token_queues_owned_data(self, auth_header, sample_report_request):
         from app.models.report import ReportOutput
 
         mock_output = ReportOutput(
@@ -316,19 +281,15 @@ class TestReportWithOptionalAuth:
             share_quote="quote",
         )
         with patch(
-            "app.services.report_service.generate_report",
+            "app.services.report_service.wait_result",
             new_callable=AsyncMock,
-            return_value=mock_output,
-        ), patch(
-            "app.services.report_service.quiz_repository.save_answer_record",
-            new_callable=AsyncMock,
-        ) as mock_save_ar, patch(
-            "app.services.report_service.quiz_repository.save_report",
-            new_callable=AsyncMock,
-        ) as mock_save_rp, patch(
-            "app.services.report_service.user_repository.add_user_xp",
-            new_callable=AsyncMock,
-        ) as mock_add_xp:
+            return_value=mock_output.model_dump(),
+        ), patch("app.services.report_service.quiz_repository.get_quiz_detail", new_callable=AsyncMock,
+                 return_value={"title": sample_report_request["topic"], "questions": sample_report_request["questions"]}), \
+             patch("app.services.report_service.get_attempts", new_callable=AsyncMock,
+                   return_value=sample_report_request["answer_records"]), \
+             patch("app.services.report_service.jobs.enqueue", new_callable=AsyncMock,
+                   return_value={'task_id': 'job_mock'}) as enqueue:
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 resp = await client.post(
@@ -337,7 +298,7 @@ class TestReportWithOptionalAuth:
                     headers=auth_header,
                 )
             assert resp.status_code == 200
-            mock_save_ar.assert_called_once()
-            mock_save_rp.assert_called_once()
-            # XP = 10 + correct_count * 2 = 10 + 4 * 2 = 18
-            mock_add_xp.assert_called_once_with(1, 18)
+            enqueue.assert_awaited_once()
+            assert enqueue.call_args.args[:2] == (1, 'report')
+            assert enqueue.call_args.args[2]['quiz_id'] == sample_report_request['quiz_id']
+            assert resp.json()["data"]["accuracy"] == 80

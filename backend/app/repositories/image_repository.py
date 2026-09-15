@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Optional
 
 import structlog
+from fastapi import HTTPException
 
 from app.core.db import get_mysql_pool
 
@@ -12,13 +13,10 @@ logger = structlog.get_logger()
 
 
 async def get_today_usage_count(user_id: int) -> int:
-    """获取用户当天（服务器本地日期）已成功生成的图片数量。
-
-    无 MySQL 连接（本地未配置数据库）时视为不限制，返回 0。
-    """
+    """Get successful images in the current UTC database session day; missing storage fails closed."""
     pool = get_mysql_pool()
     if pool is None:
-        return 0
+        raise HTTPException(503, '配图额度暂时不可用')
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
             await cur.execute(
@@ -39,7 +37,7 @@ async def log_image_generation(
     """记录一次成功的生图，用于每日次数统计。"""
     pool = get_mysql_pool()
     if pool is None:
-        return
+        raise HTTPException(503, '配图记录暂时不可用')
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
             await cur.execute(

@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import os
+from pathlib import Path
+import re
 import uuid
 
 import structlog
+from fastapi import HTTPException
+from langchain_core.documents import Document
 
 from app.core.config import get_settings
 from app.core.exceptions import KnowledgeBaseError
@@ -16,12 +21,19 @@ from app.models.knowledge import (
     KnowledgeStatusResponse,
     KnowledgeUploadResponse,
 )
-from app.repositories import knowledge_repository
-from app.services import document_loader_service, vector_store_service
+from app.repositories import knowledge_repository, rag_index_repository, job_repository
+from app.services import isolated_parser, vector_store_service
 
 logger = structlog.get_logger()
 
 SUPPORTED_EXTENSIONS = {"pdf", "docx", "md", "txt"}
+_processing_slots = asyncio.Semaphore(1)
+def _stored_path(storage_key):
+    root = Path(get_settings().kb_upload_dir).resolve()
+    path = (root / storage_key).resolve()
+    if path.parent != root or not re.fullmatch(r'doc_[a-zA-Z0-9]+\.(pdf|docx|txt|md)', storage_key):
+        raise KnowledgeBaseError('文档存储位置无效')
+    return path
 
 
 def _get_extension(filename: str) -> str:
@@ -33,6 +45,11 @@ async def handle_upload(user_id: int, filename: str, content: bytes) -> Knowledg
     """校验并保存上传的文档，后台异步解析处理"""
     settings = get_settings()
 
+    if not content:
+        raise KnowledgeBaseError('文件为空，请选择包含学习内容的文档')
+    if len(filename) > 200 or '/' in filename or '\\' in filename or re.search(r'[\x00-\x1f]', filename):
+        raise KnowledgeBaseError('文件名无效，请使用不含路径的文件名')
+
     file_type = _get_extension(filename)
     if file_type not in SUPPORTED_EXTENSIONS:
         raise KnowledgeBaseError(
@@ -42,97 +59,143 @@ async def handle_upload(user_id: int, filename: str, content: bytes) -> Knowledg
     max_size_bytes = settings.kb_max_file_size_mb * 1024 * 1024
     if len(content) > max_size_bytes:
         raise KnowledgeBaseError(f"文件大小超过限制（最大 {settings.kb_max_file_size_mb}MB）")
+    if file_type in ('txt', 'md') and (b'\x00' in content or content.startswith(b'MZ')):
+        raise KnowledgeBaseError('文件不是有效的文本资料')
+    if file_type == 'pdf' and not content.startswith(b'%PDF-'):
+        raise KnowledgeBaseError('PDF 文件签名无效')
+    if file_type == 'docx' and not content.startswith(b'PK'):
+        raise KnowledgeBaseError('DOCX 文件签名无效')
 
-    existing_count = await knowledge_repository.count_documents(user_id)
-    if existing_count >= settings.kb_max_documents_per_user:
-        raise KnowledgeBaseError(
-            f"知识库文档数量已达上限（最多 {settings.kb_max_documents_per_user} 篇），请先删除部分文档"
-        )
-
-    doc_id = f"doc_{uuid.uuid4().hex[:12]}"
-
-    os.makedirs(settings.kb_upload_dir, exist_ok=True)
-    file_path = os.path.join(settings.kb_upload_dir, f"{doc_id}.{file_type}")
-    with open(file_path, "wb") as f:
-        f.write(content)
-
-    await knowledge_repository.create_document(
-        doc_id=doc_id,
-        user_id=user_id,
-        file_name=filename,
-        file_type=file_type,
-        file_size=len(content),
-    )
-
-    asyncio.create_task(_process_document(doc_id, user_id, file_path, file_type))
-
-    return KnowledgeUploadResponse(doc_id=doc_id, file_name=filename, status="processing")
-
-
-async def _process_document(doc_id: str, user_id: int, file_path: str, file_type: str) -> None:
-    """后台异步解析文档：加载分块 -> 向量化写入 -> 更新状态"""
+    doc_id = f"doc_{uuid.uuid4().hex}"
+    version = vector_store_service.index_version()
+    reservation = await rag_index_repository.reserve(doc_id, user_id, filename, file_type, len(content),
+                                                     hashlib.sha256(content).hexdigest(), version,
+                                                     settings.kb_max_documents_per_user)
+    if reservation['duplicate']:
+        return KnowledgeUploadResponse.model_validate(reservation)
+    file_path = _stored_path(f'{doc_id}.{file_type}')
     try:
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        await asyncio.to_thread(file_path.write_bytes, content)
+    except OSError:
+        await rag_index_repository.fail(doc_id, user_id, 1, version, '文件保存失败，请稍后重试上传')
+        raise KnowledgeBaseError('文件保存失败，请稍后重试上传')
+    await job_repository.activate(reservation['task_id'], user_id)
+    return KnowledgeUploadResponse.model_validate(reservation)
+
+
+async def _process_document(doc_id: str, user_id: int, file_path: str, file_type: str,
+                            revision: int = 1, version: str | None = None, previous=None, context=None) -> None:
+    """后台异步解析文档：加载分块 -> 向量化写入 -> 更新状态"""
+    version = version or vector_store_service.index_version()
+    async with _processing_slots:
+        await _index_document(doc_id, user_id, file_path, file_type, revision, version, previous, context)
+
+
+async def _index_document(doc_id, user_id, file_path, file_type, revision, version, previous, context=None):
+    try:
+        if not await rag_index_repository.is_current(doc_id, user_id, revision, version):
+            return
         logger.info("kb_document_processing_started", doc_id=doc_id, user_id=user_id)
 
-        chunks = document_loader_service.load_and_split(file_path, file_type)
+        cached = context.checkpoints.get('parsed') if context else None
+        if cached:
+            chunks = [Document(page_content=item['content'], metadata=item['metadata']) for item in cached]
+        else:
+            if context:
+                await context.checkpoint('parsing', {'started': True})
+            chunks = await asyncio.to_thread(isolated_parser.parse_document, file_path, file_type)
         if not chunks:
             raise ValueError("文档解析后未提取到任何内容")
+        if len(chunks) > 100:
+            raise ValueError('文档超过单次索引的 100 个片段预算，请拆分为较小材料')
+        if context and not cached:
+            await context.checkpoint('parsed', [{'content': chunk.page_content, 'metadata': chunk.metadata} for chunk in chunks])
+        if not await rag_index_repository.is_current(doc_id, user_id, revision, version):
+            return
 
-        chunk_count = vector_store_service.add_document_chunks(user_id, doc_id, chunks)
-
-        await knowledge_repository.update_document_status(
-            doc_id, "ready", chunk_count=chunk_count
-        )
+        if context:
+            if sum(len(chunk.page_content.encode()) for chunk in chunks) > 60000:
+                raise ValueError('材料超过当前索引调用预算，请拆分为较小文档')
+            for offset in range(0, len(chunks), 10):
+                batch = chunks[offset:offset+10]
+                stage = f'embedding_{offset//10}'
+                if context.checkpoints.get(stage, {}).get('output'):
+                    # Restore deterministic metadata without issuing another embedding request.
+                    for chunk in batch:
+                        chunk.metadata.update(doc_id=doc_id, user_id=user_id, revision=revision, index_version=version,
+                                              scope_key=vector_store_service.scope_key(doc_id, revision, version))
+                    continue
+                async def embed(batch=batch):
+                    count = await asyncio.to_thread(vector_store_service.add_document_chunks, user_id, doc_id, batch,
+                                                    revision=revision, version=version)
+                    return {'count': count}, None
+                await context.external(stage, embed, sum(len(chunk.page_content.encode()) for chunk in batch))
+            chunk_count = len(chunks)
+            await context.checkpoint('publishing', {'chunk_count': chunk_count})
+            published = await rag_index_repository.publish(doc_id, user_id, revision, version, chunks, context=context)
+        else:
+            chunk_count = await asyncio.to_thread(vector_store_service.add_document_chunks, user_id, doc_id, chunks,
+                                                  revision=revision, version=version)
+            published = await rag_index_repository.publish(doc_id, user_id, revision, version, chunks)
+        if not published:
+            await asyncio.to_thread(vector_store_service.delete_document_vectors, user_id, doc_id,
+                                    revision=revision, version=version)
+            return
+        if previous:
+            try:
+                await asyncio.to_thread(vector_store_service.delete_document_vectors, user_id, doc_id,
+                                        revision=previous[0], version=previous[1])
+            except Exception as error:
+                logger.warning('kb_previous_revision_cleanup_failed', doc_id=doc_id, error_type=type(error).__name__)
         logger.info(
             "kb_document_processing_completed", doc_id=doc_id, user_id=user_id, chunk_count=chunk_count
         )
-    except Exception as e:
-        logger.error("kb_document_processing_failed", doc_id=doc_id, user_id=user_id, error=str(e))
-        await knowledge_repository.update_document_status(
-            doc_id, "failed", error_message=str(e)[:500]
-        )
+    except job_repository.TaskLeaseLost:
+        raise
+    except Exception as error:
+        logger.error('kb_document_processing_failed', doc_id=doc_id, user_id=user_id, error_type=type(error).__name__)
+        message = str(error)[:300] if isinstance(error, ValueError) else '索引服务暂时不可用，请稍后重试'
+        if context:
+            await rag_index_repository.fail(doc_id, user_id, revision, version, message, context=context)
+        else:
+            await rag_index_repository.fail(doc_id, user_id, revision, version, message)
+        if context:
+            raise
 
 
 async def list_documents(user_id: int) -> KnowledgeListResponse:
     rows = await knowledge_repository.list_documents(user_id)
-    items = [KnowledgeDocumentItem.model_validate(row) for row in rows]
+    items = [KnowledgeDocumentItem.model_validate({**row, 'needs_reindex': row.get('index_version') != vector_store_service.index_version()}) for row in rows]
     return KnowledgeListResponse(items=items)
 
 
 async def get_document_status(user_id: int, doc_id: str) -> KnowledgeStatusResponse:
     row = await knowledge_repository.get_document(doc_id, user_id)
     if row is None:
-        raise KnowledgeBaseError("文档不存在")
+        raise HTTPException(404, '文档不存在')
     return KnowledgeStatusResponse(
         doc_id=row["doc_id"],
         file_name=row["file_name"],
         status=row["status"],
         chunk_count=row["chunk_count"],
         error_message=row.get("error_message"),
+        revision=row.get('revision'), index_version=row.get('index_version'),
+        needs_reindex=row.get('index_version') != vector_store_service.index_version(),
     )
 
 
 async def delete_document(user_id: int, doc_id: str) -> None:
-    """删除文档：级联清理向量、本地文件、数据库记录，任一步失败仅记录日志"""
-    row = await knowledge_repository.get_document(doc_id, user_id)
-    if row is None:
-        raise KnowledgeBaseError("文档不存在")
-
-    settings = get_settings()
-
+    """Revoke SQL visibility first. Failed physical cleanup remains explicitly pending."""
+    row = await rag_index_repository.tombstone(doc_id, user_id)
     try:
-        vector_store_service.delete_document_vectors(user_id, doc_id)
-    except Exception as e:
-        logger.warning("kb_document_vector_delete_failed", doc_id=doc_id, error=str(e))
+        await asyncio.to_thread(vector_store_service.delete_document_vectors, user_id, doc_id)
+        await asyncio.to_thread(_stored_path(row['storage_key']).unlink, missing_ok=True)
+        await rag_index_repository.cleanup_done(doc_id, user_id)
+    except Exception as error:
+        logger.warning('kb_cleanup_pending', doc_id=doc_id, error_type=type(error).__name__)
 
-    try:
-        file_path = os.path.join(settings.kb_upload_dir, f"{doc_id}.{row['file_type']}")
-        if os.path.exists(file_path):
-            os.remove(file_path)
-    except Exception as e:
-        logger.warning("kb_document_file_delete_failed", doc_id=doc_id, error=str(e))
 
-    try:
-        await knowledge_repository.delete_document(doc_id, user_id)
-    except Exception as e:
-        logger.warning("kb_document_db_delete_failed", doc_id=doc_id, error=str(e))
+async def reindex_document(user_id: int, doc_id: str):
+    meta = await rag_index_repository.begin_reindex(doc_id, user_id, vector_store_service.index_version())
+    return {'doc_id': doc_id, 'status': 'processing', 'revision': meta['revision'], 'task_id': meta['task_id']}

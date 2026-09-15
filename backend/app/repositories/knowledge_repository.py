@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Optional
+from aiomysql import DictCursor
 
 import structlog
 
@@ -51,57 +52,34 @@ async def get_document(doc_id: str, user_id: int) -> Optional[dict]:
     """获取文档详情，仅当文档属于该用户时返回。"""
     pool = get_mysql_pool()
     if pool is None:
-        return None
+        raise RuntimeError('Database unavailable')
     async with pool.acquire() as conn:
-        async with conn.cursor() as cur:
+        async with conn.cursor(DictCursor) as cur:
             await cur.execute(
-                "SELECT doc_id, user_id, file_name, file_type, file_size, status, "
-                "chunk_count, error_message, created_at "
-                "FROM kb_documents WHERE doc_id = %s AND user_id = %s",
+                "SELECT d.*,m.revision,m.index_version FROM kb_documents d LEFT JOIN kb_index_meta m ON d.doc_id=m.doc_id "
+                "WHERE d.doc_id = %s AND d.user_id = %s AND (m.active=1 OR m.doc_id IS NULL)",
                 (doc_id, user_id),
             )
             row = await cur.fetchone()
             if row is None:
                 return None
-            return {
-                "doc_id": row[0],
-                "user_id": row[1],
-                "file_name": row[2],
-                "file_type": row[3],
-                "file_size": row[4],
-                "status": row[5],
-                "chunk_count": row[6],
-                "error_message": row[7],
-                "created_at": row[8].strftime("%Y-%m-%d %H:%M:%S") if row[8] else "",
-            }
+            row['created_at'] = row['created_at'].strftime('%Y-%m-%d %H:%M:%S')
+            return row
 
 
 async def list_documents(user_id: int) -> list[dict]:
     pool = get_mysql_pool()
     if pool is None:
-        return []
+        raise RuntimeError('Database unavailable')
     async with pool.acquire() as conn:
-        async with conn.cursor() as cur:
+        async with conn.cursor(DictCursor) as cur:
             await cur.execute(
-                "SELECT doc_id, file_name, file_type, file_size, status, "
-                "chunk_count, error_message, created_at "
-                "FROM kb_documents WHERE user_id = %s ORDER BY created_at DESC",
+                "SELECT d.*,m.revision,m.index_version FROM kb_documents d LEFT JOIN kb_index_meta m ON d.doc_id=m.doc_id "
+                "WHERE d.user_id = %s AND (m.active=1 OR m.doc_id IS NULL) ORDER BY d.created_at DESC",
                 (user_id,),
             )
             rows = await cur.fetchall()
-            return [
-                {
-                    "doc_id": r[0],
-                    "file_name": r[1],
-                    "file_type": r[2],
-                    "file_size": r[3],
-                    "status": r[4],
-                    "chunk_count": r[5],
-                    "error_message": r[6],
-                    "created_at": r[7].strftime("%Y-%m-%d %H:%M:%S") if r[7] else "",
-                }
-                for r in rows
-            ]
+            return [{**row, 'created_at': row['created_at'].strftime('%Y-%m-%d %H:%M:%S')} for row in rows]
 
 
 async def count_documents(user_id: int) -> int:

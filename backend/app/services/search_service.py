@@ -24,36 +24,34 @@ def _build_agent():
     settings = get_settings()
 
     class _ToolLogger(AsyncCallbackHandler):
-        """记录每个工具调用的参数和结果"""
+        """Legacy adapter diagnostics; never record prompts, tool arguments or response text."""
 
         async def on_tool_start(self, serialized, input_str, *, run_id, **kwargs):
             tool_name = serialized.get("name", "unknown")
-            logger.info("tool_call_start", tool=tool_name, input=str(input_str)[:500])
+            logger.info("tool_call_start", tool=tool_name)
 
         async def on_tool_end(self, output, *, run_id, **kwargs):
-            logger.info("tool_call_end", output_length=len(str(output)), output_preview=str(output)[:500])
+            logger.info("tool_call_end", output_length=len(str(output)))
 
         async def on_tool_error(self, error, *, run_id, **kwargs):
-            logger.warning("tool_call_error", error=str(error)[:300])
+            logger.warning("tool_call_error", error_type=type(error).__name__)
 
         async def on_llm_start(self, serialized, prompts, *, run_id, **kwargs):
             logger.debug("llm_call_start", model=serialized.get("kwargs", {}).get("model", "unknown"))
 
         async def on_llm_end(self, response, *, run_id, **kwargs):
-            # 打印 LLM 返回的 tool_calls 决策
             try:
                 gen = response.generations[0][0]
                 msg = getattr(gen, "message", None)
                 if msg and getattr(msg, "tool_calls", None):
                     logger.info("llm_tool_decision", tool_calls=[
-                        {"name": tc["name"], "args": str(tc["args"])[:200]}
+                        {"name": tc["name"]}
                         for tc in msg.tool_calls
                     ])
                 else:
-                    content = getattr(msg, "content", "") if msg else str(gen)[:200]
-                    logger.debug("llm_call_end", content_preview=str(content)[:200])
+                    logger.debug("llm_call_end")
             except Exception:
-                logger.debug("llm_call_end", raw=str(response)[:200])
+                logger.debug("llm_call_end", diagnostic='unavailable')
 
     tool_logger = _ToolLogger()
 
@@ -92,6 +90,8 @@ def _build_agent():
         base_url=settings.deepseek_base_url,
         api_key=settings.deepseek_api_key,
         temperature=0.1,
+        max_retries=0,
+        timeout=20,
         callbacks=[tool_logger],
     )
 
@@ -125,7 +125,7 @@ async def fetch_knowledge_context(user_input: str) -> str:
         return ""
 
     try:
-        logger.info("search_agent_starting", user_input=user_input[:100])
+        logger.info("search_agent_starting", input_length=len(user_input))
 
         t0 = time.monotonic()
         agent, tool_logger = _build_agent()
@@ -142,7 +142,6 @@ async def fetch_knowledge_context(user_input: str) -> str:
         )
         elapsed = round((time.monotonic() - t1) * 1000)
 
-        # 打印 Agent 完整消息链路用于调试
         messages = result.get("messages", [])
         logger.info(
             "search_agent_completed",
@@ -152,13 +151,11 @@ async def fetch_knowledge_context(user_input: str) -> str:
         )
         for i, msg in enumerate(messages):
             msg_type = type(msg).__name__
-            content_preview = str(getattr(msg, "content", ""))[:200]
             tool_calls = getattr(msg, "tool_calls", None)
             logger.debug(
                 "search_agent_message",
                 index=i,
                 type=msg_type,
-                content_preview=content_preview,
                 tool_calls=len(tool_calls) if tool_calls else 0,
             )
 
@@ -178,8 +175,8 @@ async def fetch_knowledge_context(user_input: str) -> str:
 
     except asyncio.TimeoutError:
         elapsed = round((time.monotonic() - t1) * 1000) if 't1' in dir() else -1
-        logger.warning("search_agent_timeout", timeout=AGENT_TIMEOUT_SECONDS, elapsed_ms=elapsed, user_input=user_input[:100])
+        logger.warning("search_agent_timeout", timeout=AGENT_TIMEOUT_SECONDS, elapsed_ms=elapsed)
         return ""
     except Exception as e:
-        logger.warning("search_agent_error", error=str(e), error_type=type(e).__name__, user_input=user_input[:100])
+        logger.warning("search_agent_error", error_type=type(e).__name__)
         return ""

@@ -6,10 +6,80 @@ import json
 from typing import Optional
 
 import structlog
+from fastapi import HTTPException
 
 from app.core.db import get_mysql_pool
+from app.repositories.rag_index_repository import transaction
+from app.repositories import job_repository as jobs
 
 logger = structlog.get_logger()
+
+
+async def publish_generated_quiz(context, output):
+    """Lock source revisions before the job, matching index publication's lock order."""
+    async with transaction() as cur:
+        for doc_id, revision, version in sorted(context.payload['scope']):
+            await cur.execute('SELECT m.active,m.revision,m.index_version,d.status FROM kb_index_meta m '
+                              'JOIN kb_documents d ON d.doc_id=m.doc_id WHERE m.doc_id=%s AND m.user_id=%s AND d.user_id=%s FOR UPDATE',
+                              (doc_id, context.user_id, context.user_id))
+            meta = await cur.fetchone()
+            if (not meta or not meta['active'] or meta['revision'] != revision or meta['index_version'] != version
+                    or meta['status'] != 'ready'):
+                raise HTTPException(409, '材料版本已变化，未发布练习，请重新生成')
+        job = await jobs.running(cur, context.task_id, context.lease_token)
+        if job['kind'] != 'quiz' or job['user_id'] != context.user_id or job['payload_json'] != context.payload:
+            raise jobs.TaskLeaseLost()
+        quiz_id = 'quiz_' + context.task_id.removeprefix('job_')
+        await cur.execute('INSERT INTO quiz_sessions(quiz_id,user_id,title,summary,user_input,questions_json) VALUES(%s,%s,%s,%s,%s,%s)',
+                          (quiz_id, context.user_id, output.title, output.summary, context.payload['query'],
+                           json.dumps([q.model_dump() for q in output.questions], ensure_ascii=False)))
+        # Generic task APIs must never return answer-bearing question checkpoints.
+        source = (context.checkpoints.get('public_search') or {}).get('output') or {
+            'source_type': 'private_document' if context.payload['doc_ids'] else 'model_knowledge', 'sources': [],
+        }
+        await cur.execute('INSERT INTO quiz_source_context(quiz_id,user_id,context_json) VALUES(%s,%s,%s)',
+                          (quiz_id, context.user_id, json.dumps(source, ensure_ascii=False)))
+        result = {'quiz_id': quiz_id, 'title': output.title}
+        await jobs.publish_result(cur, job, result)
+        if context.payload.get('generate_images'):
+            from app.repositories import quiz_image_repository
+            await cur.execute('SAVEPOINT image_admission')
+            try:
+                await quiz_image_repository.attach(cur, context, quiz_id, output.questions)
+                await cur.execute('UPDATE quiz_sessions SET questions_json=%s WHERE quiz_id=%s AND user_id=%s',
+                                  (json.dumps([question.model_dump() for question in output.questions], ensure_ascii=False), quiz_id, context.user_id))
+                source['image_notice'] = f'已为前 {min(2, len(output.questions))} 题安排独立配图任务，文字练习可以先开始。'
+            except HTTPException as error:
+                if error.status_code != 429:
+                    raise
+                await cur.execute('ROLLBACK TO SAVEPOINT image_admission')
+                source['image_notice'] = '任务额度已用完，未安排配图；文字练习已保存。'
+            await cur.execute('UPDATE quiz_source_context SET context_json=%s WHERE quiz_id=%s AND user_id=%s',
+                              (json.dumps(source, ensure_ascii=False), quiz_id, context.user_id))
+        return result
+
+
+async def complete_quiz(quiz_id: str, user_id: int, records: list, score: dict, report: dict, context=None) -> dict:
+    async with transaction() as cur:
+        job = await jobs.running(cur, context.task_id, context.lease_token) if context else None
+        if job and (job['kind'] != 'report' or job['user_id'] != user_id or job['payload_json']['quiz_id'] != quiz_id):
+            raise jobs.TaskLeaseLost()
+        await cur.execute("SELECT quiz_id FROM quiz_sessions WHERE quiz_id=%s AND user_id=%s FOR UPDATE", (quiz_id, user_id))
+        if await cur.fetchone() is None:
+            raise HTTPException(404, "练习不存在")
+        await cur.execute("SELECT report_json FROM reports WHERE quiz_id=%s AND user_id=%s", (quiz_id, user_id))
+        previous = await cur.fetchone()
+        if previous:
+            report = json.loads(previous['report_json']) if isinstance(previous['report_json'], str) else previous['report_json']
+        else:
+            await cur.execute("INSERT INTO answer_records (quiz_id,user_id,records_json,total_questions,correct_count,accuracy) VALUES (%s,%s,%s,%s,%s,%s)",
+                              (quiz_id,user_id,json.dumps(records, ensure_ascii=False),score["total"],score["correct"],score["accuracy"]))
+            await cur.execute("INSERT INTO reports (quiz_id,user_id,report_json) VALUES (%s,%s,%s)",
+                              (quiz_id,user_id,json.dumps(report, ensure_ascii=False)))
+            await cur.execute("UPDATE users SET total_xp=total_xp+%s WHERE id=%s", (10 + score["correct"] * 2, user_id))
+        if job:
+            await jobs.publish_result(cur, job, report)
+        return report
 
 
 async def save_quiz_session(
@@ -22,7 +92,7 @@ async def save_quiz_session(
 ) -> None:
     pool = get_mysql_pool()
     if pool is None:
-        return
+        raise HTTPException(503, "学习记录暂时不可用")
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
             await cur.execute(
@@ -49,7 +119,7 @@ async def save_answer_record(
 ) -> None:
     pool = get_mysql_pool()
     if pool is None:
-        return
+        raise HTTPException(503, "学习记录暂时不可用")
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
             await cur.execute(
@@ -73,7 +143,7 @@ async def save_report(
 ) -> None:
     pool = get_mysql_pool()
     if pool is None:
-        return
+        raise HTTPException(503, "学习记录暂时不可用")
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
             await cur.execute(
@@ -202,5 +272,11 @@ async def get_quiz_detail(quiz_id: str, user_id: int) -> Optional[dict]:
             rp_row = await cur.fetchone()
             if rp_row:
                 result["report"] = json.loads(rp_row[0]) if isinstance(rp_row[0], str) else rp_row[0]
+
+            await cur.execute('SELECT context_json FROM quiz_source_context WHERE quiz_id=%s AND user_id=%s', (quiz_id, user_id))
+            source_row = await cur.fetchone()
+            if source_row:
+                result['source_context'] = json.loads(source_row[0]) if isinstance(source_row[0], str) else source_row[0]
+                result['image_notice'] = result['source_context'].get('image_notice')
 
             return result

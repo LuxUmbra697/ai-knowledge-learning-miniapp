@@ -1,275 +1,96 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
-import { View, Text, Image } from '@tarojs/components'
-import Taro, { useRouter } from '@tarojs/taro'
-import { generateReport, getQuizDetail, getCachedUser, setCachedUser } from '../../services/api'
-import type { QuizData, AnswerRecord, ReportData } from '../../services/api'
-import './index.scss'
-
-/** Bug 14: 根据正确率返回不同的评价话术 */
-function getHeadingByAccuracy(acc: number): string {
-  if (acc >= 100) return '🎉 满分通关，太厉害了！'
-  if (acc >= 80) return '💪 表现优秀，继续保持！'
-  if (acc >= 60) return '👍 你这局学得很稳'
-  if (acc >= 40) return '📚 有进步空间，加油！'
-  return '🌱 别灰心，下次会更好！'
-}
+import { useState, useRef } from 'react'
+import { View, Text, Button } from '@tarojs/components'
+import Taro, { useRouter, useDidShow, useDidHide } from '@tarojs/taro'
+import { getQuizDetail, generateReportAsync, getLearningTask, cancelLearningTask, getCachedUser, waitForLogin, getToken, QuizDetailResponse, ReportData, LearningTask } from '../../services/api'
+import { StudioShell, Notice, navigate } from '../../components/StudioShell'
+import { NotebookDialog } from '../../components/NotebookDialog'
+import LearningMap from '../../components/study-map/LearningMap'
+import { GradingFeedback } from '../../components/TextAnswer'
+import { PollControl, pollUntil } from '../../services/polling'
+import { taskPhase } from '../../services/taskDisplay'
+import { restorableReport, reportTaskMatches } from '../../services/reportSession'
 
 export default function ReportPage() {
   const router = useRouter()
-
-  // 路径 A：从闯关页传入完整数据
-  const fromQuiz = useMemo(() => {
+  const quizId = router.params.quizId || ''
+  const [quiz, setQuiz] = useState<QuizDetailResponse | null>(null), [report, setReport] = useState<ReportData | null>(null)
+  const [error, setError] = useState(''), [busy, setBusy] = useState(false)
+  const [notebookQuestion, setNotebookQuestion] = useState('')
+  const [task, setTask] = useState<LearningTask | null>(null)
+  const lock = useRef(false), live = useRef(true), control = useRef<PollControl>()
+  const storageKey = () => `ai-learn:v1:report:${getCachedUser()?.id}:${quizId}`
+  const runTask = async (pending: { key: string; taskId?: string }) => {
+    if (lock.current) return
+    lock.current = true; setBusy(true); setError('')
+    const current = new PollControl(); control.current = current
+    const key = storageKey()
+    Taro.setStorageSync(key, pending)
     try {
-      const qd = router.params.quizData
-        ? JSON.parse(decodeURIComponent(router.params.quizData))
-        : null
-      const ar = router.params.answerRecords
-        ? JSON.parse(decodeURIComponent(router.params.answerRecords))
-        : []
-      return { quizData: qd as QuizData | null, answerRecords: ar as AnswerRecord[] }
-    } catch {
-      return { quizData: null, answerRecords: [] }
-    }
-  }, [router.params])
-
-  // 路径 B：从历史记录进入（只有 quizId）
-  const quizIdFromHistory = router.params.quizId || ''
-
-  const [quizData, setQuizData] = useState<QuizData | null>(fromQuiz.quizData)
-  const [answerRecords, setAnswerRecords] = useState<AnswerRecord[]>(fromQuiz.answerRecords)
-  const [report, setReport] = useState<ReportData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [xpGain, setXpGain] = useState<number | null>(null)
-  const loadedRef = useRef(false)
-
-  // 本地计算基础统计
-  const localAccuracy = useMemo(() => {
-    if (answerRecords.length === 0) return 0
-    const correct = answerRecords.filter((r) => r.is_correct).length
-    return Math.round((correct / answerRecords.length) * 100)
-  }, [answerRecords])
-
-  useEffect(() => {
-    // 防止重复加载（Bug 17 修复）
-    if (loadedRef.current) return
-    loadedRef.current = true
-
-    // 路径 B：从历史进入，通过 API 获取所有数据
-    if (quizIdFromHistory && !fromQuiz.quizData) {
-      getQuizDetail(quizIdFromHistory)
-        .then((detail) => {
-          setQuizData({
-            quiz_id: detail.quiz_id,
-            title: detail.title,
-            summary: detail.summary,
-            questions: detail.questions as any,
-          })
-          if (detail.answer_records) setAnswerRecords(detail.answer_records)
-          if (detail.report) setReport(detail.report as any)
-        })
-        .catch(() => {})
-        .finally(() => setLoading(false))
-      return
-    }
-
-    // 路径 A：从闯关页进入，调用 AI 生成报告
-    if (!fromQuiz.quizData) {
-      setLoading(false)
-      return
-    }
-
-    const fetchReport = async () => {
-      try {
-        const data = await generateReport({
-          quiz_id: fromQuiz.quizData!.quiz_id,
-          topic: fromQuiz.quizData!.title,
-          questions: fromQuiz.quizData!.questions,
-          answer_records: fromQuiz.answerRecords,
-        })
-        setReport(data)
-
-        // 计算 XP 增量并刷新缓存
-        const correctCount = fromQuiz.answerRecords.filter((r) => r.is_correct).length
-        const gained = 10 + correctCount * 2
-        setXpGain(gained)
-        const cached = getCachedUser()
-        if (cached) {
-          cached.total_xp += gained
-          setCachedUser(cached)
-        }
-      } catch {
-        setReport(null)
-      } finally {
-        setLoading(false)
+      if (!pending.taskId) {
+        const created = await generateReportAsync(quizId, pending.key, current)
+        pending = { ...pending, taskId: created.task_id }
+        Taro.setStorageSync(key, pending)
       }
-    }
-
-    fetchReport()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  const accuracy = report?.accuracy ?? localAccuracy
-
-  const handleGoHome = () => {
-    Taro.switchTab({ url: '/pages/index/index' })
+      const result = await pollUntil(() => getLearningTask(pending.taskId!, current), update => {
+        if (!reportTaskMatches(update, quizId)) {
+          Taro.removeStorageSync(key)
+          throw new Error('任务不属于这份学习报告，请从任务记录重新进入')
+        }
+        if (live.current) setTask(update)
+        if (update.status === 'failed' || update.status === 'cancelled') {
+          Taro.removeStorageSync(key)
+          throw new Error(update.error_message || '报告任务已取消，作答记录仍然保留')
+        }
+        return update.status === 'completed'
+      }, { control: current, intervalMs: 2000, maxAttempts: 150 })
+      if (live.current) setReport(result.result)
+      Taro.removeStorageSync(key)
+    } catch (reason) { if (live.current && !current.cancelled) setError(reason instanceof Error ? reason.message : '报告任务读取失败') }
+    finally { if (control.current === current) { lock.current = false; if (live.current) setBusy(false) } }
   }
-
-  const handleGeneratePoster = () => {
-    Taro.showToast({ title: '海报功能开发中', icon: 'none' })
+  const load = async () => {
+    await waitForLogin()
+    if (!getToken()) { navigate('/pages/login/index'); return }
+    try {
+      const result = await getQuizDetail(quizId)
+      if (!live.current) return
+      setQuiz(result); setReport(result.report || null); setError('')
+      const pending = restorableReport(router.params.taskId, Taro.getStorageSync(storageKey()))
+      if (!result.report && pending) await runTask(pending)
+      if (result.report) Taro.removeStorageSync(storageKey())
+    } catch (reason) { if (live.current) setError(reason instanceof Error ? reason.message : '读取报告失败') }
   }
-
-  return (
-    <View className='report-page'>
-      {/* 顶部栏 */}
-      <View className='report-toolbar'>
-        <Text className='toolbar-title'>{quizData?.title || '闯关报告'}</Text>
-        {xpGain !== null && (
-          <View className='xp-badge'>
-            <Text className='xp-text'>+{xpGain} XP</Text>
-          </View>
-        )}
-      </View>
-
-      {/* 主标题 — Bug 14: 根据正确率动态评价 */}
-      <Text className='report-heading'>{getHeadingByAccuracy(accuracy)}</Text>
-      <Text className='report-subtitle'>先看结果，再看错因，最后给你下一步建议。</Text>
-
-      {/* 标签 — Bug 16: 绿色表示掌握度，红色表示错题 */}
-      <View className='tag-row'>
-        <View className='tag tag-green'>
-          <Text>✅ 答对 {answerRecords.filter((r) => r.is_correct).length} 题</Text>
-        </View>
-        <View className='tag tag-red'>
-          <Text>❌ 答错 {answerRecords.filter((r) => !r.is_correct).length} 题</Text>
-        </View>
-      </View>
-
-      {loading ? (
-        <View className='loading-state'>
-          <Text>AI 正在生成报告...</Text>
-        </View>
-      ) : (
-        <>
-          {/* 掌握度卡片 */}
-          <View className='note-card'>
-            <Text className='card-title'>🕐 掌握度</Text>
-            <View className='mastery-row'>
-              <View className='mastery-ring'>
-                <View
-                  className='ring-outer-large'
-                  style={{
-                    background: `conic-gradient(#ff7a2f 0 ${accuracy}%, #ece7de ${accuracy}% 100%)`,
-                  }}
-                >
-                  <View className='ring-inner-large'>
-                    <Text className='ring-value'>{accuracy}%</Text>
-                  </View>
-                </View>
-              </View>
-              <View className='mastery-detail'>
-                <Text className='mastery-desc'>
-                  {report?.three_line_summary?.[0] ||
-                    `本次答对 ${answerRecords.filter((r) => r.is_correct).length} 题，正确率 ${accuracy}%`}
-                </Text>
-                <View className='mastery-bar'>
-                  <View className='mastery-fill' style={{ width: `${accuracy}%` }} />
-                </View>
-              </View>
-            </View>
-          </View>
-
-          {/* 薄弱知识点 */}
-          {report?.weak_points && report.weak_points.length > 0 && (
-            <View className='note-card'>
-              <Text className='card-title'>⚠ 最该补的 {report.weak_points.length} 点</Text>
-              <View className='weak-list'>
-                {report.weak_points.map((point, i) => (
-                  <Text key={i} className='weak-item'>
-                    {i + 1}. {point}
-                  </Text>
-                ))}
-              </View>
-            </View>
-          )}
-
-          {/* 知识总结 */}
-          {report?.three_line_summary && (
-            <View className='note-card'>
-              <Text className='card-title'>📝 知识总结</Text>
-              <View className='summary-list'>
-                {report.three_line_summary.map((line, i) => (
-                  <Text key={i} className='summary-item'>
-                    {line}
-                  </Text>
-                ))}
-              </View>
-            </View>
-          )}
-
-          {/* 建议 */}
-          {report?.advice && report.advice.length > 0 && (
-            <View className='note-card'>
-              <Text className='card-title'>💡 建议</Text>
-              <View className='advice-list'>
-                {report.advice.map((item, i) => (
-                  <Text key={i} className='advice-item'>
-                    • {item}
-                  </Text>
-                ))}
-              </View>
-            </View>
-          )}
-
-          {/* 分享海报 */}
-          <View className='sticker-card'>
-            <Text className='card-title'>🔗 分享海报</Text>
-            <View className='poster-preview'>
-              <Text className='poster-quote'>
-                {report?.share_quote || '今天我又闯过一个知识关卡！'}
-              </Text>
-              <View className='poster-qr' />
-            </View>
-          </View>
-
-          {/* 题目回顾（含 AI 配图，历史回看时也可查看） */}
-          {quizData?.questions && quizData.questions.length > 0 && (
-            <View className='note-card'>
-              <Text className='card-title'>📖 题目回顾</Text>
-              <View className='review-list'>
-                {quizData.questions.map((q, i) => {
-                  const record = answerRecords.find((r) => r.question_id === q.id)
-                  return (
-                    <View key={q.id} className='review-item'>
-                      <Text className='review-stem'>
-                        {i + 1}. {q.stem}
-                      </Text>
-                      {q.image_url && (
-                        <Image className='review-image' src={q.image_url} mode='aspectFit' />
-                      )}
-                      {record && (
-                        <Text className={`review-result ${record.is_correct ? 'is-correct' : 'is-wrong'}`}>
-                          {record.is_correct ? '✓ 答对了' : '✗ 答错了'}
-                        </Text>
-                      )}
-                      <Text className='review-explanation'>{q.explanation}</Text>
-                    </View>
-                  )
-                })}
-              </View>
-            </View>
-          )}
-        </>
-      )}
-
-      {/* 底部按钮 */}
-      <View className='bottom-actions'>
-        <View className='btn-primary action-btn' onClick={handleGoHome}>
-          <Text>再来一组</Text>
-        </View>
-        <View className='btn-secondary action-btn' onClick={handleGeneratePoster}>
-          <Text>生成海报</Text>
-        </View>
-      </View>
-    </View>
-  )
+  useDidShow(() => { live.current = true; load() })
+  useDidHide(() => { live.current = false; control.current?.cancel(); control.current = undefined; lock.current = false })
+  const records = quiz?.answer_records || [], correct = records.filter(r => r.is_correct).length
+  const complete = !!quiz?.questions.length && records.length === quiz.questions.length
+  const generate = async () => {
+    if (lock.current || !quiz || !complete) return
+    const pending = restorableReport(undefined, Taro.getStorageSync(storageKey()))
+    await runTask(pending || { key: `report_${Date.now()}_${Math.random().toString(36).slice(2)}` })
+  }
+  const cancel = async () => {
+    if (!task || !busy) return
+    const confirmed = await Taro.showModal({ title: '取消报告', content: '作答记录不会删除。已经开始的模型调用可能仍产生费用。' })
+    if (!confirmed.confirm) return
+    try { await cancelLearningTask(task.task_id) }
+    catch (reason) { if (live.current) setError(reason instanceof Error ? reason.message : '取消失败，请稍后重试') }
+  }
+  return <StudioShell title='这一程的学习收获' subtitle={quiz?.title || '学习报告'} focus={busy}>
+    {notebookQuestion && <NotebookDialog target={{ quizId, questionId: notebookQuestion }} onClose={() => setNotebookQuestion('')} />}
+    {error && <Notice message={error} retry={load} />}
+    {!quiz && !error && <Text className='muted'>正在读取作答记录</Text>}
+    {quiz && <>
+      <QuizSources source={quiz.source_context} />
+      <View className='stats-row'><View className='stat'><Text className='muted'>已提交</Text><Text className='stat-number'>{records.length}/{quiz.questions.length}</Text></View><View className='stat'><Text className='muted'>答对题数</Text><Text className='stat-number'>{correct}</Text></View><View className='stat'><Text className='muted'>本次正确率</Text><Text className='stat-number'>{records.length ? `${Math.round(correct / records.length * 100)}%` : '暂无'}</Text></View></View>
+      {!complete && <View className='notice'><Text>练习尚未完成，完成后可生成学习报告。</Text><Button className='text-button' onClick={() => Taro.navigateTo({ url: `/pages/quiz/index?quizId=${quizId}` })}>继续作答</Button></View>}
+      {complete && !report && <View className='section-band report-actions'><Button className='primary-button' disabled={busy} onClick={generate}>{busy ? taskPhase(task?.stage || 'queued') : '生成学习报告'}</Button>{busy && task && <Button className='text-button' onClick={cancel}>取消报告</Button>}</View>}
+      {task && <View className='report-task'><Text className='muted'>任务：{taskPhase(task.stage)} · 外部调用 {task.trace.model_calls} 次</Text><Button className='text-button' onClick={() => Taro.navigateTo({ url: '/learning/tasks/index' })}>查看执行记录</Button></View>}
+      {report && <><Text className='section-title'>本次总结</Text><View className='report-list'>{report.three_line_summary.map((line, i) => <Text key={i}>{line}</Text>)}</View><Text className='section-title'>需要巩固的知识点</Text><View className='report-list'>{report.weak_points.length ? report.weak_points.map((line, i) => <Text key={i}>{line}</Text>) : <Text className='muted'>{correct === records.length ? '本次练习未发现错误，后续复习仍有助于保持记忆。' : '报告尚未归纳薄弱点，请结合下方错题解析复习。'}</Text>}</View><Text className='section-title'>下一步建议</Text><View className='report-list'>{report.advice.map((line, i) => <Text key={i}>{line}</Text>)}</View></>}
+      {complete && <LearningMap quizId={quizId} />}
+      <Text className='section-title'>作答与解析</Text>{quiz.questions.map((q, i) => { const record = records.find(r => r.question_id === q.id); return <View className='report-question' key={q.id}><Text className='row-title'>{i + 1}. {q.stem}</Text><Text className='muted'>{record ? `你的作答：${record.selected_answers.join('、')} · ${record.is_correct ? '正确' : '需巩固'}` : '尚未提交'}</Text>{record && <><View className='answer-explanation'><Text className='muted'>参考答案：{q.answer?.join('、')}</Text><Text>{q.explanation}</Text></View><GradingFeedback record={record} /></>}{record && !record.is_correct && <Button className='secondary-button' onClick={() => setNotebookQuestion(q.id)}>加入错题本</Button>}</View> })}
+    </>}
+    <Button className='secondary-button' onClick={() => navigate('/pages/index/index')}>返回学习首页</Button>
+  </StudioShell>
 }
+import { QuizSources } from '../../components/QuizSources'

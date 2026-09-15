@@ -1,0 +1,22 @@
+{
+  "recorded_at": "2026-09-15T18:00:10.705Z",
+  "environment": "Chromium + actual API, MySQL and worker",
+  "data_source": "Explicit synthetic held checkpoints",
+  "provider_calls": 0,
+  "checks": [
+    "create_session",
+    "cancel_first_turn",
+    "lost_post_response",
+    "refresh_recovery",
+    "exactly_one_guiding_question",
+    "owned_source_navigation",
+    "two_persisted_turns",
+    "bounded_memory",
+    "declined_paid_practice_does_not_execute",
+    "mobile_and_desktop_bounds",
+    "no_browser_errors"
+  ],
+  "limitations": [
+    "No native runtime or real student effectiveness claim"
+  ]
+}

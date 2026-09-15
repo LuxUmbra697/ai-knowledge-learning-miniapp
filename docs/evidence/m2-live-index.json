@@ -1,0 +1,35 @@
+{
+  "recorded_at": "2026-09-12T20:32:52.854789+00:00",
+  "environment": "isolated loopback API/MySQL/Chroma",
+  "source": "synthetic authored teaching material",
+  "checks": [
+    "markdown_parsing_embedding_index_ready",
+    "duplicate_reuses_document_without_embedding",
+    "hybrid_rerank_and_exact_citation_round_trip",
+    "cross_user_document_citation_retrieve_delete_blocked",
+    "reindex_invalidates_previous_revision_citations",
+    "deleted_document_rejected_before_retrieval"
+  ],
+  "passed": 6,
+  "elapsed_seconds": 11.6,
+  "retrieval_trace": {
+    "trace_id": "76641b685a484759b3226f2d9e9de71e",
+    "index_version": "54c7a2d7b912062b",
+    "mode": "rerank",
+    "scope_documents": 2,
+    "corpus_chunks": 5,
+    "candidates": 20,
+    "rrf_k": 60,
+    "reranker": "lexical",
+    "embedding_calls": 1,
+    "dense_error": null,
+    "dense_ms": 230.76,
+    "rerank_ms": 0.1,
+    "dense_candidates": 5,
+    "bm25_candidates": 5,
+    "total_ms": 235.42
+  },
+  "embedding_request_upper_bound": 4,
+  "chat_requests": 0,
+  "billed_currency": null
+}

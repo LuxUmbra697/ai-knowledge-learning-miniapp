@@ -1,0 +1,58 @@
+{
+  "recorded_at": "2026-09-15T05:58:29.933476+00:00",
+  "data_source": "Public plant biology topic; no private document",
+  "max_text_calls": 3,
+  "max_image_calls": 1,
+  "currency_cost": null,
+  "checks": [
+    "text_committed_with_hidden_answer_and_owned_asset",
+    "image_hidden_until_server_scored_submission",
+    "separate_durable_image_job",
+    "one_paid_image_call",
+    "private_signed_jpeg_200",
+    "unsigned_object_403",
+    "other_user_404",
+    "bounded_pixel_and_byte_dimensions"
+  ],
+  "limitations": [
+    "Integration smoke, not scientific image correctness evaluation",
+    "Currency billing unavailable",
+    "No native device verification"
+  ],
+  "text_trace": {
+    "nodes": [
+      {
+        "stage": "quiz_sources",
+        "duration_ms": 0.04
+      },
+      {
+        "stage": "quiz_validated",
+        "duration_ms": 4214.28
+      }
+    ],
+    "tokens": 869,
+    "trace_id": "927fc02721b34f71a3430f928c1c0d83",
+    "input_bytes": 2483,
+    "model_calls": 1
+  },
+  "image_trace": {
+    "nodes": [
+      {
+        "stage": "image_saved_1",
+        "duration_ms": 4267.03
+      }
+    ],
+    "tokens": 0,
+    "trace_id": "b5a1bc1de0484dfea1ffe9c05cdd94fd",
+    "input_bytes": 436,
+    "model_calls": 1,
+    "unmetered_calls": 1
+  },
+  "image": {
+    "width": 512,
+    "height": 512,
+    "size_bytes": 29573
+  },
+  "status": "passed",
+  "elapsed_ms": 10811
+}
