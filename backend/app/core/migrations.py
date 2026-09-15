@@ -189,6 +189,26 @@ MIGRATIONS = {
             CONSTRAINT fk_tutor_turn_owner FOREIGN KEY(session_id,user_id) REFERENCES tutor_sessions(session_id,user_id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci""",
     ],
+    15: [
+        """CREATE TABLE IF NOT EXISTS learning_path_settings (
+            user_id BIGINT UNSIGNED NOT NULL PRIMARY KEY, version INT NOT NULL DEFAULT 1,
+            edges_json JSON NOT NULL, updated_at DATETIME(6) NOT NULL,
+            CONSTRAINT fk_path_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci""",
+        """CREATE TABLE IF NOT EXISTS learning_plans (
+            plan_id VARCHAR(64) NOT NULL PRIMARY KEY, user_id BIGINT UNSIGNED NOT NULL,
+            creation_key VARCHAR(100) NOT NULL, request_hash CHAR(64) NOT NULL,
+            plan_json JSON NOT NULL, created_at DATETIME(6) NOT NULL,
+            UNIQUE KEY idx_plan_request(user_id,creation_key), UNIQUE KEY idx_plan_owner(plan_id,user_id),
+            KEY idx_plan_recent(user_id,created_at),
+            CONSTRAINT fk_plan_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci""",
+        """CREATE TABLE IF NOT EXISTS learning_plan_checks (
+            plan_id VARCHAR(64) NOT NULL, user_id BIGINT UNSIGNED NOT NULL, item_id VARCHAR(100) NOT NULL,
+            created_at DATETIME(6) NOT NULL, PRIMARY KEY(plan_id,user_id,item_id),
+            CONSTRAINT fk_plan_check_owner FOREIGN KEY(plan_id,user_id) REFERENCES learning_plans(plan_id,user_id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci""",
+    ],
 }
 
 

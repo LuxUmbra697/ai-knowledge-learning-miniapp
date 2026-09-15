@@ -17,6 +17,8 @@ const icons: Record<string, string> = {
   refresh: require('../assets/icons/rotate-cw.png'),
   clock: require('../assets/icons/clock-3.png'),
   sparkle: require('../assets/icons/sparkles.png'),
+  add: require('../assets/icons/plus.png'),
+  trash: require('../assets/icons/trash-2.png'),
 }
 
 export function Icon({ name, size = 20 }: { name: string; size?: number }) {

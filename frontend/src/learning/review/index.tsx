@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { View, Text, Button, Picker } from '@tarojs/components'
-import Taro, { useDidShow, useDidHide } from '@tarojs/taro'
+import Taro, { useDidShow, useDidHide, useRouter } from '@tarojs/taro'
+import { request } from '../../services/api'
 import { StudioShell, Notice, Empty, navigate } from '../../components/StudioShell'
 import { Icon } from '../../components/Icon'
 import { TextAnswer, GradingFeedback, answerComplete } from '../../components/TextAnswer'
@@ -17,6 +18,7 @@ const causeKeys = [null, 'concept_confusion', 'missing_prerequisite', 'careless'
 const dateText = (value: string) => { const date = new Date(value); return `${date.getMonth() + 1}月${date.getDate()}日 ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}` }
 
 export default function ReviewPage() {
+  const router = useRouter(), routedOnce = useRef(false)
   const [mode, setMode] = useState('due'), [summary, setSummary] = useState<LearningSummary | null>(null)
   const [items, setItems] = useState<ReviewCard[]>([]), [active, setActive] = useState<ReviewCard | null>(null)
   const [result, setResult] = useState<ReviewResult | null>(null), [selected, setSelected] = useState<string[]>([])
@@ -43,9 +45,15 @@ export default function ReviewPage() {
       if (!live.current || current.cancelled) return
       setSummary(state); setItems(list.items); setBooks(available.items); setError('')
       const saved = Taro.getStorageSync(key())
-      if (saved && /^card_[a-f0-9]{32}$/.test(saved.cardId) && Number.isSafeInteger(saved.version) && saved.version >= 1) {
+      if (saved && (!router.params.cardId || saved.cardId === router.params.cardId) && /^card_[a-f0-9]{32}$/.test(saved.cardId) && Number.isSafeInteger(saved.version) && saved.version >= 1) {
         const restored = Array.isArray(saved.answers) ? saved.written ? await submitWrittenReview(saved.cardId, saved.version, saved.answers, current) : await submitReview(saved.cardId, saved.version, saved.answers, current) : await getReviewResult(saved.cardId, saved.version, current)
         accept(restored, saved.version)
+      } else if (router.params.cardId && !routedOnce.current) {
+        const target = await request<ReviewCard>(`/learning/cards/${encodeURIComponent(router.params.cardId)}`, { control: current })
+        if (!live.current || current.cancelled) return
+        routedOnce.current = true
+        if (Date.parse(target.due_at) > Date.now()) setError('这项复习尚未到期，可以先回看原练习解析。')
+        else { setActive(target); setResult(null); setSelected([]) }
       }
     } catch (reason) {
       if (reason instanceof ApiError && [404, 409, 422].includes(reason.statusCode)) Taro.removeStorageSync(key())

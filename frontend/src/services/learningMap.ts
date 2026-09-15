@@ -3,10 +3,10 @@ export interface MapNode {
   state?: 'neutral' | 'correct' | 'wrong'; question_id?: string | null
   doc_id?: string | null; chunk_id?: string | null; revision?: number | null
 }
-export interface MapEdge { source: string; target: string; relation: 'contains' | 'assesses' | 'supported_by' }
+export interface MapEdge { source: string; target: string; relation: 'contains' | 'assesses' | 'supported_by' | 'precedes' }
 export interface StudyMap { version: 'study-map-v1'; source_hash: string; mapping_basis: string; nodes: MapNode[]; edges: MapEdge[] }
 export type MapMode = 'outline' | 'network' | 'wrong'
-export const edgeLabels = { contains: '包含', assesses: '考查', supported_by: '原文支持' }
+export const edgeLabels = { contains: '包含', assesses: '考查', supported_by: '原文支持', precedes: '前置于' }
 
 export function checkedMap(value: StudyMap): StudyMap {
   if (value?.version !== 'study-map-v1' || !Array.isArray(value.nodes) || !Array.isArray(value.edges) || value.nodes.length > 121 || value.edges.length > 180) throw new Error('梳理图格式无效')

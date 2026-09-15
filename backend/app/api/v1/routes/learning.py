@@ -5,13 +5,56 @@ from fastapi import APIRouter, Depends, Header, Query
 
 from app.core.auth import get_current_user
 from app.models.common import ApiResponse
+from app.models.learning_path import PathUpdate, PlanConfirm
 from app.models.tutor import TutorCreate, TutorPracticeConfirm, TutorTurn
 from app.repositories import tutor_repository
+from app.services import learning_path_service as planning
 from app.services import learning_state_service as service
 from app.services import notebook_service as books
 from app.services import tutor_service as tutor
 
 router = APIRouter(prefix='/learning', tags=['learning'])
+
+
+@router.get('/path')
+async def learning_path(user_id: int = Depends(get_current_user)):
+    return ApiResponse.success(data=await planning.get_path(user_id))
+
+
+@router.put('/path')
+async def set_learning_path(req: PathUpdate, user_id: int = Depends(get_current_user)):
+    return ApiResponse.success(data=await planning.update_path(user_id, req))
+
+
+@router.get('/plans/preview')
+async def preview_plan(minutes: int = Query(15, ge=5, le=60), timezone: str = Query('Asia/Shanghai', max_length=64), user_id: int = Depends(get_current_user)):
+    return ApiResponse.success(data=await planning.preview(user_id, minutes, timezone))
+
+
+@router.get('/plans')
+async def plans(user_id: int = Depends(get_current_user)):
+    return ApiResponse.success(data={'items': await planning.list_plans(user_id)})
+
+
+@router.post('/plans')
+async def confirm_plan(req: PlanConfirm, user_id: int = Depends(get_current_user), idempotency_key: str | None = Header(default=None)):
+    return ApiResponse.success(data=await planning.confirm(user_id, req, idempotency_key))
+
+
+@router.get('/plans/{plan_id}')
+async def plan_detail(plan_id: str, user_id: int = Depends(get_current_user)):
+    return ApiResponse.success(data=await planning.detail(plan_id, user_id))
+
+
+@router.put('/plans/{plan_id}/read/{item_id}')
+async def plan_read(plan_id: str, item_id: str, user_id: int = Depends(get_current_user)):
+    await planning.mark_read(plan_id, user_id, item_id)
+    return ApiResponse.success()
+
+
+@router.get('/cards/{card_id}')
+async def card_detail(card_id: str, user_id: int = Depends(get_current_user)):
+    return ApiResponse.success(data=(await service.cards(user_id, 'all', card_id=card_id))[0])
 
 
 @router.get('/tutor/context')

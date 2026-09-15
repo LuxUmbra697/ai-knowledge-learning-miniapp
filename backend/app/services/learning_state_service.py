@@ -111,13 +111,14 @@ async def summary(user_id, zone_name='Asia/Shanghai'):
             'cold_start': 'Default, unpersonalized parameters. Repeated questions are correlated; estimates are not exam scores.'}
 
 
-async def cards(user_id, mode='due', notebook_id=None):
+async def cards(user_id, mode='due', notebook_id=None, card_id=None):
     from app.services.grading_service import public_quiz
     clauses = {'due': ' AND c.due_at<=%s', 'wrong': ' AND c.wrong_count>0', 'favorites': ' AND c.favorite=1', 'all': ''}
     if mode not in clauses:
         raise HTTPException(422, '复习列表类型无效')
     args = (user_id, user_id, sql_time(utcnow())) if mode == 'due' else (user_id, user_id)
     notebook_clause = ''
+    card_clause = ''
     async with transaction() as cur:
         if notebook_id:
             await cur.execute('SELECT notebook_id FROM learning_notebooks WHERE notebook_id=%s AND user_id=%s', (notebook_id, user_id))
@@ -125,9 +126,12 @@ async def cards(user_id, mode='due', notebook_id=None):
                 raise HTTPException(404, '错题本不存在')
             notebook_clause = ' AND EXISTS(SELECT 1 FROM learning_notebook_items i WHERE i.notebook_id=%s AND i.user_id=c.user_id AND i.quiz_id=c.quiz_id AND i.question_id=c.question_id)'
             args = (*args, notebook_id)
+        if card_id:
+            card_clause = ' AND c.card_id=%s'
+            args = (*args, card_id)
         await cur.execute('SELECT c.*,q.questions_json,p.label,p.mastery,p.attempts,p.mapping_confidence FROM learning_cards c '
                           'JOIN quiz_sessions q ON c.quiz_id=q.quiz_id JOIN learning_concepts p ON c.user_id=p.user_id AND c.concept_id=p.concept_id '
-                          'WHERE c.user_id=%s AND q.user_id=%s' + clauses[mode] + notebook_clause + ' ORDER BY c.due_at,c.card_id LIMIT 50', args)
+                          'WHERE c.user_id=%s AND q.user_id=%s' + clauses[mode] + notebook_clause + card_clause + ' ORDER BY c.due_at,c.card_id LIMIT 50', args)
         rows = await cur.fetchall()
     result = []
     for row in rows:
@@ -135,6 +139,8 @@ async def cards(user_id, mode='due', notebook_id=None):
         if question:
             result.append({key: row[key] for key in ('card_id', 'quiz_id', 'version', 'diagnosis', 'wrong_count', 'label', 'mastery', 'attempts', 'mapping_confidence')} |
                           {'favorite': bool(row['favorite']), 'last_correct': bool(row['last_correct']), 'due_at': iso(row['due_at']), 'question': public_quiz({'questions': [question]})['questions'][0]})
+    if card_id and not result:
+        raise HTTPException(404, '复习记录不存在')
     return result
 
 

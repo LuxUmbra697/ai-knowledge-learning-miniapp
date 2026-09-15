@@ -3,6 +3,7 @@ page, body { margin: 0; background: #fcfbfc; font-family: 'PingFang SC', 'Micros
 .studio taro-button-core::after { border: 0; }
 .studio .studio-icon img { width: 100%; height: 100%; object-fit: contain; position: static; transform: none; display: block; }
 .studio .secondary-button, .studio .answer-option { color: var(--ink); }
+.studio taro-button-core.text-button[disabled] { color: var(--accent); }
 .studio .studio-textarea .taro-textarea, .studio .studio-input .weui-input { background: transparent; color: var(--ink); }
 .studio .studio-textarea .taro-textarea { width: 100%; min-height: 88px; resize: vertical; }
 .has-companion .page-heading { padding-right: 84px; min-height: 96px; }
@@ -189,3 +190,19 @@ button:disabled { opacity: .55; cursor: default; }
 .mastery-track { height: 7px; background: var(--line); margin: 14px 0; }.mastery-track > view, .mastery-track > taro-view-core { height: 100%; background: var(--accent); }
 .next-review { font-weight: 600; color: var(--accent); }.learning-progress > .muted { display: block; margin-top: 12px; }
 @media (max-width: 600px) { .learning-trend { grid-template-columns: repeat(7, minmax(0, 1fr)); row-gap: 20px; } }
+.path-plan, .path-relations, .path-history { max-width: 860px; }
+.path-plan { padding-top: 16px; }
+.path-plan > .muted { display: block; margin: 12px 0; }
+.plan-item { padding: 20px 0; border-bottom: 1px solid var(--line); }
+.plan-item .section-title { font-size: 18px; overflow-wrap: anywhere; }
+.plan-item .tag { flex-shrink: 0; }
+.plan-item .document-actions { margin-top: 14px; }
+.plan-complete { display: flex; align-items: center; gap: 8px; color: var(--ink); }
+.path-blocked { padding: 20px 0; display: grid; gap: 10px; }
+.path-edge-editor { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 12px; align-items: center; padding: 20px 0; }
+.path-edge-editor > .secondary-button { grid-column: 2; }
+.path-edge-editor .secondary-button { width: 100%; box-sizing: border-box; white-space: normal; overflow-wrap: anywhere; }
+.path-edge { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.path-edge > span { overflow-wrap: anywhere; }
+.path-outline { margin-top: 20px; }
+.path-node { display: flex; flex-direction: column; gap: 6px; padding: 12px 0; border-bottom: 1px solid var(--line); }

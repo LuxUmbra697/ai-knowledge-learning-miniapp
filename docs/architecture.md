@@ -126,7 +126,9 @@ FSRS schedules are transactional. Named error notebooks require explicit collect
 replace the underlying wrong-answer history. See [assessment](practice-and-assessment.md),
 [learning algorithms](learning-algorithms.md), [review maps](study-maps.md) and the
 [executed synthetic fitting experiment](algorithm-experiments.md). Review relationship maps are
-not inferred prerequisite graphs; prerequisite planning remains a separate module.
+not inferred prerequisite graphs. [Learning paths](learning-paths.md) store explicitly user-set
+prerequisite edges and immutable confirmed plans; their deterministic recommendation policy is
+separate from BKT mastery estimation and FSRS scheduling.
 
 ## Current Limitations
 

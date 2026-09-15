@@ -11,10 +11,39 @@ This ledger records observed results; planned capabilities are not delivery clai
 | M1 | Taro H5/weapp, separate outputs, independent login, five themes | H5 core flow passed; native runtime gate pending | `frontend/e2e`; `screenshots/h5`; DevTools service port unavailable |
 | M2 | Bounded parsing, scoped hybrid retrieval, citations, 100-case evaluation | Retrieval/citation checkpoint verified; remaining gates below | 104 synthetic cases; real index and answer evidence; dual builds |
 | M3 | Bounded learning agent, durable worker, cancellation/recovery | Index, retrieval, answer, report, practice, images and bounded tutoring graph verified locally | MySQL recovery/cancellation tests, real model tasks, H5 history and tutor traces |
-| M4 | Mastery, FSRS, prerequisites, reproducible offline experiment | FSRS/BKT, review, named notebooks, maps and synthetic fitting experiment verified locally; prerequisite planning pending | Owned atomic learning events, DB/H5 tests, `eval/learning` raw experiment |
+| M4 | Mastery, FSRS, prerequisites, reproducible offline experiment | FSRS/BKT, review, notebooks, maps, confirmed prerequisite plans and synthetic fitting experiment verified locally | Owned atomic learning events, DB/H5 tests, `eval/learning` raw experiment |
 | M5 | Browser and DevTools workflows, screenshots, regression | In progress alongside each module | Actual H5 screenshots exist; no weapp screenshots claimed |
 | M6 | New deployment plus all existing sites healthy | Pending | No gateway mutations |
 | M7 | Bilingual README, documentation, private handoff, GitHub and CI | Pending | Remote history verified |
+
+## Prerequisite Planning Loop (2026-09-15)
+
+- Added explicit owned prerequisite relations, standard-library topological/cycle validation and a
+  deterministic priority policy balancing overdue questions, lower BKT estimates, unmet ancestors
+  and a 5-60 minute session budget. Unconnected topics remain visible. Thresholds and time estimates
+  are disclosed; no automatic prerequisite truth or personalized-model training is claimed.
+- Preview is read-only. Fingerprint-checked confirmation persists an immutable plan; stale state
+  conflicts. Repeated confirmation is owner-idempotent. Real review events complete review items;
+  an explicit reading checkbox has no grading, mastery, FSRS or XP side effect.
+- Added failing algorithm/schema/DB tests before implementation. Initial browser failure reproduced
+  the absent home entry. Later fixture-output and modal-locator failures were corrected in tests.
+  Both actual browser workflows then passed in 11.2 s, including cycle/owner rejection, direct
+  review, history, Mermaid decoding and explicit reading confirmation. No provider calls were used.
+- Added a failing TypeScript-AST check for missing action icons, then registered the existing Lucide
+  plus/trash assets; new/delete actions no longer silently display a book. Artwork was not regenerated.
+- Evidence: `learning-paths.md`, `evidence/learning-plans-ui.json`, `plan-reading-ui.json`, actual H5
+  screenshots 48-50. Final regression: 400 offline tests, 62 isolated MySQL tests, 19 frontend units,
+  TypeScript and Ruff F passed. Full H5: 23 passed in 2.5 minutes, four extra paid scenarios skipped.
+  Sequential dual builds/base-path checks passed; H5 entry gzip 120814 bytes and weapp main
+  1047584 bytes (`evidence/learning-plans-build-size.json`). Native runtime remains unverified.
+- Screenshot inspection found enabled text actions inheriting a translucent-white Taro disabled
+  style. The new color test failed with `rgba(255,255,255,0.6)` versus the theme accent, then passed
+  after a narrowly scoped H5 selector correction. All H5 scenarios and both builds ran again.
+
+| Requirement | Code | Tests | Evidence |
+| --- | --- | --- | --- |
+| PATH-01 | `path_planner.py`, `learning_path_service.py`, path page | `test_path_planner.py`, `test_learning_plans.py` | Explicit graph screenshot 49, cycle and ownership tests |
+| PLAN-01 | Immutable plans, checks and review event lookup | MySQL concurrency/version tests, two planning E2E scenarios | Screenshots 48/50, actual review completion with unchanged checkbox mastery |
 
 ## Tutor Loop (2026-09-15)
 
