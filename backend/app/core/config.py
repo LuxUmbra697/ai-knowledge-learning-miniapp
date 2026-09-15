@@ -43,14 +43,14 @@ class Settings(BaseSettings):
 
     # 题目配图（DashScope 千问-文生图 qwen-image）
     dashscope_image_model: str = "qwen-image-2.0"
-    # 生图专用 API Key（留空时回退使用 dashscope_api_key）。
+    # 生图专用 API Key，禁止回退到 Embedding Key。
     # 注意：部分 sk-ws- 开头的工作空间 Key 按用途限定权限范围，Embedding 与生图可能需要各自的 Key。
     dashscope_image_api_key: str = ""
     # 图像生成使用的原生 DashScope API 地址（与 OpenAI 兼容模式的 dashscope_base_url 不同）
     # 留空时会自动从 dashscope_base_url 派生（将 /compatible-mode/v1 替换为 /api/v1）
     dashscope_image_base_url: str = ""
     image_gen_size: str = "512*512"
-    image_gen_daily_limit: int = 20
+    image_gen_daily_limit: int = Field(default=20, ge=1, le=100)
     image_gen_max_concurrency: int = 5
 
     # 腾讯云 COS（用于持久化存储 AI 生成的题目配图）

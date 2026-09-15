@@ -56,6 +56,7 @@ class QuizDetailResponse(BaseModel):
     title: str
     summary: str
     source_context: Optional[dict] = None
+    image_notice: Optional[str] = None
     user_input: Optional[str] = None
     questions: list  # raw JSON
     answer_records: Optional[list] = None

@@ -47,7 +47,7 @@ async def test_quiz_generate_with_search_context(mock_quiz_output):
             new_callable=AsyncMock,
             return_value=mock_quiz_output,
         ) as mock_gen,
-        patch("app.services.quiz_service.check_content", return_value=True),
+        patch("app.services.quiz_task_service.check_content", return_value=True),
         patch("app.services.quiz_task_service.quiz_repository.publish_generated_quiz", new_callable=AsyncMock, return_value={'quiz_id': 'quiz_public'}) as publish,
     ):
         from types import SimpleNamespace
@@ -77,7 +77,7 @@ async def test_quiz_generate_without_search_context(mock_quiz_output):
             new_callable=AsyncMock,
             return_value=mock_quiz_output,
         ) as mock_gen,
-        patch("app.services.quiz_service.check_content", return_value=True),
+        patch("app.services.quiz_task_service.check_content", return_value=True),
         patch("app.services.quiz_task_service.quiz_repository.publish_generated_quiz", new_callable=AsyncMock, return_value={'quiz_id': 'quiz_public'}),
     ):
         from types import SimpleNamespace

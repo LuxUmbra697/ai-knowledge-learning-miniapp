@@ -130,10 +130,10 @@ class TestQuizAPI:
     async def test_generate_quiz_success(self, mock_quiz_output, authenticated_headers, durable_quiz_transport):
         queue = durable_quiz_transport(mock_quiz_output)
         with patch(
-            "app.services.quiz_service.generate_quiz",
+            "app.services.quiz_task_service.generate_quiz",
             new_callable=AsyncMock,
             return_value=mock_quiz_output,
-        ), patch("app.services.quiz_service.quiz_repository.save_quiz_session", new_callable=AsyncMock) as persist:
+        ), patch("app.repositories.quiz_repository.save_quiz_session", new_callable=AsyncMock) as persist:
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test", headers=authenticated_headers) as client:
                 resp = await client.post(

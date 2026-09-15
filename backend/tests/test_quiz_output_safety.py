@@ -15,7 +15,7 @@ def output(sample_quiz_response_data):
     return {key: copy.deepcopy(sample_quiz_response_data[key]) for key in ('title', 'summary', 'questions')}
 
 
-@pytest.mark.parametrize('corruption', ['count', 'id', 'blank_id', 'long_id', 'option_key', 'duplicate_option', 'answer_key', 'multiple', 'judge', 'empty', 'image'])
+@pytest.mark.parametrize('corruption', ['count', 'id', 'blank_id', 'long_id', 'option_key', 'duplicate_option', 'answer_key', 'multiple', 'judge', 'empty', 'image', 'image_asset'])
 def test_generated_question_contract_rejects_invalid_exercises(sample_quiz_response_data, corruption):
     data = output(sample_quiz_response_data)
     if corruption == 'count': data['questions'].pop()
@@ -29,6 +29,7 @@ def test_generated_question_contract_rejects_invalid_exercises(sample_quiz_respo
     elif corruption == 'judge': data['questions'][4]['options'][0]['text'] = 'not a judgment option'
     elif corruption == 'empty': data['questions'][0]['knowledge_point'] = ' '
     elif corruption == 'image': data['questions'][0]['image_url'] = 'http://127.0.0.1/private'
+    elif corruption == 'image_asset': data['questions'][0]['image_asset_id'] = 'asset_' + 'a' * 32
     with pytest.raises(ValueError):
         quiz_chain.validate_quiz(data, 5, 'mixed')
 
@@ -51,13 +52,20 @@ async def test_sync_generation_does_not_succeed_when_storage_fails(durable_quiz_
 
 @pytest.mark.asyncio
 async def test_async_generation_does_not_publish_unsaved_quiz(monkeypatch, sample_quiz_response_data):
-    monkeypatch.setattr(quiz_service, '_fetch_context', AsyncMock(return_value=''))
-    monkeypatch.setattr(quiz_service, 'generate_quiz', AsyncMock(return_value=QuizOutput.model_validate(output(sample_quiz_response_data))))
-    monkeypatch.setattr(quiz_service.quiz_repository, 'save_quiz_session', AsyncMock(side_effect=RuntimeError('private database diagnostic')))
-    update = AsyncMock(); monkeypatch.setattr(quiz_service.task_repository, 'update_task_status', update)
-    await quiz_service._run_quiz_task('task_test', QuizGenerateRequest(user_input='RAG basics'), 1)
-    assert [call.args[1] for call in update.await_args_list] == ['running', 'failed']
-    assert 'private database diagnostic' not in str(update.await_args_list)
+    from app import worker
+    from app.services import quiz_task_service
+    context = SimpleNamespace(task_id='job_fixture', user_id=1, lease_token='lease',
+                              payload={'query': 'Fixture', 'doc_ids': [], 'scope': [], 'question_count': 5, 'difficulty': 'mixed'},
+                              checkpoints={'quiz_sources': ''}, checkpoint=AsyncMock())
+    monkeypatch.setattr(worker, 'TaskContext', lambda _: context)
+    monkeypatch.setattr(worker.jobs, 'claim', AsyncMock(return_value={'kind': 'quiz'}))
+    finish = AsyncMock(); monkeypatch.setattr(worker.jobs, 'finish', finish)
+    monkeypatch.setattr(quiz_task_service, 'generate_quiz', AsyncMock(return_value=QuizOutput.model_validate(output(sample_quiz_response_data))))
+    monkeypatch.setattr(quiz_repository, 'publish_generated_quiz', AsyncMock(side_effect=RuntimeError('private database diagnostic')))
+    assert await worker.run_once({'quiz': quiz_task_service.run})
+    finish.assert_awaited_once()
+    assert finish.await_args.args[2] is None and finish.await_args.args[3] == 'processing_failed'
+    assert 'private database diagnostic' not in str(finish.await_args)
 
 
 def test_shared_model_factory_disables_hidden_retries(monkeypatch):

@@ -304,6 +304,7 @@ export interface Question {
   knowledge_point: string
   difficulty: 'easy' | 'medium' | 'hard'
   image_url?: string | null
+  image_asset_id?: string | null
   citations?: QuestionCitation[]
   blank_count?: number
   rubric?: string[]
@@ -428,6 +429,7 @@ export interface QuizDetailResponse {
   title: string
   summary: string
   source_context?: QuizSourceContext | null
+  image_notice?: string | null
   user_input?: string
   questions: Question[]
   answer_records?: AnswerRecord[]
@@ -500,7 +502,7 @@ export function reindexDocument(docId: string) {
 
 export interface LearningTask {
   resource_id?: string
-  task_id: string; kind: 'index' | 'answer' | 'retrieve' | 'quiz' | 'report' | 'cleanup' | 'grade'
+  task_id: string; kind: 'index' | 'answer' | 'retrieve' | 'quiz' | 'report' | 'cleanup' | 'grade' | 'image'
   status: 'staging' | 'queued' | 'running' | 'completed' | 'failed' | 'cancelled'
   stage: string; title?: string; created_at?: string; result: any
   error_code?: string; error_message?: string
@@ -514,4 +516,12 @@ export function getLearningTask(taskId: string, control?: PollControl) {
 }
 export function cancelLearningTask(taskId: string) {
   return request<LearningTask>(`/learning/tasks/${encodeURIComponent(taskId)}/cancel`, { method: 'POST' })
+}
+
+export interface QuizImage {
+  asset_id: string; task_id: string; status: 'pending' | 'reserved' | 'ready' | 'failed' | 'locked'
+  stage: string; url: string | null; message: string | null; expires_in?: number
+}
+export function getQuizImage(assetId: string, control?: PollControl) {
+  return request<QuizImage>(`/quiz/images/${encodeURIComponent(assetId)}`, { control })
 }

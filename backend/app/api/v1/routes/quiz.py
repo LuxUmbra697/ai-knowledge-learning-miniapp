@@ -61,3 +61,9 @@ async def answer_with_review(quiz_id: str, req: AnswerSubmission, user_id: int =
 async def learning_maps(quiz_id: str, user_id: int = Depends(get_current_user)):
     from app.services.learning_map_service import get_map
     return ApiResponse.success(data=await get_map(quiz_id, user_id))
+
+
+@router.get('/images/{asset_id}', response_model=ApiResponse)
+async def illustration(asset_id: str, user_id: int = Depends(get_current_user)):
+    from app.services.quiz_image_service import get_image
+    return ApiResponse.success(data=await get_image(asset_id, user_id))

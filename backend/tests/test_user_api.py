@@ -251,7 +251,7 @@ class TestQuizAuthentication:
             ],
         )
         with patch(
-            "app.services.quiz_service.generate_quiz",
+            "app.services.quiz_task_service.generate_quiz",
             new_callable=AsyncMock,
             return_value=mock_output,
         ) as model:
@@ -284,11 +284,11 @@ class TestQuizAuthentication:
         )
         queue = durable_quiz_transport(mock_output)
         with patch(
-            "app.services.quiz_service.generate_quiz",
+            "app.services.quiz_task_service.generate_quiz",
             new_callable=AsyncMock,
             return_value=mock_output,
         ), patch(
-            "app.services.quiz_service.quiz_repository.save_quiz_session",
+            "app.repositories.quiz_repository.save_quiz_session",
             new_callable=AsyncMock,
         ) as mock_save:
             transport = ASGITransport(app=app)

@@ -40,20 +40,20 @@ class TestHandleQuizGenerateNoDocId:
         """Public requests use the queue; web search now needs explicit consent."""
         queue = durable_quiz_transport(mock_quiz_output)
         with patch(
-            "app.services.quiz_service.fetch_knowledge_context",
+            "app.services.public_search_service.fetch_context",
             new_callable=AsyncMock,
             return_value="联网搜索结果",
         ) as mock_web_search, patch(
-            "app.services.quiz_service.rag_service.fetch_rag_context",
+            "app.services.rag_service.fetch_rag_context",
             new_callable=AsyncMock,
         ) as mock_rag, patch(
-            "app.services.quiz_service.generate_quiz",
+            "app.services.quiz_task_service.generate_quiz",
             new_callable=AsyncMock,
             return_value=mock_quiz_output,
         ), patch(
-            "app.services.quiz_service.check_content", return_value=True
+            "app.services.quiz_task_service.check_content", return_value=True
         ), patch(
-            "app.services.quiz_service.quiz_repository"
+            "app.repositories.quiz_repository"
         ) as mock_repo:
             mock_repo.save_quiz_session = AsyncMock()
 
@@ -76,10 +76,10 @@ class TestHandleQuizGenerateWithDocId:
             return_value={'quiz_id': 'quiz_fixture'}) as wait, patch(
             'app.services.quiz_task_service.result_response', new_callable=AsyncMock,
             return_value=mock_quiz_output) as restore, patch(
-            "app.services.quiz_service.fetch_knowledge_context",
+            "app.services.public_search_service.fetch_context",
             new_callable=AsyncMock,
         ) as mock_web_search, patch(
-            "app.services.quiz_service.generate_quiz",
+            "app.services.quiz_task_service.generate_quiz",
             new_callable=AsyncMock,
         ) as mock_gen:
             req = QuizGenerateRequest(
@@ -143,9 +143,9 @@ class TestCreateQuizTaskWithDocId:
         ), patch(
             "app.services.quiz_task_service.jobs.enqueue", new_callable=AsyncMock
         ) as mock_create_task, patch(
-            "app.services.quiz_service.asyncio.create_task"
+            "app.worker.asyncio.create_task"
         ) as mock_asyncio_create_task, patch(
-            "app.services.quiz_service.check_content", return_value=True
+            "app.services.quiz_task_service.check_content", return_value=True
         ):
             req = QuizGenerateRequest(
                 user_input="学习 Python", question_count=5, difficulty="mixed", doc_id="doc_missing"
@@ -166,9 +166,9 @@ class TestCreateQuizTaskWithDocId:
         ), patch(
             "app.services.quiz_task_service.jobs.enqueue", new_callable=AsyncMock, return_value={'task_id': 'job_fixture'}
         ) as mock_create_task, patch(
-            "app.services.quiz_service.asyncio.create_task"
+            "app.worker.asyncio.create_task"
         ) as mock_asyncio_create_task, patch(
-            "app.services.quiz_service.check_content", return_value=True
+            "app.services.quiz_task_service.check_content", return_value=True
         ):
             req = QuizGenerateRequest(
                 user_input="学习 Python", question_count=5, difficulty="mixed", doc_id="doc_1"

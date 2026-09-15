@@ -8,7 +8,7 @@ import { PollControl, pollUntil } from '../../services/polling'
 import { taskPhase as phase } from '../../services/taskDisplay'
 
 const statuses = { staging: '等待上传完成', queued: '等待处理', running: '处理中', completed: '已完成', failed: '未完成', cancelled: '已取消' }
-const kinds = { index: '资料索引', answer: '知识问答', retrieve: '资料检索', quiz: '练习生成', report: '学习报告', cleanup: '资料清理', grade: '问答评阅' }
+const kinds = { index: '资料索引', answer: '知识问答', retrieve: '资料检索', quiz: '练习生成', report: '学习报告', cleanup: '资料清理', grade: '问答评阅', image: '练习配图' }
 export default function TasksPage() {
   const [tasks, setTasks] = useState<LearningTask[]>([]), [error, setError] = useState(''), [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(''), [busy, setBusy] = useState('')
@@ -46,11 +46,13 @@ export default function TasksPage() {
       <View className='task-heading'><View className='row-copy'><Text className='tiny-label'>{kinds[task.kind]}</Text><Text className='row-title'>{task.title || kinds[task.kind]}</Text><Text className='muted'>{task.created_at ? task.created_at.replace('T', ' ').replace('Z', ' UTC') : ''}</Text></View><Text className='tag'>{statuses[task.status]}</Text></View>
       {task.status === 'running' && <Text className='muted'>{phase(task.stage)}</Text>}
       {task.error_message && <Notice message={task.error_message} />}
+      {task.kind === 'image' && task.result?.notice && <Text className='muted'>{task.result.notice}</Text>}
       <View className='document-actions'><Button className='text-button' onClick={() => setSelected(selected === task.task_id ? '' : task.task_id)}><Icon name='clock' size={16} />{selected === task.task_id ? '收起记录' : '执行记录'}</Button>
         {!['completed', 'failed', 'cancelled'].includes(task.status) && <Button className='text-button' disabled={!!busy} onClick={() => cancel(task)}><Icon name='close' size={16} />取消任务</Button>}
         {task.kind === 'index' && task.result?.doc_id && task.status === 'completed' && <Button className='text-button' onClick={() => Taro.navigateTo({ url: `/learning/document/index?docId=${encodeURIComponent(task.result.doc_id)}` })}>查看资料</Button>}
         {task.kind === 'answer' && <Button className='text-button' onClick={() => Taro.navigateTo({ url: `/learning/assistant/index?taskId=${encodeURIComponent(task.task_id)}` })}>查看问答</Button>}
         {task.kind === 'quiz' && <Button className='text-button' onClick={() => Taro.navigateTo({ url: `/pages/quiz/index?taskId=${encodeURIComponent(task.task_id)}` })}>查看练习</Button>}
+        {task.kind === 'image' && task.resource_id && <Button className='text-button' onClick={() => Taro.navigateTo({ url: `/pages/quiz/index?quizId=${encodeURIComponent(task.resource_id!)}` })}>查看配图练习</Button>}
         {task.kind === 'grade' && task.resource_id && <Button className='text-button' onClick={() => Taro.navigateTo({ url: task.result?.card_id ? '/learning/review/index' : `/pages/quiz/index?quizId=${encodeURIComponent(task.resource_id!)}` })}>查看评阅</Button>}
         {task.kind === 'report' && task.resource_id && <Button className='text-button' onClick={() => Taro.navigateTo({ url: `/pages/report/index?quizId=${encodeURIComponent(task.resource_id!)}&taskId=${encodeURIComponent(task.task_id)}` })}>查看报告</Button>}
       </View>

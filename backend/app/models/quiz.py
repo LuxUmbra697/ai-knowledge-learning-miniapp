@@ -34,6 +34,7 @@ class Question(BaseModel):
     knowledge_point: str = Field(description="知识点标签")
     difficulty: Literal["easy", "medium", "hard"] = Field(description="难度")
     image_url: str | None = Field(default=None, description="AI 生成的题目配图 URL（可选）")
+    image_asset_id: str | None = Field(default=None, max_length=64)
     citations: list[QuestionCitation] = Field(default_factory=list, max_length=3)
     accepted_answers: list[list[str]] = Field(default_factory=list, max_length=4)
     rubric: list[str] = Field(default_factory=list, max_length=5)
@@ -72,7 +73,7 @@ class QuizGenerateRequest(BaseModel):
         default=None, min_length=1, max_length=64, description="可选，指定基于某篇知识库文档出题"
     )
     generate_images: bool = Field(
-        default=False, description="是否为每道题目生成配图"
+        default=False, strict=True, description="是否为前两题安排独立的可取消配图任务"
     )
     use_web_search: bool = Field(default=False, strict=True, description="是否将本次公开主题发送给网页搜索服务")
 

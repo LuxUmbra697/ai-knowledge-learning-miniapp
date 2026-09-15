@@ -27,3 +27,4 @@ dashscope>=1.20.0,<2.0.0
 cos-python-sdk-v5>=1.9.30,<2.0.0
 fsrs==6.3.2
 tzdata==2026.4
+Pillow==12.3.0

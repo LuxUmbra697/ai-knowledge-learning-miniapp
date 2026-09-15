@@ -68,7 +68,7 @@ def validate_quiz(data, question_count, difficulty, evidence=None, question_coun
             value = getattr(question, field)
             if not value.strip() or len(value) > maximum:
                 raise ValueError(f'{field} must contain 1-{maximum} characters')
-        if question.image_url:
+        if question.image_url or question.image_asset_id:
             raise ValueError('Image URLs may only be attached by the server image service')
         if difficulty != 'mixed' and question.difficulty != difficulty:
             raise ValueError('Question difficulty must match the requested difficulty')

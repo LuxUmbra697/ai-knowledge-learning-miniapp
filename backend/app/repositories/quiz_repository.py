@@ -41,6 +41,21 @@ async def publish_generated_quiz(context, output):
                           (quiz_id, context.user_id, json.dumps(source, ensure_ascii=False)))
         result = {'quiz_id': quiz_id, 'title': output.title}
         await jobs.publish_result(cur, job, result)
+        if context.payload.get('generate_images'):
+            from app.repositories import quiz_image_repository
+            await cur.execute('SAVEPOINT image_admission')
+            try:
+                await quiz_image_repository.attach(cur, context, quiz_id, output.questions)
+                await cur.execute('UPDATE quiz_sessions SET questions_json=%s WHERE quiz_id=%s AND user_id=%s',
+                                  (json.dumps([question.model_dump() for question in output.questions], ensure_ascii=False), quiz_id, context.user_id))
+                source['image_notice'] = f'已为前 {min(2, len(output.questions))} 题安排独立配图任务，文字练习可以先开始。'
+            except HTTPException as error:
+                if error.status_code != 429:
+                    raise
+                await cur.execute('ROLLBACK TO SAVEPOINT image_admission')
+                source['image_notice'] = '任务额度已用完，未安排配图；文字练习已保存。'
+            await cur.execute('UPDATE quiz_source_context SET context_json=%s WHERE quiz_id=%s AND user_id=%s',
+                              (json.dumps(source, ensure_ascii=False), quiz_id, context.user_id))
         return result
 
 
@@ -262,5 +277,6 @@ async def get_quiz_detail(quiz_id: str, user_id: int) -> Optional[dict]:
             source_row = await cur.fetchone()
             if source_row:
                 result['source_context'] = json.loads(source_row[0]) if isinstance(source_row[0], str) else source_row[0]
+                result['image_notice'] = result['source_context'].get('image_notice')
 
             return result

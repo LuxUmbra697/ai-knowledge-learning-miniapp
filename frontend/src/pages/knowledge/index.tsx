@@ -15,6 +15,7 @@ export default function KnowledgePage() {
   const [documents, setDocuments] = useState<KnowledgeDocumentItem[]>([])
   const [busy, setBusy] = useState(''), [error, setError] = useState(''), [loading, setLoading] = useState(true)
   const [notice, setNotice] = useState('')
+  const [illustrated, setIllustrated] = useState(false)
   const [practiceDoc, setPracticeDoc] = useState<KnowledgeDocumentItem | null>(null), [counts, setCounts] = useState(defaultCounts)
   const live = useRef(true), lock = useRef(false), polls = useRef(new Map<string, PollControl>())
   const watch = async (docId: string) => {
@@ -70,7 +71,7 @@ export default function KnowledgePage() {
   const practice = async (doc: KnowledgeDocumentItem) => {
     if (lock.current || doc.status !== 'ready' || !validCounts(counts)) return
     lock.current = true; setBusy('正在创建练习'); setError('')
-    const key = `ai-learn:v1:practice:${getCachedUser()?.id}:${doc.doc_id}:${questionTypes.map(type => counts[type]).join('-')}`
+    const key = `ai-learn:v1:practice:${getCachedUser()?.id}:${doc.doc_id}:${questionTypes.map(type => counts[type]).join('-')}${illustrated ? ':image' : ''}`
     try {
       let pending = restorableQuiz(Taro.getStorageSync(key))
       if (pending?.taskId) {
@@ -80,7 +81,7 @@ export default function KnowledgePage() {
       pending = pending || { key: `quiz_${Date.now()}_${Math.random().toString(36).slice(2)}` }
       Taro.setStorageSync(key, pending)
       if (!pending.taskId) {
-        const created = await generateQuizAsync(`根据文档《${doc.file_name}》生成知识练习`, countQuestions(counts), doc.doc_id, false, pending.key, counts)
+        const created = await generateQuizAsync(`根据文档《${doc.file_name}》生成知识练习`, countQuestions(counts), doc.doc_id, illustrated, pending.key, counts)
         pending = { ...pending, taskId: created.task_id }; Taro.setStorageSync(key, pending)
       }
       if (!live.current) return
@@ -100,7 +101,7 @@ export default function KnowledgePage() {
     finally { lock.current = false; if (live.current) setBusy('') }
   }
   return <StudioShell active='knowledge' title='我的知识书架' subtitle='让自己的学习材料，成为每次探索的起点。'>
-    {practiceDoc && <View className='modal-backdrop'><View className='practice-config-dialog'><View className='section-heading'><Text className='section-title'>配置知识练习</Text><Button className='icon-button' aria-label='关闭练习配置' disabled={!!busy} onClick={() => setPracticeDoc(null)}><Icon name='close' /></Button></View><Text className='row-title'>{practiceDoc.file_name}</Text><QuestionCountsEditor value={counts} onChange={setCounts} disabled={!!busy} />{!validCounts(counts) && <Notice message='题型数量合计须为 1 至 20。' />}{error && <Notice message={error} />}<Button className='primary-button' disabled={!!busy || !validCounts(counts)} onClick={() => practice(practiceDoc)}>{busy || '生成这组练习'}</Button></View></View>}
+    {practiceDoc && <View className='modal-backdrop'><View className='practice-config-dialog'><View className='section-heading'><Text className='section-title'>配置知识练习</Text><Button className='icon-button' aria-label='关闭练习配置' disabled={!!busy} onClick={() => setPracticeDoc(null)}><Icon name='close' /></Button></View><Text className='row-title'>{practiceDoc.file_name}</Text><QuestionCountsEditor value={counts} onChange={setCounts} disabled={!!busy} illustrated={illustrated} onIllustratedChange={setIllustrated} />{!validCounts(counts) && <Notice message='题型数量合计须为 1 至 20。' />}{error && <Notice message={error} />}<Button className='primary-button' disabled={!!busy || !validCounts(counts)} onClick={() => practice(practiceDoc)}>{busy || '生成这组练习'}</Button></View></View>}
     <View className='shelf-band'><Image className='shelf-panorama' src={require('../../assets/notebook-shelf.jpg')} mode='aspectFit' aria-hidden /></View>
     <View className='upload-band'><Button className='primary-button' disabled={!!busy} onClick={upload}><Icon name='upload' size={18} />{busy || '添加学习材料'}</Button><Text className='field-hint'>PDF / DOCX / TXT / Markdown · 最大 10MB · 暂不支持扫描件 OCR</Text></View>
     {error && <Notice message={error} retry={load} />}

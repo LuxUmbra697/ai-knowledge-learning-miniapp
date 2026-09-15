@@ -88,8 +88,8 @@ testing or measured grading accuracy. See `evidence/text-quiz-live.json` and the
 
 ## Remaining Boundaries
 
-Public and private text generation and written grading use the durable queue. The original
-image-generation path still needs migration to the same task protocol. Native builds are separate
+Public/private practice, optional illustrations and written grading use the durable queue.
+See [illustration boundaries and evidence](quiz-illustrations.md). Native builds are separate
 from actual WeChat IDE/device verification, which remains pending. No deployment success is claimed
 by local screenshots or model calls. FSRS/BKT use the resulting observations as uncertain proxies,
 not verified measures of student knowledge.
@@ -108,7 +108,7 @@ search is reserved in the existing daily/task provider budget, with a 15-second 
 18-second total deadline. It uses at most three results and a 64 KiB response cap; automatic depth,
 raw pages, extraction, images, redirects and SDK retries are disabled. Each excerpt is limited to
 1000 characters. Failures and no results terminate with an actionable message, not silent fallback.
-This replaces the unrestricted ReAct search only for text practice; it is not described as a
+This replaces the unrestricted ReAct search for practice; it is not described as a
 multi-agent system. API settings follow the [Tavily search contract](https://docs.tavily.com/documentation/api-reference/endpoint/search).
 
 Migration 12 records the source context atomically with the quiz. Web references remain explicitly

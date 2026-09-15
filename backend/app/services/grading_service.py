@@ -66,7 +66,7 @@ def public_quiz(data: dict, revealed: set[str] | None = None) -> dict:
         data = {**data, 'source_context': {**data['source_context'], 'sources': []}}
     return {**data, "questions": [
         dict(question) if question["id"] in visible else {
-            key: value for key, value in question.items() if key not in ("answer", "explanation", "citations", "accepted_answers", "rubric")
+            key: value for key, value in question.items() if key not in ("answer", "explanation", "citations", "accepted_answers", "rubric", "image_url", "knowledge_point")
         } | ({'blank_count': len(question['answer'])} if question['type'] == 'fill' else {}) for question in data.get("questions", [])
     ]}
 

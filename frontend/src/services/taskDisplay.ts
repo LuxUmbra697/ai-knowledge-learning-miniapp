@@ -5,6 +5,7 @@ const stages: Record<string, string> = {
   report_input_validated: '核对作答记录', report: '生成学习报告', report_validated: '报告校验完成',
   quiz_sources: '练习材料已就绪', quiz: '生成练习题目', quiz_validated: '练习校验完成',
   public_search: '获取网页参考',
+  image_1: '生成第 1 张配图', image_2: '生成第 2 张配图', image_saved_1: '保存第 1 张配图', image_saved_2: '保存第 2 张配图',
   written_grade: '逐项评阅问答',
   written_grade_validated: '评阅依据校验完成',
 }

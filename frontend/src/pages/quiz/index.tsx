@@ -1,11 +1,12 @@
 import { useRef, useState } from 'react'
-import { View, Text, Image, Button } from '@tarojs/components'
+import { View, Text, Button } from '@tarojs/components'
 import Taro, { useRouter, useDidShow, useDidHide } from '@tarojs/taro'
 import { getQuizDetail, submitAnswer, QuizDetailResponse, AnswerRecord, getCachedUser, getLearningTask, cancelLearningTask, LearningTask, waitForLogin, getToken } from '../../services/api'
 import { StudioShell, Notice, navigate } from '../../components/StudioShell'
 import { Icon } from '../../components/Icon'
 import { NotebookDialog } from '../../components/NotebookDialog'
 import { QuizSources } from '../../components/QuizSources'
+import { QuestionMedia } from '../../components/QuestionMedia'
 import { PollControl, pollUntil } from '../../services/polling'
 import { taskPhase } from '../../services/taskDisplay'
 import { quizTaskResult } from '../../services/quizSession'
@@ -114,7 +115,7 @@ export default function QuizPage() {
         <View className='section-heading'><Text className='tag'>{questionLabels[question.type]}</Text><Text className='muted'>第 {index + 1} / {quiz!.questions.length} 题 · 已完成 {records.length} 题</Text></View>
         <View className='practice-progress'><View className='practice-progress-fill' style={{ width: `${records.length / quiz!.questions.length * 100}%` }} /></View>
         <Text className='question-stem'>{question.stem}</Text>
-        {question.image_url && /^https:\/\//.test(question.image_url) && <Image className='question-media' src={question.image_url} mode='aspectFit' />}
+        <QuestionMedia assetId={question.image_asset_id} legacyUrl={question.image_url} revealed={!!record} />
         <View className='answer-options'>{question.options.map(option => <Button key={option.key} className={`answer-option ${(record?.selected_answers || selected).includes(option.key) ? 'selected' : ''} ${record && question.answer?.includes(option.key) ? 'correct' : record && record.selected_answers.includes(option.key) ? 'wrong' : ''}`} onClick={() => choose(option.key)} aria-pressed={(record?.selected_answers || selected).includes(option.key)}><Text className='option-key'>{option.key}</Text><Text className='option-text'>{option.text}</Text></Button>)}</View>
         <TextAnswer question={question} values={record?.selected_answers || selected} disabled={!!record || busy} onChange={values => { setSelected(values); Taro.setStorageSync(draftKey, { questionId: question.id, selected: values }) }} />
         {!record && <Button className='primary-button' disabled={!answerComplete(question, selected) || busy} onClick={submit}>{busy ? gradingTask ? taskPhase(gradingTask.stage) : '正在提交' : '确认答案'}</Button>}

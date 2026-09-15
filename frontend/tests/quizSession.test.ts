@@ -18,7 +18,7 @@ test('practice history only opens a completed quiz task reference', () => {
 })
 
 test('topic recovery preserves the exact request and validates untrusted storage', () => {
-  const value = { key: 'topic_request_1234', taskId: `job_${'a'.repeat(32)}`, input: '中文主题', counts: defaultCounts(), web: true }
+  const value = { key: 'topic_request_1234', taskId: `job_${'a'.repeat(32)}`, input: '中文主题', counts: defaultCounts(), web: true, illustrated: true }
   assert.deepEqual(restorableTopic(value), value)
   for (const invalid of [{ ...value, input: '' }, { ...value, counts: {} }, { ...value, web: 'yes' }, { ...value, taskId: 'other-user-path' }]) assert.equal(restorableTopic(invalid), null)
 })

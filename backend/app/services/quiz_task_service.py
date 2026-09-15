@@ -15,8 +15,6 @@ from app.services import public_search_service
 async def create(req, user_id, key=None):
     if not user_id:
         raise HTTPException(401, '请先登录')
-    if req.generate_images:
-        raise HTTPException(422, '此任务入口仅接收文字练习')
     if not check_content(req.user_input):
         raise ContentFilterError('输入内容包含不当内容，请修改后重试')
     rows = await index.scoped_chunks(user_id, [req.doc_id], vectors.index_version()) if req.doc_id else []
@@ -25,6 +23,10 @@ async def create(req, user_id, key=None):
     scope = [list(item) for item in sorted({(row['doc_id'], row['revision'], row['index_version']) for row in rows})]
     payload = dict(query=req.user_input, question_count=req.question_count, difficulty=req.difficulty,
                    doc_ids=[req.doc_id] if req.doc_id else [], scope=scope, mode='rerank')
+    if req.generate_images:
+        from app.services.quiz_image_service import require_config
+        require_config()
+        payload['generate_images'] = True
     if req.use_web_search:
         public_search_service.require_available()
         payload['use_web_search'] = True

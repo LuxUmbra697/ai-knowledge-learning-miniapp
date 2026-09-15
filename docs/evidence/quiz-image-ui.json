@@ -1,0 +1,16 @@
+{
+  "recorded_at": "2026-09-15T06:04:59.386Z",
+  "environment": "Chromium + actual API + isolated MySQL + actual worker",
+  "data_source": "Explicit synthetic image checkpoints",
+  "provider_calls": 0,
+  "checks": [
+    "cancel_retains_quiz",
+    "refresh_and_server_scoring",
+    "restart_checkpoint_failure",
+    "leave_page_stops_polling",
+    "no_browser_errors"
+  ],
+  "limitations": [
+    "No native WeChat runtime verification"
+  ]
+}

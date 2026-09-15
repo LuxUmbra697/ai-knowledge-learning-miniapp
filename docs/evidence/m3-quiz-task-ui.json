@@ -1,5 +1,5 @@
 {
-  "recorded_at": "2026-09-15T05:00:18.188Z",
+  "recorded_at": "2026-09-15T06:02:49.808Z",
   "environment": "Chromium + local API + isolated MySQL + actual worker",
   "data_source": "Explicit synthetic checkpoint, not real model output",
   "provider_calls": 0,

@@ -9,7 +9,7 @@ from fastapi import HTTPException
 from app.repositories.rag_index_repository import transaction
 from app.core.config import get_settings
 
-KINDS = {'index', 'answer', 'retrieve', 'quiz', 'report', 'cleanup', 'grade'}
+KINDS = {'index', 'answer', 'retrieve', 'quiz', 'report', 'cleanup', 'grade', 'image'}
 TERMINAL = {'completed', 'failed', 'cancelled'}
 LEASE_SECONDS = 40
 MAX_RUNTIME_SECONDS = 180
@@ -41,7 +41,7 @@ def public(row, replayed=False):
                 created_at=row['created_at'].isoformat()+'Z' if row.get('created_at') else None,
                 result=row.get('result_json'), trace=row.get('trace_json') or {},
                 error_code=row.get('error_code'), error_message=row.get('error_message'),
-                resource_id=(row.get('payload_json') or {}).get('quiz_id') if row['kind'] in ('report', 'grade') else None,
+                resource_id=(row.get('payload_json') or {}).get('quiz_id') if row['kind'] in ('report', 'grade', 'image') else None,
                 replayed=replayed, config_version=row.get('config_version', 'jobs-v1'))
 
 

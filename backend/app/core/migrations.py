@@ -161,6 +161,18 @@ MIGRATIONS = {
         CONSTRAINT fk_quiz_context_quiz FOREIGN KEY(quiz_id) REFERENCES quiz_sessions(quiz_id) ON DELETE CASCADE,
         CONSTRAINT fk_quiz_context_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"""],
+    13: ["""CREATE TABLE IF NOT EXISTS quiz_image_assets (
+        asset_id VARCHAR(64) NOT NULL PRIMARY KEY, user_id BIGINT UNSIGNED NOT NULL,
+        quiz_id VARCHAR(64) NOT NULL, question_id VARCHAR(64) NOT NULL, task_id VARCHAR(64) NOT NULL,
+        object_key VARCHAR(512) NOT NULL, state VARCHAR(16) NOT NULL DEFAULT 'pending',
+        reserved_day DATE NULL, metadata_json JSON NULL, error_code VARCHAR(64) NULL,
+        doc_id VARCHAR(64) NULL, doc_revision INT NULL,
+        created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL,
+        UNIQUE KEY idx_quiz_image_question(quiz_id,question_id), KEY idx_image_quota(user_id,reserved_day),
+        KEY idx_image_task(task_id), KEY idx_image_cleanup(state,updated_at),
+        CONSTRAINT fk_image_asset_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+        CONSTRAINT fk_image_asset_quiz FOREIGN KEY(quiz_id) REFERENCES quiz_sessions(quiz_id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"""],
 }
 
 

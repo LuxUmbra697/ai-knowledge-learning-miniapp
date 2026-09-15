@@ -10,11 +10,38 @@ This ledger records observed results; planned capabilities are not delivery clai
 | M0 | Isolated baseline; authenticated ownership; authoritative grading; safe config | Core checks passed; release hardening continues | `evidence/m0-local.json`; 159 deterministic tests |
 | M1 | Taro H5/weapp, separate outputs, independent login, five themes | H5 core flow passed; native runtime gate pending | `frontend/e2e`; `screenshots/h5`; DevTools service port unavailable |
 | M2 | Bounded parsing, scoped hybrid retrieval, citations, 100-case evaluation | Retrieval/citation checkpoint verified; remaining gates below | 104 synthetic cases; real index and answer evidence; dual builds |
-| M3 | Bounded learning agent, durable worker, cancellation/recovery | Index, retrieval, answer, report, public/private text practice verified; image migration and tutoring graph pending | MySQL recovery/cancellation tests, real model tasks and H5 history |
+| M3 | Bounded learning agent, durable worker, cancellation/recovery | Index, retrieval, answer, report, public/private practice and optional images verified locally; tutoring graph pending | MySQL recovery/cancellation tests, real model tasks and H5 history |
 | M4 | Mastery, FSRS, prerequisites, reproducible offline experiment | FSRS/BKT, review, named notebooks, maps and synthetic fitting experiment verified locally; prerequisite planning pending | Owned atomic learning events, DB/H5 tests, `eval/learning` raw experiment |
 | M5 | Browser and DevTools workflows, screenshots, regression | In progress alongside each module | Actual H5 screenshots exist; no weapp screenshots claimed |
 | M6 | New deployment plus all existing sites healthy | Pending | No gateway mutations |
 | M7 | Bilingual README, documentation, private handoff, GitHub and CI | Pending | Remote history verified |
+
+## Private Illustration Loop (2026-09-15)
+
+- Optional images now have owned durable child jobs, capped at two per quiz. Text commits before
+  image execution; cancellation/failure does not delete questions. Per-user UTC reservations are
+  transactional, reused on recovery and included in shared call budgets. COS access is private,
+  scoped to tracked keys with 120-second signed reads after a server-persisted answer.
+- Added failing regressions before fixing process-local execution, source publication races,
+  answer-release leakage and oversized failure placeholders. Image API tests reject cross-owner
+  access, stale source versions and unsigned access. Cleanup has bounded retries and no bucket-wide
+  writes. Prompt-generated URLs/asset IDs are rejected as question output.
+- Actual local verification: 389 offline tests, 52 isolated MySQL tests, 17 frontend units and
+  TypeScript passed. Full H5 suite passed 19 scenarios with 3 paid-only cases skipped. The two
+  image scenarios passed again after compact failure-state styling. Sequential H5/weapp builds
+  passed; native runtime is not inferred from them.
+- Two bounded real runs consumed two text calls (841 and 869 reported tokens) and two image calls
+  (unmetered tokens). First screenshot revealed prompt-like text and pre-answer hint exposure.
+  The second, after prompt and release corrections, rendered a 512x512, 29573-byte stylized image
+  in 10811 ms overall. Currency cost and scientific image correctness remain unverified.
+- Evidence: `quiz-illustrations.md`, `evidence/quiz-image-live.json`, `quiz-image-ui.json`,
+  `quiz-images-build-size.json`, actual H5 screenshots 42-43. No cloud database, reference-project
+  contents or shared gateway was modified; no deployment or native screenshot claim.
+
+| Requirement | Code | Tests | Evidence |
+| --- | --- | --- | --- |
+| TASK-IMAGE | `quiz_image_service.py`, `quiz_image_repository.py`, `QuestionMedia.tsx` | `test_quiz_illustrations.py`, `integration/test_quiz_images.py`, `illustrations.spec.ts` | Durable cancellation, resumed failure, continued scoring |
+| IMAGE-PRIVACY | `private_cos_service.py`, image GET, answer serializer | Transport/storage units, DB release and ownership tests | Real signed 200 / unsigned 403 / other-user 404; screenshot 42 |
 
 ## Public Practice Loop (2026-09-15)
 
