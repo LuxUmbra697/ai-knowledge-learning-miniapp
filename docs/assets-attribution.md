@@ -22,6 +22,32 @@ reading on the right; hand-painted 2D animated-film background, irregular ink li
 and watercolor, gentle daylight, green/blue/white with restrained coral; no text, logos, watermark,
 existing characters or UI mockup. Generated art is never placed in the screenshots directory.
 
+## Academy Courtyard And Notebook Shelf
+
+Generated with built-in ImageGen on 2026-09-15, using original scene descriptions and no reference
+project assets or existing film characters. These are decorative images, not runtime screenshots.
+Distribution follows the repository license to the extent rights in generated output permit;
+copyright eligibility and exclusivity are not guaranteed.
+
+| Asset | Export | Placement |
+| --- | --- | --- |
+| `frontend/src/assets/academy-gate.jpg` | 1280x853, 208061 bytes | Full-width login background; centered aspect-fill crop on portrait phones |
+| `frontend/src/assets/notebook-shelf.jpg` | 1200x400, 53283 bytes | Knowledge-library band, aspect-fit without cropping; 3:1 mobile, at most 200px tall on desktop |
+
+Courtyard prompt: original 3:2 school courtyard, central gate and path, pale sky above, white school
+building, leafy tree at left and pink flowers at edges; no people, lettering or logos; matte gouache
+and watercolor with irregular ink, green/blue/white and restrained coral. Keep central architecture
+legible in a portrait crop, with open sky for a heading.
+
+Shelf prompt: original 3:1 study-notebook panorama, pastel blue/white/coral books at right, pressed
+leaf page and small plant at left, pencil cup, mostly plain pale green/white center; hand-painted
+matte gouache, objects entirely within the shallow band; no characters, text, logos, glow or UI.
+
+Both selected outputs were resized without cropping and JPEG-compressed with the pinned `sharp`
+dependency (quality 78 and 80). UI uses local Taro `Image` assets rather than remote media or
+miniapp-incompatible local CSS URLs. Actual runtime captures are stored separately under
+`docs/screenshots/h5/`; no weapp runtime screenshot is claimed from these assets.
+
 ## Interface Icons
 
 [Lucide](https://lucide.dev/license), ISC license. PNGs are generated from `lucide-static` SVGs for the shared Taro interface. The package version is pinned by `frontend/package-lock.json`. Original SVG geometry is retained; raster export allows a consistent miniapp `Image` implementation.

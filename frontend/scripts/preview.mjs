@@ -8,7 +8,7 @@ const root = fileURLToPath(new URL('../dist/h5/', import.meta.url))
 const prefix = '/ai-learn/'
 const port = Number(process.env.PREVIEW_PORT || 18082)
 const api = new URL(process.env.PREVIEW_API || 'http://127.0.0.1:18081')
-const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.json': 'application/json' }
+const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.json': 'application/json' }
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost')

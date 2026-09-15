@@ -1,0 +1,21 @@
+{
+  "recorded_at": "2026-09-15T03:11:57.283Z",
+  "environment": "Chromium + real local API + isolated MySQL",
+  "provider_calls": 0,
+  "widths": [
+    320,
+    390,
+    1440
+  ],
+  "checks": [
+    "jpeg_mime",
+    "actual_decoded_dimensions",
+    "opaque_login_form",
+    "night_theme",
+    "uncropped_shelf",
+    "upload_visible",
+    "no_horizontal_overflow",
+    "no_page_errors"
+  ],
+  "native_runtime": "Not yet verified; separate build evidence"
+}

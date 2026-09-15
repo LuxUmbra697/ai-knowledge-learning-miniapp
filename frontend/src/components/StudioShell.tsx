@@ -31,7 +31,8 @@ export function StudioShell({ children, active, title, subtitle, guest = false, 
     if (reserved) { settings.update({ companionFolded: expanded }); setExpanded(value => !value) }
     else settings.update({ companionFolded: !settings.companionFolded })
   }
-  return <View className={`studio theme-${settings.theme} ${settings.reducedMotion ? 'reduced-motion' : ''} ${floating && floatingSafe && !guest ? 'has-companion' : ''}`}>
+  return <View className={`studio theme-${settings.theme} ${guest ? 'studio-guest' : ''} ${settings.reducedMotion ? 'reduced-motion' : ''} ${floating && floatingSafe && !guest ? 'has-companion' : ''}`}>
+    {guest && <Image className='academy-background' src={require('../assets/academy-gate.jpg')} mode='aspectFill' aria-hidden />}
     <View className='studio-topbar'>
       <View className='studio-brand' onClick={() => navigate('/pages/index/index')}>
         <View className='brand-mark'><Icon name='book' size={22} /></View>

@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { View, Text, Button } from '@tarojs/components'
+import { View, Text, Button, Image } from '@tarojs/components'
 import Taro, { useDidShow, useDidHide } from '@tarojs/taro'
 import { getKnowledgeDocuments, getKnowledgeDocumentStatus, uploadKnowledgeDocument, deleteKnowledgeDocument, generateQuizAsync, getLearningTask, getCachedUser, waitForLogin, getToken, KnowledgeDocumentItem, reindexDocument, ApiError } from '../../services/api'
 import { PollControl, pollUntil } from '../../services/polling'
@@ -96,6 +96,7 @@ export default function KnowledgePage() {
     finally { lock.current = false; if (live.current) setBusy('') }
   }
   return <StudioShell active='knowledge' title='我的知识书架' subtitle='让自己的学习材料，成为每次探索的起点。'>
+    <View className='shelf-band'><Image className='shelf-panorama' src={require('../../assets/notebook-shelf.jpg')} mode='aspectFit' aria-hidden /></View>
     <View className='upload-band'><Button className='primary-button' disabled={!!busy} onClick={upload}><Icon name='upload' size={18} />{busy || '添加学习材料'}</Button><Text className='field-hint'>PDF / DOCX / TXT / Markdown · 最大 10MB · 暂不支持扫描件 OCR</Text></View>
     {error && <Notice message={error} retry={load} />}
     {notice && <Text className='field-hint'>{notice}</Text>}

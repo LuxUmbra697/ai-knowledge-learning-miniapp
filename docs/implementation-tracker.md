@@ -341,6 +341,23 @@ algorithm-experiment, native-testing, documentation or coexistence requirements.
 
 ## Continuing Decisions
 
+### Page Artwork Loop (2026-09-15)
+
+- Added two original painted scenes after the owner's background-art request: a 1280x853 courtyard
+  behind the login screen and a 1200x400 notebook shelf inside an unframed library band. Mobile
+  login uses a deliberate central crop; the shelf always preserves the entire source composition.
+  The form is opaque in both light and night themes. No customer/reference-project assets were used.
+- Added a failing browser acceptance test before integration, then verified decoded image sizes,
+  JPEG media type, login form backgrounds, visible upload control, nonoverlap and horizontal bounds
+  at widths 320, 390 and 1440. Three relevant browser scenarios passed in 12.6 s, including a real
+  file upload and persisted parse error. TypeScript and 11 frontend units passed.
+- Sequential H5/weapp builds and base-path checks passed: H5 entry gzip 120253 bytes; native main
+  package 964840 bytes. Native IDE execution is still unverified. Images added 261344 source bytes;
+  these are not remotely loaded and contain no credentials. Preview now serves JPEG/WebP MIME types.
+- Evidence: `evidence/artwork-ui.json`, `evidence/artwork-build-size.json`, real screenshots 29-31
+  under `screenshots/h5/`. Prompts, export dimensions and distribution caveats are documented in
+  `assets-attribution.md`. No paid backend calls or production changes were needed for this loop.
+
 ### Named Error Notebooks (2026-09-15)
 
 - Migration 10 adds owned notebooks and memberships without changing original attempts or review

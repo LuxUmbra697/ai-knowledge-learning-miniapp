@@ -115,6 +115,19 @@ button:disabled { opacity: .55; cursor: default; }
 .study-window { display: flex; justify-content: center; background: var(--paper); margin: 0 0 22px; border-bottom: 1px solid var(--line); }
 .study-panorama { display: block; width: 100%; height: 220px; }
 .study-panorama img { position: static; width: 100%; height: 100%; object-fit: contain; transform: none; }
+.studio-guest { position: relative; }
+.academy-background { position: absolute; left: 0; top: 84px; width: 100%; height: calc(100% - 84px); pointer-events: none; }
+.academy-background img { position: static; width: 100%; height: 100%; object-fit: cover; object-position: center; transform: none; }
+.studio-guest .guest-layout { position: relative; z-index: 1; }
+.studio-guest .studio-main { margin: 0 auto; padding-top: 40px; max-width: 620px; }
+.studio-guest .page-heading { color: #253d32; border: 0; padding: 0; }
+.studio-guest .page-subtitle { color: #3e5b4b; }
+.studio-guest .login-form { box-sizing: border-box; background: var(--paper); border: 1px solid var(--line); padding: 22px 26px 26px; border-radius: 6px; }
+.studio-guest .login-switch { margin-top: 0; }
+.shelf-band { display: flex; justify-content: center; background: #f9fcf6; border-bottom: 1px solid var(--line); }
+.shelf-panorama { display: block; width: 100%; height: 200px; }
+.shelf-panorama img { position: static; width: 100%; height: 100%; object-fit: contain; transform: none; }
+@media (max-width: 800px) { .academy-background { top: 72px; height: calc(100% - 72px); }.studio-guest .studio-main { padding: 28px 20px 40px; }.studio-guest .login-form { padding: 18px 20px 22px; }.shelf-panorama { height: auto; aspect-ratio: 3 / 1; } }
 @media (max-width: 800px) { .study-panorama { height: auto; aspect-ratio: 3 / 1; }.study-window { margin-bottom: 20px; }.welcome-band .welcome-title { font-size: 18px; }.welcome-band .primary-button { padding: 8px 12px; }.welcome-band { gap: 12px; } }
 .review-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid var(--line); margin-bottom: 24px; }
 .studio .review-tabs .text-button { min-width: 0; padding: 12px 4px; white-space: normal; font-size: 14px; border-bottom: 2px solid transparent; }
