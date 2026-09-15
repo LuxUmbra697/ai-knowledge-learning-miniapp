@@ -70,9 +70,11 @@ BKT 运行真实轻量参数拟合及校准，但所有学习者记录为合成�
 
 ## 当前执行结果与限制
 
-- 新锁定 Python 3.13 环境：423 项离线通过、67 项 MySQL 通过，22 项前端单元通过。
-- 本地 Chromium 全回归：25 项通过、4 项额外付费场景跳过，实际耗时约 2.3 分钟。
-- H5/weapp 连续构建通过，入口和主包预算检查通过。小程序开发工具运行和真机未验收。
+- 新锁定 Python 3.13 环境：432 项离线通过、67 项 MySQL 通过，26 项前端单元通过。
+- 本地 Chromium 全回归：26 项通过、4 项额外付费场景跳过，实际耗时约 2.5 分钟。
+- H5/weapp 连续构建通过，入口和主包预算检查通过。官方编译器通过 8 个 WXSS 文件。
+- 开发工具使用固定 AppID，实际页面与角色单击切换通过；私人设置关闭域名校验，合法域名和真机未验收。
+- `frontend/scripts/check-weapp-selection.mjs` 验证指定角色进入、往返切换、头像与正文一致；不新增模型调用。
 - 真实调用另外计数，复用测试不重复扣费。截图涵盖 320/390/1440 宽度、主题与主要业务。
 - 没有“所有设备通过”、高并发或无故障承诺。语义引用正确性、长对话人物一致性、长期学习效果
   仍需独立数据评测，不能从结构化校验或短 smoke 外推。
@@ -86,5 +88,5 @@ BKT 运行真实轻量参数拟合及校准，但所有学习者记录为合成�
 Offline tests, bounded real-provider smoke tests and actual-browser tests are separate evidence.
 The commands above disable developer dotenv and use isolated MySQL. Default CI has no model secrets
 and never touches production. Saved live outputs can be reused locally, but are not new paid calls.
-Screenshots are H5 only. See the stated counts and limitations; builds cannot prove native devices,
+H5 and actual DevTools screenshots are labeled separately. See the stated counts and limitations; builds cannot prove native devices,
 semantic entailment, long-term learning improvements or production capacity.

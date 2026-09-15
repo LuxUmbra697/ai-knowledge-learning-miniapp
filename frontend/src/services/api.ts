@@ -1,6 +1,7 @@
 import Taro from '@tarojs/taro'
 import { PollControl, pollUntil } from './polling'
 import { QuestionCounts, QuestionType } from './quizBlueprint'
+import { networkErrorMessage } from './networkError'
 
 // 由 frontend/config/dev.ts、frontend/config/prod.ts 中的 defineConstants 按环境注入
 declare const API_BASE_URL: string
@@ -89,9 +90,9 @@ export async function request<T = any>(
   })
 
   const cleanup = options.control?.onCancel(() => task.abort())
-  const res = await task.catch(() => {
+  const res = await task.catch(reason => {
     options.control?.check()
-    throw new ApiError('网络暂不可用，请检查连接后重试', 0)
+    throw new ApiError(networkErrorMessage(reason), 0)
   }).finally(() => cleanup?.())
   options.control?.check()
   const body = res.data as ApiResponse<T>
@@ -265,7 +266,7 @@ export function uploadKnowledgeDocument(filePath: string, fileName: string): Pro
           reject(new Error('上传响应解析失败'))
         }
       },
-      fail: (err) => reject(new Error(err.errMsg || '上传失败')),
+      fail: (err) => reject(new ApiError(networkErrorMessage(err), 0)),
     })
   })
 }

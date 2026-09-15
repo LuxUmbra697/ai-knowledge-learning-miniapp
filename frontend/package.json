@@ -50,6 +50,8 @@
     "babel-preset-taro": "4.1.11",
     "lucide-static": "^1.44.0",
     "miniprogram-automator": "^0.12.1",
+    "postcss": "8.5.8",
+    "postcss-selector-parser": "6.1.2",
     "react-refresh": "0.14.2",
     "sass": "^1.80.0",
     "sharp": "^0.35.4",

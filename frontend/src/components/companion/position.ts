@@ -1,5 +1,5 @@
 export type Position = { x: number; y: number }
-export const companionSize = { width: 76, height: 132 }
+export const companionSize = { width: 116, height: 132 }
 export type Obstacle = { left: number; top: number; right: number; bottom: number }
 export function overlaps(position: Position, box: Obstacle) {
   return position.x < box.right + 4 && position.x + companionSize.width > box.left - 4 &&

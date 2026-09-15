@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { clampPosition, dockPosition, safePosition, overlaps } from '../src/components/companion/position'
+import { clampPosition, dockPosition, safePosition, overlaps, companionSize } from '../src/components/companion/position'
 import { Gesture } from '../src/components/companion/gesture'
 
 test('safe interior positions do not snap to an edge', () => {
@@ -34,10 +34,10 @@ test('dragging and resizing keep the companion inside phone and desktop bounds',
   for (const [width,height] of [[320,568],[390,844],[800,600],[1440,900]]) {
     for (const position of [{x:-100,y:-100},{x:9999,y:9999},{x:150,y:240}]) {
       const clamped = clampPosition(position,width,height)
-      assert.ok(clamped.x>=0 && clamped.x+76<=width)
+      assert.ok(clamped.x>=0 && clamped.x+companionSize.width<=width)
       assert.ok(clamped.y>=70 && clamped.y+132+104<=height)
       const docked = dockPosition(position,width,height)
-      assert.ok(docked.x===4 || docked.x===width-80)
+      assert.ok(docked.x===4 || docked.x===width-companionSize.width-4)
     }
   }
 })

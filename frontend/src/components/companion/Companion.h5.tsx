@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useRef, useState } from 'react'
 import Taro from '@tarojs/taro'
-import { clampPosition, safePosition } from './position'
+import { clampPosition, safePosition, companionSize } from './position'
 import { useCompanion } from './useCompanion'
 import { useInteraction } from './useInteraction'
 import { Icon } from '../Icon'
@@ -29,7 +29,7 @@ export default function Companion({ reducedMotion, onHide, onSafeChange, layout 
   useEffect(() => { const timer = setTimeout(place, 40); return () => clearTimeout(timer) }, [layout])
   useEffect(() => {
     const restore = () => {
-      position.current = clampPosition(Taro.getStorageSync(storageKey) || { x: window.innerWidth - 82, y: 120 }, window.innerWidth, window.innerHeight)
+      position.current = clampPosition(Taro.getStorageSync(storageKey) || { x: window.innerWidth - companionSize.width - 4, y: 120 }, window.innerWidth, window.innerHeight)
       if (element.current) element.current.style.transform = `translate(${position.current.x}px, ${position.current.y}px)`
       place()
     }
@@ -78,6 +78,6 @@ export default function Companion({ reducedMotion, onHide, onSafeChange, layout 
       Taro.setStorageSync(storageKey, position.current)
     }} onPointerCancel={() => { dragging.current = null; interaction.cancel() }}>
     <img src={state.source} draggable={false} alt='学习伙伴' />
-    {interaction.menu && <div className='companion-tools'><button aria-label={`和${interaction.name}聊天`} title='伙伴对话' onClick={interaction.openChat}><Icon name='chat' size={18} /></button><button aria-label='收起伙伴' title='收起伙伴' onClick={onHide}><Icon name='close' size={18} /></button></div>}
+    {interaction.menu && <button className='companion-action' aria-label='伙伴操作' title='伙伴操作' onPointerDown={event => event.stopPropagation()} onClick={event => { event.stopPropagation(); void interaction.openActions(onHide) }}><span className='companion-action-mark'><Icon name='more' size={14} /></span></button>}
   </div>
 }

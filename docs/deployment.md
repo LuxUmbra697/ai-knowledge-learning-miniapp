@@ -2,9 +2,11 @@
 
 ## 当前状态
 
-部署验收尚未完成。目标为同一 HTTPS 域名的 `/ai-learn/` 和 `/ai-learn/api/v1`；
-公开地址可用性、线上容量、备份恢复与原站共存必须分别实际验证。
-本文件不将尚未执行的发布步骤写成已上线记录。
+2026-09-15 已部署到 [在线 H5](https://lux-umbra.xyz/ai-learn/)，API 前缀为 `/ai-learn/api/v1`。
+真实浏览器已完成注册、讲义上传与索引、付费引用问答、五题型练习、服务端判分、
+三类梳理图和指定错题本。旧站入口、原 API 与 HTTPS 健康检查保持通过。
+新库 SQL 备份已在隔离 schema 恢复，31 张表、迁移 1–16 均保留。
+这些结果不代表并发容量、全部旧站登录后流程、完整灾备或微信真机已经验收。
 
 ## 运行结构
 
@@ -44,9 +46,22 @@ API 的 401/404/500 必须保留 JSON，不能被 SPA fallback 替换。
 如果数据模型不兼容，必须先停止本项目写入、评估恢复点和新增数据损失，不能盲目覆盖数据库。
 服务器路径、备份文件和个人运维命令保留在被忽略的私人部署指南，公开文档不复制私人连接信息。
 
+## 本次部署观测
+
+- Ubuntu 22.04.5、2 vCPU，可见内存约 1608 MiB；运行中旧服务未停止。
+- 新应用限制 256 MiB / 0.75 CPU，完成索引后观测约 156.7 MiB；这是单次观测，不是压力测试。
+- 延续既有项目专属云 MySQL；实测云端为 Cynos MySQL 5.7 兼容版本，本地隔离测试为 MySQL 8.0.45。
+  没有把 MySQL 8 降级，也没有为了部署另建线上 MySQL 容器。CI 分别测试 MySQL 5.7 与 8。
+- 网关只新增 `/ai-learn/` 必要路径，原 `/api/`、其他站点的 HTTPS 上游校验和证书保持不变。
+- 单文件挂载曾与宿主机 inode 不同；首次候选未生效时没有 reload。
+  隔离演练后更新实际挂载文件，恢复只读，核对字节并通过 `nginx -t` 后平滑加载，没有重启网关容器。
+- 文本/Embedding 分别使用真实付费供应商；凭据仅在本地和服务器私有配置中，未上传 GitHub。
+- 当前例行更新仅替换新应用镜像，不重新添加网关 location；完整回滚入口保存在私人运维记录。
+
 ## English Summary
 
-Public deployment acceptance is not complete. Use one non-root API/embedded worker, existing
+The public H5 core flow is deployed and verified; full capacity, disaster recovery and native-device
+acceptance remain separate. Use one non-root API/embedded worker, existing
 project-owned cloud MySQL, isolated persistent data and a unique gateway-network alias.
 Reuse the shared TLS gateway without changing existing routes, certificates or upstream verification.
 Strip only `/ai-learn`; API errors must never become the SPA HTML. Back up and inspect effective

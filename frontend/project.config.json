@@ -1,8 +1,8 @@
 {
   "miniprogramRoot": "dist/weapp/",
-  "projectname": "frontend",
-  "description": "LuxUmbra-AI闯关学习小程序",
-  "appid": "wxe75e6433459ffc7a",
+  "projectname": "ai-learning-studio",
+  "description": "星知学园 · AI Learning Studio",
+  "appid": "wx7abde39fb8222887",
   "setting": {
     "urlCheck": true,
     "es6": false,

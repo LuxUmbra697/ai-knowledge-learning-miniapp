@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button, View, Text, Textarea, Image, Input, Picker, ScrollView } from '@tarojs/components'
 import Taro, { useDidShow, useDidHide, useRouter } from '@tarojs/taro'
 import { StudioShell, Notice, navigate } from '../../components/StudioShell'
@@ -8,6 +8,7 @@ import { getCachedUser, waitForLogin, getToken, LearningTask, getLearningTask, c
 import { CharacterId, CompanionDetail, CompanionMemory, companionDraft, getCompanion, sendCompanion, saveCompanionMemory, resetCompanion } from '../../services/companion'
 import { PollControl, pollUntil } from '../../services/polling'
 import { taskPhase } from '../../services/taskDisplay'
+import { syncCompanionRoute } from '../../services/companionRoute'
 
 const frames = {
   pink: [require('../../assets/companion-pink-0.png'), require('../../assets/companion-pink-1.png'), require('../../assets/companion-pink-2.png')],
@@ -19,7 +20,24 @@ const key = () => `companion_${Date.now()}_${Math.random().toString(36).slice(2)
 
 export default function CompanionPage() {
   const router = useRouter(), settings = useStudio()
-  const identity: CharacterId = router.params.character === 'orange' ? 'orange' : 'pink'
+  const [ready, setReady] = useState(false)
+  const identity = settings.companionForm
+  useEffect(() => {
+    const entry = router.params.character
+    if (entry === 'pink' || entry === 'orange') settings.update({ companionForm: entry })
+    setReady(true)
+  }, [])
+  useEffect(() => { if (ready) syncCompanionRoute(identity) }, [ready, identity])
+  const select = (value: CharacterId) => {
+    if (value === identity) return
+    settings.update({ companionForm: value })
+  }
+  if (!ready) return <StudioShell focus compact title='伙伴手札'><Text className='muted'>正在翻开伙伴手札</Text></StudioShell>
+  return <CompanionRoom key={identity} identity={identity} onSelect={select} />
+}
+
+function CompanionRoom({ identity, onSelect }: { identity: CharacterId; onSelect: (value: CharacterId) => void }) {
+  const settings = useStudio()
   const [detail, setDetail] = useState<CompanionDetail | null>(null), [tab, setTab] = useState<'chat' | 'memory' | 'story'>('chat')
   const [text, setText] = useState(''), [error, setError] = useState(''), [busy, setBusy] = useState(false), [task, setTask] = useState<LearningTask | null>(null)
   const [memoryText, setMemoryText] = useState(''), [memoryKind, setMemoryKind] = useState(1), [editId, setEditId] = useState('')
@@ -57,7 +75,11 @@ export default function CompanionPage() {
     } catch (reason) { fail(reason, current) }
     finally { if (control.current === current) { lock.current = false; if (live.current) setBusy(false) } }
   }
-  useDidShow(() => { live.current = true; void load() })
+  useEffect(() => {
+    live.current = true; void load()
+    return () => { live.current = false; control.current?.cancel(); clearTimeout(reaction.current) }
+  }, [])
+  useDidShow(() => { if (!live.current) { live.current = true; void load() } })
   useDidHide(() => { live.current = false; control.current?.cancel(); clearTimeout(reaction.current) })
   const send = async () => {
     if (lock.current || !detail || !text.trim()) return
@@ -109,8 +131,8 @@ export default function CompanionPage() {
   const emotion = reacting ? 'happy' : latest?.emotion || 'calm'
   const frame = reacting ? pose : latest?.action === 'celebrate' ? 2 : latest?.action === 'wave' ? 1 : 0
   return <StudioShell focus compact title='伙伴手札' subtitle={detail?.character.motif}>
-    <View className='companion-room-toolbar'><Button className='text-button' onClick={() => Taro.navigateBack().catch(() => navigate('/pages/index/index'))}><Icon name='arrow' size={16} />返回学习</Button><View className='room-character-tabs'>
-      {(['pink', 'orange'] as const).map(value => <Button key={value} disabled={busy} className={identity === value ? 'active' : ''} onClick={() => { settings.update({ companionForm: value }); Taro.redirectTo({ url: `/learning/companion/index?character=${value}` }) }}>{value === 'pink' ? '樱野小满' : '秋庭澄'}</Button>)}
+    <View className='companion-room-toolbar'><Button className='text-button' onClick={() => Taro.navigateBack().catch(() => navigate('/pages/index/index'))}><Icon name='arrow' size={16} />返回学习</Button><View className='room-character-tabs' data-character={identity}>
+      {(['pink', 'orange'] as const).map(value => <Button key={value} disabled={busy} className={identity === value ? 'active' : ''} onClick={() => onSelect(value)}>{value === 'pink' ? '樱野小满' : '秋庭澄'}</Button>)}
     </View></View>
     {error && <Notice message={error} retry={load} />}
     {!detail ? <Text className='muted'>正在翻开伙伴手札</Text> : <View className={`companion-room room-${identity}`}>

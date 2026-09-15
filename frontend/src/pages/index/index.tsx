@@ -3,12 +3,14 @@ import { View, Text, Textarea, Button, Image, Switch } from '@tarojs/components'
 import Taro, { useDidShow, useDidHide } from '@tarojs/taro'
 import { StudioShell, Notice, Empty, navigate } from '../../components/StudioShell'
 import { Icon } from '../../components/Icon'
+import { useShareEntry } from '../../services/useShareEntry'
 import { QuestionCountsEditor } from '../../components/QuestionCountsEditor'
 import { defaultCounts, countQuestions, validCounts } from '../../services/quizBlueprint'
 import { restorableTopic, TopicPractice } from '../../services/quizSession'
 import { getToken, getCachedUser, getUserProfile, getQuizHistory, getKnowledgeDocuments, generateQuizAsync, getLearningTask, ApiError, waitForLogin, getLearningSummary, LearningSummary, UserProfile, QuizHistoryItem } from '../../services/api'
 
 export default function HomePage() {
+  useShareEntry()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [history, setHistory] = useState<QuizHistoryItem[]>([])
   const [documentCount, setDocumentCount] = useState(0)

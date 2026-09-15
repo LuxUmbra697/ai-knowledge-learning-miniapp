@@ -1,6 +1,7 @@
 import importlib.util
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
+from types import SimpleNamespace
 
 import pytest
 import yaml
@@ -34,6 +35,34 @@ def test_dump_credentials_are_quoted_and_never_accept_extra_option_lines():
 def test_restore_cannot_read_outside_private_backups(tmp_path):
     with pytest.raises(ValueError, match='private backup'):
         database.verified_backup(tmp_path / 'untrusted.sql')
+
+
+def test_schema_initialization_uses_a_fresh_connection_for_post_ddl_evidence(monkeypatch, capsys):
+    stale, fresh = Mock(), Mock()
+    completed = False
+    connections = Mock(side_effect=[stale, fresh])
+    monkeypatch.setattr(database, 'connect', connections)
+    monkeypatch.setattr(database, 'dotenv_values', lambda _: {'MYSQL_DATABASE': 'ai_learn_local'})
+    monkeypatch.setattr(database, 'create_absent', Mock())
+
+    async def initialize(*_):
+        nonlocal completed
+        completed = True
+
+    def inspect(connection, _):
+        if completed and connection is stale:
+            raise database.pymysql.OperationalError(2013, 'old metadata connection expired')
+        return {'exists': completed, 'tables': ['users'] if completed else [], 'versions': [1] if completed else []}
+
+    initializer = AsyncMock(side_effect=initialize)
+    monkeypatch.setattr(database, 'initialize_schema', initializer)
+    monkeypatch.setattr(database, 'inventory', inspect)
+    database.execute(SimpleNamespace(env='isolated-example', rehearsal=None, mode='initialize-empty'))
+    assert '"initialized": true' in capsys.readouterr().out
+    initializer.assert_awaited_once()
+    assert connections.call_count == 2
+    fresh.close.assert_called_once()
+    stale.close.assert_called_once()
 
 
 def test_production_container_keeps_limits_identity_and_explicit_paid_mode():

@@ -1,7 +1,7 @@
 import { ReactNode, useState, useRef, useEffect } from 'react'
 import { MovableArea, MovableView, Image, Button, View } from '@tarojs/components'
 import Taro, { useDidHide, useDidShow, usePageScroll } from '@tarojs/taro'
-import { clampPosition, safePosition } from './position'
+import { clampPosition, safePosition, companionSize } from './position'
 import { useCompanion } from './useCompanion'
 import { useInteraction } from './useInteraction'
 import { Icon } from '../Icon'
@@ -10,7 +10,7 @@ const pointOf = (event: unknown) => (event as { touches?: { clientX: number; cli
 
 export default function Companion({ reducedMotion, onHide, onSafeChange, layout }: { reducedMotion: boolean; onHide: () => void; onSafeChange: (safe: boolean) => void; layout?: ReactNode }) {
   const info = Taro.getWindowInfo()
-  const saved = Taro.getStorageSync('ai-learn:v1:companion-position') || { x: info.windowWidth - 82, y: 120 }
+  const saved = Taro.getStorageSync('ai-learn:v1:companion-position') || { x: info.windowWidth - companionSize.width - 4, y: 120 }
   const [position, setPosition] = useState(() => clampPosition(saved, info.windowWidth, info.windowHeight))
   const live = useRef(position)
   const touch = useRef({ x: 0, y: 0 })
@@ -53,6 +53,6 @@ export default function Companion({ reducedMotion, onHide, onSafeChange, layout 
       live.current = next; setPosition(next); Taro.setStorageSync('ai-learn:v1:companion-position', next)
       place()
     }}>
-    <Image src={state.source} mode='aspectFit' />{interaction.menu && <View className='companion-tools'><Button aria-label={`和${interaction.name}聊天`} onTouchStart={event => event.stopPropagation()} onTouchEnd={event => event.stopPropagation()} onClick={interaction.openChat}><Icon name='chat' size={18} /></Button><Button aria-label='收起伙伴' onTouchStart={event => event.stopPropagation()} onTouchEnd={event => event.stopPropagation()} onClick={onHide}><Icon name='close' size={18} /></Button></View>}
+    <Image src={state.source} mode='aspectFit' />{interaction.menu && <Button className='companion-action' aria-label='伙伴操作' onTouchStart={event => event.stopPropagation()} onTouchEnd={event => event.stopPropagation()} onClick={event => { event.stopPropagation(); void interaction.openActions(onHide) }}><View className='companion-action-mark'><Icon name='more' size={14} /></View></Button>}
   </MovableView></MovableArea>
 }

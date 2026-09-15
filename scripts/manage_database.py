@@ -52,6 +52,15 @@ def create_absent(connection, schema):
         cursor.execute(f'CREATE DATABASE `{schema}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci')
 
 
+def fresh_inventory(config, schema):
+    # DDL or restore can outlive an idle metadata connection; never repeat writes to refresh evidence.
+    connection = connect(config)
+    try:
+        return inventory(connection, schema)
+    finally:
+        connection.close()
+
+
 async def initialize_schema(config, schema):
     sys.path.insert(0, str(ROOT / 'backend'))
     os.environ.update({key: value for key, value in config.items() if value is not None})
@@ -136,7 +145,8 @@ def execute(args):
         elif args.mode == 'initialize-empty':
             create_absent(connection, schema)
             asyncio.run(initialize_schema(config, schema))
-            print(json.dumps({'initialized': True, 'table_count': len(inventory(connection, schema)['tables']), 'versions': inventory(connection, schema)['versions']}))
+            after = fresh_inventory(config, schema)
+            print(json.dumps({'initialized': True, 'table_count': len(after['tables']), 'versions': after['versions']}))
         elif args.mode == 'backup':
             if not before['exists'] or not before['versions']:
                 raise RuntimeError('Backup requires an existing versioned learning schema')
@@ -151,7 +161,7 @@ def execute(args):
             create_absent(connection, schema)
             with path.open('rb') as source:
                 run_client(args.client, config, ['--binary-mode', schema], stdin=source, stdout=subprocess.DEVNULL)
-            after = inventory(connection, schema)
+            after = fresh_inventory(config, schema)
             print(json.dumps({'restored': True, 'table_count': len(after['tables']), 'versions': after['versions']}))
     finally:
         connection.close()

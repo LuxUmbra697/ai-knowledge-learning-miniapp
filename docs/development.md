@@ -90,7 +90,8 @@ python scripts/run_local.py --with-models --with-search --serve-h5 --port 18081
 ## 微信小程序
 
 导入 `frontend/`，不是仓库根目录或旧 `dist/`。项目配置指定 `dist/weapp/`。
-用自己的 AppID 和后台配置；AppSecret 仅在后端。生产构建使用正式 HTTPS API 前缀。
+仓库固定 AppID `wx7abde39fb8222887`，后端使用匹配的 AppSecret；密钥不进入前端。
+生产构建使用正式 HTTPS API 前缀。Fork 到其他 AppID 必须同步修改项目配置和构建断言。
 
 ```sh
 npm --prefix frontend run dev:weapp
@@ -100,6 +101,21 @@ npm --prefix frontend run dev:weapp
 真实手机不能通过手机的回环地址访问电脑；真机应使用经验证、已配置合法域名的 HTTPS 后端。
 不能将开发工具关闭域名校验视为发布验收。开发工具自动化需要官方服务端口与登录授权，
 这不会由普通 GitHub runner 代替。H5 使用独立账号，微信使用真实 code 交换，不自动合并。
+
+官方 WXSS 检查与自动化入口（仓库根目录，需本机已安装并登录开发工具）：
+
+```powershell
+$env:WECHAT_WXSS_COMPILER = '你的开发工具安装目录/resources/app.asar.unpacked/node_modules/wcc-exec/wcsc.exe'
+node frontend/scripts/check-weapp-native.mjs
+& '你的开发工具安装目录/cli.bat' auto --project (Resolve-Path frontend).Path --auto-port 9420 --trust-project
+$env:WEAPP_AUTOMATION_ENDPOINT = 'ws://127.0.0.1:9420'
+node frontend/scripts/check-weapp-selection.mjs
+```
+
+先在工具里完成微信登录，脚本仅切换角色、读取页面，不发送聊天或购买模型调用。
+端口已被其他项目窗口占用时改用空闲端口，并让 CLI 与检查脚本保持一致。
+构建成功不等于工具使用了新代码：核对导入路径 `frontend/` 和窗口，必要时只清理本项目编译缓存。
+不要清除其他窗口、登录缓存或私人数据。服务端口属于本机开发能力，不应公开到互联网。
 
 ## 停止与常见问题
 

@@ -3,7 +3,7 @@ import path from 'node:path'
 import sharp from 'sharp'
 
 const root = path.resolve(import.meta.dirname, '..')
-const names = ['book-open','house','library','messages-square','calendar-check','chart-no-axes-combined','user-round','settings-2','arrow-up-right','upload','x','log-out','check','rotate-cw','clock-3','sparkles','plus','trash-2']
+const names = ['book-open','house','library','messages-square','calendar-check','chart-no-axes-combined','user-round','settings-2','arrow-up-right','upload','x','log-out','check','rotate-cw','clock-3','sparkles','plus','trash-2','share-2','ellipsis']
 await fs.mkdir(path.join(root, 'src/assets/icons'), { recursive: true })
 for (const name of names) {
   const file = path.join(root, 'node_modules/lucide-static/icons', `${name}.svg`)

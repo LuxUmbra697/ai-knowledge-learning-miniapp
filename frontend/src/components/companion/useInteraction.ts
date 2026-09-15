@@ -12,6 +12,14 @@ export function useInteraction(react: () => void, active = true) {
   const reactionTimer = useRef<ReturnType<typeof setTimeout>>()
   const name = companionForm === 'orange' ? '秋庭澄' : '樱野小满'
   const openChat = () => Taro.navigateTo({ url: `/learning/companion/index?character=${companionForm}` })
+  const openActions = async (onHide: () => void) => {
+    setMenu(false)
+    try {
+      const result = await Taro.showActionSheet({ itemList: [`和${name}聊天`, '收起伙伴'] })
+      if (result.tapIndex === 0) openChat()
+      if (result.tapIndex === 1) onHide()
+    } catch { /* Dismissing the action sheet leaves the companion unchanged. */ }
+  }
   const feedback = (kind: 'tap' | 'drag' | 'held') => {
     reactRef.current(); setReaction(kind); clearTimeout(reactionTimer.current)
     reactionTimer.current = setTimeout(() => setReaction('idle'), 1600)
@@ -27,7 +35,7 @@ export function useInteraction(react: () => void, active = true) {
   useEffect(() => { if (!active) cancel() }, [active])
   useDidHide(cancel)
   useEffect(() => () => { cancel(); clearTimeout(reactionTimer.current) }, [])
-  return { menu, reaction, name, openChat, invite, cancel,
+  return { menu, reaction, name, openChat, openActions, invite, cancel,
     start: (x: number, y: number) => {
       cancel(); gesture.current.start(x, y, Date.now())
       timer.current = setTimeout(() => {

@@ -30,14 +30,33 @@
 
 以上均来自真实运行的 **H5**，使用隔离测试账号与合成学习材料。不是小程序截图，也不是设计稿。
 
+### 手机与 PC
+
+**推荐使用手机浏览器，移动端体验更佳。** PC 也可完整访问，适合整理材料和查看较大的学习关系图。
+下面分别是 390 px 手机视口和 1440 px PC 视口的真实 H5 运行截图，不代表 iOS/Android 真机全部验收。
+
+| 手机端 H5 | PC 端 H5 |
+| --- | --- |
+| ![手机端知识库，390px](docs/screenshots/h5/31-library-390.png) | ![PC端知识库，1440px](docs/screenshots/h5/31-library-1440.png) |
+| ![手机端伙伴对话，390px](docs/screenshots/h5/52-companion-chat-390.png) | ![PC端伙伴对话，1440px](docs/screenshots/h5/52-companion-chat-1440.png) |
+
+### 微信小程序
+
+以下来自微信开发者工具实际运行，AppID 为 `wx7abde39fb8222887`，不是 H5 套壳截图。
+当前工具的私人设置关闭了域名校验；截图证明页面运行，不代表合法域名、真机或正式发布已经验收。
+
+| 学习首页 | 知识书架 | 伙伴手札 |
+| --- | --- | --- |
+| ![微信小程序首页](docs/screenshots/weapp/01-home.png) | ![微信小程序知识书架](docs/screenshots/weapp/02-knowledge-library.png) | ![微信小程序伙伴手札](docs/screenshots/weapp/03-companion-room.png) |
+
 ## 访问状态
 
 | 项目 | 当前状态 |
 | --- | --- |
 | 源码 | [ai-knowledge-learning-miniapp](https://github.com/LuxUmbra697/ai-knowledge-learning-miniapp)，开发分支 `codex/learning-studio-upgrade` |
-| H5 目标地址 | https://lux-umbra.xyz/ai-learn/；部署验收尚未完成，不宣称已上线 |
-| API 目标前缀 | https://lux-umbra.xyz/ai-learn/api/v1 |
-| 微信小程序 | 双端连续构建已通过；开发工具运行、真机、体验版、审核及正式发布尚未验收 |
+| 在线 H5 | [打开星知学园](https://lux-umbra.xyz/ai-learn/)；公网注册、上传、真实模型问答、五题型练习与复盘已验证 |
+| API 前缀 | `https://lux-umbra.xyz/ai-learn/api/v1`；ready、鉴权和 JSON 404 已验证 |
+| 微信小程序 | 官方 WXSS 编译及开发工具页面/角色切换通过；合法域名校验、真机、体验版、审核及正式发布未验收 |
 
 ## 为什么这样实现
 
@@ -112,7 +131,8 @@ python scripts/run_local.py --with-models --with-search --serve-h5 --port 18081
 ```
 
 微信开发者工具导入 **frontend/**，miniprogramRoot 已指向 dist/weapp/。
-真实微信登录需要自己的 AppID、后端 AppSecret 和合法 HTTPS 域名；H5 不冒充 OpenID 或自动合并账号。
+本仓库固定 AppID `wx7abde39fb8222887`；使用其微信账号权限、匹配的后端 AppSecret 和合法 HTTPS 域名。
+H5 使用独立账号密码，不冒充 OpenID 或自动合并账号。Fork 到另一 AppID 需同步修改配置及构建断言。
 小程序开发地址配置见 [双端启动说明](docs/development.md)。
 
 停止 API/预览使用各自终端的 Ctrl+C；隔离 MySQL 使用 `python scripts/local_mysql.py stop`。
@@ -151,9 +171,10 @@ npm --prefix frontend run test:e2e
 
 | 实测项目 | 结果与条件 |
 | --- | --- |
-| 后端回归 | 新建锁定环境：423 项离线、67 项隔离 MySQL 通过，含本地数据库保护测试 |
-| H5 回归 | Chromium：25 项通过、4 项额外付费场景跳过；包含实际 API/数据库和已保存的供应商结果，不全是 Mock |
-| 双端构建 | 连续构建互不覆盖；H5 入口 gzip 121,718 B，weapp 主包 1,059,160 B，非真机性能指标 |
+| 后端回归 | 新建锁定环境：432 项离线、67 项隔离 MySQL 通过；26 项前端单元通过 |
+| H5 回归 | Chromium：26 项通过、4 项额外付费场景跳过；包含实际 API/数据库、已保存的供应商结果、角色切换与迟到响应回归 |
+| 双端构建 | 连续构建互不覆盖；H5 入口 gzip 122,056 B，weapp 主包 1,062,722 B；官方编译器通过 8 个 WXSS 文件，非真机性能指标 |
+| 公网实测 | 真实讲义索引、4 个引用片段、5 种题型、服务端判分、三类梳理图与指定错题本；无新增旧站路由回归 |
 | RAG | 104 条合成样例；dense MRR 0.950，混合 0.929，词项重排 0.929；三者 Recall@4 均 1.0。**未测出混合优于 dense** |
 | 算法实验 | 800 名合成学习者、24,000 条记录，按学习者划分 480/160/160；BKT 测试 Brier 从默认 0.19552 到拟合 0.18329，仅证明合成实验流程 |
 
@@ -169,7 +190,7 @@ frontend/src/         Taro 页面、主题、平台组件
 frontend/e2e/         浏览器到 API 和数据库的回归
 scripts/              启动、评测、安全检查、发布辅助
 eval/                 合成数据、划分、参数与原始实验结果
-docs/                 公开技术说明与真实 H5 截图
+docs/                 公开技术说明与真实 H5 / 微信开发工具截图
 .github/workflows/    隔离 CI，不读取真实 .env 或生产数据库
 ```
 
@@ -178,7 +199,7 @@ docs/                 公开技术说明与真实 H5 截图
 
 **边界**：扫描件 OCR 未接入；引用逐字匹配不等于语义正确；问答判分不是人类评分保证；
 没有真实学习者训练、LoRA/蒸馏或高并发成绩。伙伴是虚构角色，不替代有证据的学习助手。
-同域不同路径不是完整安全隔离。微信真机、线上容量和生产恢复需分别验收。
+同域不同路径不是完整安全隔离。微信真机、并发容量与完整灾备恢复需分别验收。
 后续重点是独立人工评测、更长资料、真实设备和长期学习数据。
 
 保留原项目合法署名与依赖授权；原创装饰、算法和第三方素材说明见 [来源与许可](docs/assets-attribution.md)。
@@ -203,16 +224,22 @@ have different primary/secondary traits, biographies, four story chapters and ow
 confirmed memories. Drag, tap, collapse, hide or long-press; long press has a 30% chance of offering
 dedicated chat. A gesture alone never buys a model call. Memories can be edited, removed or fully reset.
 
-Screenshots above show the actual **H5 application**, isolated accounts and synthetic data,
-not mockups or WeChat runtime screenshots.
+The H5 screenshots above use isolated accounts and synthetic data, not mockups.
+The separately labeled WeChat gallery comes from the actual DevTools runtime; its private
+domain-check setting is disabled, so it is not evidence of legal-domain or physical-device acceptance.
+
+**A mobile browser is recommended for the best day-to-day experience.** PC remains fully accessible
+for organizing documents and larger study maps. The paired screenshots above show actual H5 at
+390 px mobile and 1440 px PC viewports, not a claim of complete iOS/Android real-device testing.
 
 ### Availability and Design
 
 Source: [ai-knowledge-learning-miniapp](https://github.com/LuxUmbra697/ai-knowledge-learning-miniapp),
 branch `codex/learning-studio-upgrade`.
-Intended H5: https://lux-umbra.xyz/ai-learn/, API: /ai-learn/api/v1.
-**Public deployment acceptance is not complete.** Both builds pass; native IDE/device tests,
-experience upload, platform review and official publication remain separately unverified.
+Live H5: [Open AI Learning Studio](https://lux-umbra.xyz/ai-learn/), API: `/ai-learn/api/v1`.
+Public registration, document indexing, paid grounded Q&A, five question types and review passed.
+Both builds, official WXSS compilation and native IDE page/character-switch checks pass.
+Legal-domain validation, physical devices, experience upload, review and official publication remain unverified.
 
 The diagram above reflects the implementation: Taro 4.1.11/React 18, FastAPI, MySQL, Chroma,
 Chinese BM25/RRF, DeepSeek and DashScope. MySQL owns leases, idempotency, checkpoints and learning state.
@@ -260,8 +287,10 @@ Text and embedding keys are required for this mode. Separate image/COS, public s
 credentials enable their respective capabilities. Missing credentials produce explicit errors,
 not fake responses. Empty image-base/COS-domain options retain their provider defaults.
 
-Import **frontend/** in WeChat DevTools; the config selects dist/weapp/. Supply your AppID,
-server-side AppSecret and legal HTTPS domains. H5 credentials do not impersonate OpenIDs and
+Import **frontend/** in WeChat DevTools; the config selects dist/weapp/ and fixed AppID
+`wx7abde39fb8222887`. Matching account permissions, server-side AppSecret and legal HTTPS domains
+are required. Forking to another AppID requires updating configuration and build assertions.
+H5 credentials do not impersonate OpenIDs and
 accounts are not automatically merged. [Development](docs/development.md) covers startup order,
 platform configuration, stopping and troubleshooting.
 
@@ -272,9 +301,10 @@ evaluation, BKT fitting, frontend unit/type checks and actual-browser tests. Bro
 local stack. Default CI does not read real dotenv, touch production or spend provider credits.
 Explicit paid smoke commands are documented in [testing](docs/testing.md).
 
-Fresh locked environment: 423 offline and 67 MySQL tests passed, including database-safety tests.
-H5: 25 passed, four additional paid cases skipped. Both builds pass; entry gzip 121,718 bytes,
-weapp main 1,059,160 bytes. These are build measurements, not device/concurrency benchmarks.
+Fresh locked environment: 432 offline, 67 MySQL and 26 frontend unit tests passed.
+H5 regression: 26 passed, four additional paid cases skipped; saved real-provider outputs were reused.
+Both builds pass; entry gzip 122,056 bytes, weapp main 1,062,722 bytes, eight official WXSS
+compilations passed. These are build measurements, not device/concurrency benchmarks.
 
 The 104-case synthetic RAG benchmark reports MRR 0.950 dense vs. 0.929 hybrid/lexical-reranked,
 all Recall@4 1.0. **No hybrid improvement is claimed.** The BKT experiment splits 800 synthetic
