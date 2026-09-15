@@ -91,6 +91,7 @@ export default function AssistantPage() {
     catch (reason) { setError(reason instanceof Error ? reason.message : '取消失败') }
   }
   return <StudioShell active='assistant' title='证据学习助手' subtitle='读懂一段知识，也找到它的来处。'>
+    <View className='section-heading'><Text className='tag'>知识问答</Text><Button className='secondary-button' onClick={() => Taro.navigateTo({ url: '/learning/tutor/index' })}><Icon name='chat' size={16} />逐步辅导</Button></View>
     <View className='assistant-layout'>
       <View className='source-column'><Text className='section-title'>本次学习材料</Text>
         {!documents.length && <Empty title={loading ? '正在读取材料' : '暂无已就绪材料'} text='先到知识书架添加一份笔记。' />}

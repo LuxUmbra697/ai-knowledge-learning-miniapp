@@ -114,6 +114,7 @@ export default function ReviewPage() {
         <Text className='row-title'>{card.question.stem}</Text><Text className='muted'>复习时间 {dateText(card.due_at)} · 累计答错 {card.wrong_count} 次</Text>
         <View className='review-actions'>{new Date(card.due_at) <= new Date() ? <Button className='primary-button' onClick={() => { Taro.removeStorageSync(key()); setActive(card); setSelected([]); setError('') }}><Icon name='review' size={16} />开始复习</Button> : <Button className='secondary-button' onClick={() => Taro.navigateTo({ url: `/pages/quiz/index?quizId=${card.quiz_id}` })}>原练习解析</Button>}
           {card.wrong_count > 0 && <Button className='text-button' onClick={() => setDialog({ target: { cardId: card.card_id } })}><Icon name='book' size={16} />加入错题本</Button>}
+          {card.wrong_count > 0 && <Button className='text-button' onClick={() => Taro.navigateTo({ url: `/learning/tutor/index?cardId=${encodeURIComponent(card.card_id)}` })}><Icon name='chat' size={16} />分析错因</Button>}
           {mode === 'wrong' && currentBook && <Button className='text-button' onClick={() => remove(card.card_id)}>从此本移除</Button>}
           {card.wrong_count > 0 && <Picker mode='selector' range={causes} value={Math.max(0, causeKeys.indexOf(card.diagnosis))} onChange={event => change(card, { diagnosis: causeKeys[Number(event.detail.value)] })}><View className='diagnosis-picker'>错因：{causes[Math.max(0, causeKeys.indexOf(card.diagnosis))]}<Text className='muted'>{card.diagnosis ? ' · 我的确认' : ''}</Text></View></Picker>}
         </View>

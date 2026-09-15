@@ -1,0 +1,67 @@
+{
+  "recorded_at": "2026-09-15T06:52:03.993Z",
+  "status": "passed",
+  "data_source": "Verified public learning-rate material and saved real tutor proposal",
+  "elapsed_ms": 12791,
+  "max_external_calls": 8,
+  "proposal_trace": {
+    "nodes": [
+      {
+        "stage": "tutor_identify",
+        "duration_ms": 24.13
+      },
+      {
+        "stage": "tutor_learning",
+        "duration_ms": 5
+      },
+      {
+        "stage": "tutor_review",
+        "duration_ms": 4.01
+      },
+      {
+        "stage": "tutor_evidence",
+        "duration_ms": 3371
+      },
+      {
+        "stage": "tutor_validated",
+        "duration_ms": 2956.09
+      }
+    ],
+    "tokens": 1020,
+    "trace_id": "cd827f28a43245e5b1535d35f375abf8",
+    "input_bytes": 3265,
+    "model_calls": 2,
+    "unmetered_calls": 1
+  },
+  "trace": {
+    "nodes": [
+      {
+        "stage": "quiz_sources",
+        "duration_ms": 335.71
+      },
+      {
+        "stage": "quiz_validated",
+        "duration_ms": 2374.9
+      }
+    ],
+    "tokens": 1552,
+    "trace_id": "822c4dcb1e8f4584990f2ad554852e8f",
+    "input_bytes": 4041,
+    "model_calls": 2,
+    "unmetered_calls": 1
+  },
+  "currency_cost": null,
+  "checks": [
+    "explicit_browser_confirmation",
+    "canonical_server_proposal",
+    "same_key_single_task",
+    "owned_source_scope",
+    "real_generation",
+    "proposed_question_count",
+    "answer_hiding"
+  ],
+  "limitations": [
+    "Question correctness not independently labelled",
+    "No native runtime verification"
+  ]
+}

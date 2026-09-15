@@ -10,11 +10,44 @@ This ledger records observed results; planned capabilities are not delivery clai
 | M0 | Isolated baseline; authenticated ownership; authoritative grading; safe config | Core checks passed; release hardening continues | `evidence/m0-local.json`; 159 deterministic tests |
 | M1 | Taro H5/weapp, separate outputs, independent login, five themes | H5 core flow passed; native runtime gate pending | `frontend/e2e`; `screenshots/h5`; DevTools service port unavailable |
 | M2 | Bounded parsing, scoped hybrid retrieval, citations, 100-case evaluation | Retrieval/citation checkpoint verified; remaining gates below | 104 synthetic cases; real index and answer evidence; dual builds |
-| M3 | Bounded learning agent, durable worker, cancellation/recovery | Index, retrieval, answer, report, public/private practice and optional images verified locally; tutoring graph pending | MySQL recovery/cancellation tests, real model tasks and H5 history |
+| M3 | Bounded learning agent, durable worker, cancellation/recovery | Index, retrieval, answer, report, practice, images and bounded tutoring graph verified locally | MySQL recovery/cancellation tests, real model tasks, H5 history and tutor traces |
 | M4 | Mastery, FSRS, prerequisites, reproducible offline experiment | FSRS/BKT, review, named notebooks, maps and synthetic fitting experiment verified locally; prerequisite planning pending | Owned atomic learning events, DB/H5 tests, `eval/learning` raw experiment |
 | M5 | Browser and DevTools workflows, screenshots, regression | In progress alongside each module | Actual H5 screenshots exist; no weapp screenshots claimed |
 | M6 | New deployment plus all existing sites healthy | Pending | No gateway mutations |
 | M7 | Bilingual README, documentation, private handoff, GitHub and CI | Pending | Remote history verified |
+
+## Tutor Loop (2026-09-15)
+
+- Added owned persistent six-turn sessions and a constrained LangGraph workflow with typed,
+  server-scoped tools. The previous two turns are bounded context, not an unbounded chat log.
+  Exact quotes, one guiding question and structured tentative diagnoses are validated before
+  atomic turn/session/task publication. No source produces an explicit no-evidence response.
+- Practice suggestions require user confirmation. The server reads the saved count/focus/source,
+  checks the session version and reuses a stable task key. Error confirmation changes only the
+  learner-confirmed label, not the grade, mastery observation or review schedule.
+- Added failing tests before implementation and before correcting no-evidence schema bypass,
+  malformed stored drafts, companion layout oscillation and companion overlap on tutor text.
+  No forced browser actions or removed critical assertions were used to pass the regressions.
+- Backend verification: 396 offline tests and 60 isolated MySQL tests passed; frontend 18 units,
+  TypeScript and backend Ruff F checks passed. Full H5 regression: 21 passed in 2.3 minutes,
+  4 extra paid-only scenarios skipped; saved paid responses were reused without new calls.
+  Sequential H5/weapp builds and base-path checks passed. H5 entry gzip: 120545 bytes; native
+  main package: 1043888 bytes (`evidence/tutor-build-size.json`). No cloud schema or gateway changed.
+- Final input review added bounded option text to wrong-answer evidence instead of answer letters
+  alone; its failing regression was fixed and all backend suites passed again. Saved paid screenshots
+  are not claimed as a separate semantic evaluation of that input correction.
+- Paid runs: two Socratic turns plus diagnosis used 5 calls/2959 reported tokens. An explicit
+  practice request and its confirmed two-question quiz used 4 calls/2572 tokens in 12791 ms.
+  Currency cost and semantic correctness are not independently measured. Sources were verified
+  public fixtures; a synthetic wrong answer was explicitly labelled.
+- Evidence and architecture: `tutoring.md`, `evidence/tutor-live.json`, `tutor-practice-live.json`,
+  `tutor-ui.json` and H5 screenshots 44-47. Native runtime and production are not claimed.
+
+| Requirement | Code | Tests | Evidence |
+| --- | --- | --- | --- |
+| AGENT-TUTOR | `tutor_graph.py`, `tutor_tools.py`, `tutor_chain.py` | `test_tutor_contract.py`, `integration/test_tutor.py` | Real bounded turn traces and screenshot 45 |
+| TUTOR-RECOVERY | `tutor_repository.py`, `tutorSession.ts`, tutor page | Transaction/cancel/owner DB tests, `e2e/tutor.spec.ts` | Lost response, refresh, two-turn persistence |
+| TUTOR-CONFIRM | `tutor_service.py`, strict confirmation schema | Canonical proposal and duplicate confirmation tests | Real generated two-question quiz, screenshot 47 |
 
 ## Private Illustration Loop (2026-09-15)
 

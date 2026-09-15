@@ -5,10 +5,49 @@ from fastapi import APIRouter, Depends, Header, Query
 
 from app.core.auth import get_current_user
 from app.models.common import ApiResponse
+from app.models.tutor import TutorCreate, TutorPracticeConfirm, TutorTurn
+from app.repositories import tutor_repository
 from app.services import learning_state_service as service
 from app.services import notebook_service as books
+from app.services import tutor_service as tutor
 
 router = APIRouter(prefix='/learning', tags=['learning'])
+
+
+@router.get('/tutor/context')
+async def tutor_context(quiz_id: str = Query(max_length=64), question_id: str = Query(max_length=64), user_id: int = Depends(get_current_user)):
+    return ApiResponse.success(data=await tutor.question_context(user_id, quiz_id, question_id))
+
+
+@router.get('/tutor/sessions')
+async def tutor_sessions(user_id: int = Depends(get_current_user)):
+    return ApiResponse.success(data={'items': await tutor_repository.list_sessions(user_id)})
+
+
+@router.post('/tutor/sessions')
+async def start_tutor(req: TutorCreate, user_id: int = Depends(get_current_user), idempotency_key: str | None = Header(default=None)):
+    return ApiResponse.success(data=await tutor.create(user_id, req, idempotency_key))
+
+
+@router.get('/tutor/sessions/{session_id}')
+async def get_tutor(session_id: str, user_id: int = Depends(get_current_user)):
+    return ApiResponse.success(data=await tutor.detail(session_id, user_id))
+
+
+@router.post('/tutor/sessions/{session_id}/turns')
+async def tutor_turn(session_id: str, req: TutorTurn, user_id: int = Depends(get_current_user), idempotency_key: str | None = Header(default=None)):
+    return ApiResponse.success(data=await tutor.turn(session_id, user_id, req, idempotency_key))
+
+
+@router.delete('/tutor/sessions/{session_id}')
+async def delete_tutor(session_id: str, user_id: int = Depends(get_current_user)):
+    await tutor_repository.delete(session_id, user_id)
+    return ApiResponse.success()
+
+
+@router.post('/tutor/sessions/{session_id}/turns/{number}/practice')
+async def tutor_practice(session_id: str, number: int, req: TutorPracticeConfirm, user_id: int = Depends(get_current_user)):
+    return ApiResponse.success(data=await tutor.confirm_practice(session_id, user_id, number, req))
 
 
 @router.post('/cards/{card_id}/answer/async')

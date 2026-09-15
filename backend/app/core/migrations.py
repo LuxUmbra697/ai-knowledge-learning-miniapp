@@ -173,6 +173,22 @@ MIGRATIONS = {
         CONSTRAINT fk_image_asset_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
         CONSTRAINT fk_image_asset_quiz FOREIGN KEY(quiz_id) REFERENCES quiz_sessions(quiz_id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"""],
+    14: [
+        """CREATE TABLE IF NOT EXISTS tutor_sessions (
+            session_id VARCHAR(64) NOT NULL PRIMARY KEY, user_id BIGINT UNSIGNED NOT NULL,
+            creation_key VARCHAR(100) NOT NULL, fingerprint CHAR(64) NOT NULL, config_json JSON NOT NULL,
+            version INT NOT NULL DEFAULT 0, pending_task_id VARCHAR(64) NULL,
+            created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL,
+            UNIQUE KEY idx_tutor_creation(user_id,creation_key), UNIQUE KEY idx_tutor_owner(session_id,user_id),
+            CONSTRAINT fk_tutor_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci""",
+        """CREATE TABLE IF NOT EXISTS tutor_turns (
+            session_id VARCHAR(64) NOT NULL, user_id BIGINT UNSIGNED NOT NULL, turn_number INT NOT NULL,
+            task_id VARCHAR(64) NOT NULL, learner_text TEXT NOT NULL, response_json JSON NOT NULL, created_at DATETIME NOT NULL,
+            PRIMARY KEY(session_id,turn_number), UNIQUE KEY idx_tutor_task(task_id),
+            CONSTRAINT fk_tutor_turn_owner FOREIGN KEY(session_id,user_id) REFERENCES tutor_sessions(session_id,user_id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci""",
+    ],
 }
 
 

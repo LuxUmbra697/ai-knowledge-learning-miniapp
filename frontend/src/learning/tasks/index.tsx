@@ -8,7 +8,7 @@ import { PollControl, pollUntil } from '../../services/polling'
 import { taskPhase as phase } from '../../services/taskDisplay'
 
 const statuses = { staging: '等待上传完成', queued: '等待处理', running: '处理中', completed: '已完成', failed: '未完成', cancelled: '已取消' }
-const kinds = { index: '资料索引', answer: '知识问答', retrieve: '资料检索', quiz: '练习生成', report: '学习报告', cleanup: '资料清理', grade: '问答评阅', image: '练习配图' }
+const kinds = { index: '资料索引', answer: '知识问答', retrieve: '资料检索', quiz: '练习生成', report: '学习报告', cleanup: '资料清理', grade: '问答评阅', image: '练习配图', tutor: '逐步辅导' }
 export default function TasksPage() {
   const [tasks, setTasks] = useState<LearningTask[]>([]), [error, setError] = useState(''), [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(''), [busy, setBusy] = useState('')
@@ -51,6 +51,7 @@ export default function TasksPage() {
         {!['completed', 'failed', 'cancelled'].includes(task.status) && <Button className='text-button' disabled={!!busy} onClick={() => cancel(task)}><Icon name='close' size={16} />取消任务</Button>}
         {task.kind === 'index' && task.result?.doc_id && task.status === 'completed' && <Button className='text-button' onClick={() => Taro.navigateTo({ url: `/learning/document/index?docId=${encodeURIComponent(task.result.doc_id)}` })}>查看资料</Button>}
         {task.kind === 'answer' && <Button className='text-button' onClick={() => Taro.navigateTo({ url: `/learning/assistant/index?taskId=${encodeURIComponent(task.task_id)}` })}>查看问答</Button>}
+        {task.kind === 'tutor' && task.resource_id && <Button className='text-button' onClick={() => Taro.navigateTo({ url: `/learning/tutor/index?sessionId=${encodeURIComponent(task.resource_id!)}` })}>查看辅导</Button>}
         {task.kind === 'quiz' && <Button className='text-button' onClick={() => Taro.navigateTo({ url: `/pages/quiz/index?taskId=${encodeURIComponent(task.task_id)}` })}>查看练习</Button>}
         {task.kind === 'image' && task.resource_id && <Button className='text-button' onClick={() => Taro.navigateTo({ url: `/pages/quiz/index?quizId=${encodeURIComponent(task.resource_id!)}` })}>查看配图练习</Button>}
         {task.kind === 'grade' && task.resource_id && <Button className='text-button' onClick={() => Taro.navigateTo({ url: task.result?.card_id ? '/learning/review/index' : `/pages/quiz/index?quizId=${encodeURIComponent(task.resource_id!)}` })}>查看评阅</Button>}

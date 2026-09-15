@@ -53,6 +53,18 @@ page, body { margin: 0; background: #fcfbfc; font-family: 'PingFang SC', 'Micros
 .illustration-frame .question-media { width: 100%; height: 100%; margin: 0; }
 .illustration-frame .question-media img { position: static; transform: none; width: 100%; height: 100%; object-fit: contain; }
 .illustration-status .illustration-frame { aspect-ratio: auto; min-height: 64px; max-height: none; justify-content: flex-start; }
+.tutor-setup, .tutor-dialogue { max-width: 860px; margin: 0 auto; }
+.tutor-setup { display: flex; flex-direction: column; gap: 16px; }
+.tutor-turn { display: flex; flex-direction: column; gap: 14px; padding: 22px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.tutor-student { padding-left: 14px; border-left: 3px solid var(--line); white-space: pre-wrap; color: var(--muted); }
+.tutor-hint { white-space: pre-wrap; line-height: 1.85; }
+.tutor-question { font-size: 18px; line-height: 1.7; font-weight: 600; }
+.tutor-citation { display: flex; flex-direction: column; gap: 6px; padding: 10px 14px; border-left: 3px solid var(--accent); background: var(--paper); }
+.tutor-composer { display: flex; flex-direction: column; gap: 12px; padding: 24px 0; }
+.tutor-history { margin-top: 32px; border-top: 1px solid var(--line); padding-top: 24px; }
+.tutor-history-row { display: flex; gap: 12px; align-items: center; min-height: 64px; border-bottom: 1px solid var(--line); }
+.tutor-history-row .row-copy { flex: 1; min-width: 0; text-align: left; white-space: normal; }
+.tutor-notice { display: block; padding: 14px 0; color: var(--muted); }
 .illustration-controls { display: flex; gap: 12px; justify-content: space-between; align-items: center; flex-wrap: wrap; }
 .count-row > text, .count-row > taro-text-core, .count-total > text, .count-total > taro-text-core { flex-shrink: 0; white-space: nowrap; }
 .practice-config-dialog { background: var(--paper); border: 1px solid var(--line); border-radius: 8px; width: 460px; max-width: 100%; max-height: calc(100dvh - 36px); overflow-y: auto; padding: 24px; }

@@ -1,6 +1,8 @@
 # Architecture: Verified Implementation
 
-This describes the M3 queue checkpoint, not a claim that all planned learning features are finished. Current acceptance and release blockers are maintained in [the implementation ledger](implementation-tracker.md).
+This describes the locally verified implementation, not a claim that deployment or native-device
+acceptance is complete. Current results and release blockers are maintained in
+[the implementation ledger](implementation-tracker.md).
 
 ## Application Boundary
 
@@ -28,12 +30,22 @@ flowchart LR
   REPORT --> MODEL
   REPORT --> COMMIT[Report + score + XP + task transaction]
   COMMIT --> SQL
-  WORKER --> QUIZ[Owned private text practice]
+  WORKER --> QUIZ[Owned public or private practice]
   QUIZ --> RAG
   QUIZ --> MODEL
   QUIZ --> QCOMMIT[Source revision + quiz + task transaction]
   QCOMMIT --> SQL
-  API --> LEGACY[Public-topic and image quiz services: migration in progress]
+  QUIZ --> SEARCH[Optional consented public Tavily search]
+  QCOMMIT --> IMAGE[Optional durable private image child jobs]
+  IMAGE --> COS[Private COS assets with scored-answer release]
+  WORKER --> TUTOR[Bounded LangGraph tutor]
+  TUTOR --> RAG
+  TUTOR --> MODEL
+  TUTOR --> SQL
+  API --> GRADE[Authoritative objective or rubric-based grading]
+  GRADE --> SQL
+  GRADE --> BKT[BKT observation and FSRS schedule]
+  BKT --> SQL
 ```
 
 The production gateway prefix is planned as `/ai-learn/api/v1`; it must strip `/ai-learn` before forwarding to the backend's actual `/api/v1` routes. The target public routes have not been deployed. Existing application gateways and data remain untouched.
@@ -44,7 +56,13 @@ H5 uses independent account credentials hashed with salted scrypt. WeChat retain
 
 MySQL is authoritative for documents, active revisions, source chunks, question answers, attempts and task state. Chroma results cannot authorize access. Every dense/BM25/reranker path starts with an owned SQL corpus; Chroma also receives a pre-filtered scope. Source bodies are taken from canonical SQL rows, not arbitrary vector metadata. Document tombstones revoke retrieval immediately; physical cleanup is retried separately.
 
-Practice serialization removes answers and explanations before a submitted attempt. Server grading locks the quiz, deduplicates the attempt and returns the stored result on identical replay. Modified replay returns a conflict. Report scoring uses stored attempts; report/score/XP/task publication shares one fenced transaction. A failed final task update rolls back the report and XP. Private text practice publishes the quiz and task reference atomically while locking its owned source revisions; cancelled tasks and deleted/reindexed documents cannot publish. Public-topic/image quiz generation remains outside this guarantee.
+Practice serialization removes answers, explanations, concept labels, citations and answer-bearing
+images before a submitted attempt. Server grading locks the quiz, deduplicates the attempt and
+returns the stored result on identical replay. Modified replay returns a conflict. Report scoring
+uses stored attempts; report/score/XP/task publication shares one fenced transaction. Private
+practice locks source revisions before publishing; cancelled jobs and stale sources cannot publish.
+Public practice uses the same durable admission with an empty private-document scope. Optional
+images are separately fenced child jobs; image failure does not erase completed text questions.
 
 ## Task Lifecycle
 
@@ -97,7 +115,18 @@ The frontends use awaited polling with cancellation of transport and timers. Ref
 
 Parser layout metadata records page/section, content hash and stable chunk identity. Embedding model, dimensions, endpoint and chunk settings contribute to the index fingerprint. Changing that fingerprint requires explicit rebuilding. The evaluation compares dense, RRF hybrid and lexical reranking with the same scoped corpus; [actual results](rag-evaluation.md) do not show a reranker improvement on the current synthetic set.
 
-Grounded answers use a constrained JSON service, not ReAct tool execution. Existing public-topic search still uses the repository's ReAct implementation and is separate from private-document retrieval. Its safety/budget review, a learning workflow graph, Socratic tutoring, mastery tracking and FSRS integration remain explicit next stages. Installing LangGraph or an algorithm dependency alone will not count as implementing those capabilities.
+Grounded answers use a constrained JSON service, not arbitrary ReAct execution. Public search is
+one explicit, bounded Tavily request; private text cannot enter it. The existing legacy ReAct code
+is not the new practice path. [Tutoring](tutoring.md) uses a fixed LangGraph state graph with typed,
+owner-bound tools, six-turn sessions and explicit confirmation before practice generation.
+
+Five question types have server-authoritative assessment. Written answers use bounded structured
+rubric checks, not an asserted human correctness oracle. Grade publication, BKT observations and
+FSRS schedules are transactional. Named error notebooks require explicit collection; they do not
+replace the underlying wrong-answer history. See [assessment](practice-and-assessment.md),
+[learning algorithms](learning-algorithms.md), [review maps](study-maps.md) and the
+[executed synthetic fitting experiment](algorithm-experiments.md). Review relationship maps are
+not inferred prerequisite graphs; prerequisite planning remains a separate module.
 
 ## Current Limitations
 
@@ -109,13 +138,16 @@ The implementation follows the connector-level defense described in the
 The image service requires its separate image key; an empty image base still derives the native
 endpoint from the configured compatible base. This preserves the configured
 [Qwen image API](https://help.aliyun.com/zh/model-studio/qwen-image-api) rather than treating an empty optional URL as a broken key.
-Quota storage failures skip paid image generation with a notice. These changes do not yet provide
-atomic image-attempt quotas, durable image calls, decoded image limits, private COS URLs or safe
-legacy Tavily URL extraction; those remain release gates.
+Image reservations and per-user UTC quotas are transactional. Downloads have decoded-pixel and
+byte caps, re-encode metadata-free JPEG, and write only tracked private COS keys. Unsigned access
+must return 403 before and after upload. Signed reads expire after 120 seconds and require a stored
+answer and current owned source. A signed URL remains a temporary bearer capability; revocation
+is not instantaneous after issuance. Cleanup uses a tracked list and bounded retries, never a
+bucket-wide delete. See [private illustrations](quiz-illustrations.md).
 
 - Native WeChat automation and device verification are pending the local tool authorization/service-port gate.
 - Cloud schema selection and backup/migration rehearsal remain pending; test databases are independent loopback schemas.
-- Legacy public search, public-topic/image quiz generation, retired-index maintenance and production security headers still need release hardening.
-- Private quiz prompts include structured source context, but per-question exact quotation, knowledge-point coverage and semantic entailment validation remain unimplemented. Answer citation checks do not automatically prove quiz evidence quality.
+- Retired-index maintenance and production security headers still need release hardening.
+- Private questions have exact quotation and available-fragment coverage validation, not a measured guarantee of full knowledge-point coverage or semantic entailment.
 - Windows parser subprocess timeouts are tested, but Linux-only memory limits have no equivalent verified Windows hard cap.
 - The small synthetic retrieval dataset proves reproducibility, not real-user learning outcomes or general answer correctness.
