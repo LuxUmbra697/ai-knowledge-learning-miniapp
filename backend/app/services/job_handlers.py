@@ -23,10 +23,11 @@ async def index_document(context):
 
 
 def handlers():
+    from app.services import companion_service
     from app.services import tutor_graph
     return {'index': index_document, 'answer': answer_question, 'retrieve': retrieve_evidence,
             'report': report_service.run_report_task, 'quiz': quiz_task_service.run, 'grade': written_grade_service.run,
-            'image': quiz_image_service.run, 'tutor': tutor_graph.run}
+            'image': quiz_image_service.run, 'tutor': tutor_graph.run, 'companion': companion_service.run}
 
 
 async def validate_scope(context):

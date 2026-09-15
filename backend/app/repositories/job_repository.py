@@ -9,7 +9,7 @@ from fastapi import HTTPException
 from app.repositories.rag_index_repository import transaction
 from app.core.config import get_settings
 
-KINDS = {'index', 'answer', 'retrieve', 'quiz', 'report', 'cleanup', 'grade', 'image', 'tutor'}
+KINDS = {'index', 'answer', 'retrieve', 'quiz', 'report', 'cleanup', 'grade', 'image', 'tutor', 'companion'}
 TERMINAL = {'completed', 'failed', 'cancelled'}
 LEASE_SECONDS = 40
 MAX_RUNTIME_SECONDS = 180

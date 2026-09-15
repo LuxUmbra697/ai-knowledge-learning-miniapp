@@ -209,6 +209,22 @@ MIGRATIONS = {
             CONSTRAINT fk_plan_check_owner FOREIGN KEY(plan_id,user_id) REFERENCES learning_plans(plan_id,user_id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci""",
     ],
+    16: [
+        """CREATE TABLE IF NOT EXISTS companion_threads (
+            user_id BIGINT UNSIGNED NOT NULL, character_id VARCHAR(16) NOT NULL,
+            epoch CHAR(32) NOT NULL, version INT NOT NULL DEFAULT 0, turn_count INT NOT NULL DEFAULT 0,
+            memories_json JSON NOT NULL, pending_task_id VARCHAR(64) NULL, updated_at DATETIME NOT NULL,
+            PRIMARY KEY(user_id,character_id),
+            CONSTRAINT fk_companion_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci""",
+        """CREATE TABLE IF NOT EXISTS companion_turns (
+            user_id BIGINT UNSIGNED NOT NULL, character_id VARCHAR(16) NOT NULL, sequence_number INT NOT NULL,
+            task_id VARCHAR(64) NOT NULL, learner_text TEXT NOT NULL, response_json JSON NOT NULL, created_at DATETIME NOT NULL,
+            PRIMARY KEY(user_id,character_id,sequence_number), UNIQUE KEY idx_companion_task(task_id),
+            CONSTRAINT fk_companion_turn_owner FOREIGN KEY(user_id,character_id)
+                REFERENCES companion_threads(user_id,character_id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci""",
+    ],
 }
 
 

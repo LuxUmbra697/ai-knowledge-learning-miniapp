@@ -13,7 +13,7 @@ const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; ch
 http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost')
   if (url.pathname === '/ai-learn') { res.writeHead(308, { Location: prefix + url.search }); res.end(); return }
-  if (url.pathname.startsWith('/ai-learn/api/')) {
+  if (url.pathname.startsWith('/ai-learn/api/') || (process.env.PREVIEW_BACKEND_H5 === '1' && url.pathname.startsWith(prefix))) {
     const upstream = http.request(new URL(url.pathname.slice('/ai-learn'.length) + url.search, api), {
       method: req.method, headers: { ...req.headers, host: api.host }, timeout: 125000,
     }, response => { res.writeHead(response.statusCode, response.headers); response.pipe(res) })

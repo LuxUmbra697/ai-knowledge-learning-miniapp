@@ -8,7 +8,7 @@ import { PollControl, pollUntil } from '../../services/polling'
 import { taskPhase as phase } from '../../services/taskDisplay'
 
 const statuses = { staging: '等待上传完成', queued: '等待处理', running: '处理中', completed: '已完成', failed: '未完成', cancelled: '已取消' }
-const kinds = { index: '资料索引', answer: '知识问答', retrieve: '资料检索', quiz: '练习生成', report: '学习报告', cleanup: '资料清理', grade: '问答评阅', image: '练习配图', tutor: '逐步辅导' }
+const kinds = { index: '资料索引', answer: '知识问答', retrieve: '资料检索', quiz: '练习生成', report: '学习报告', cleanup: '资料清理', grade: '问答评阅', image: '练习配图', tutor: '逐步辅导', companion: '伙伴对话' }
 export default function TasksPage() {
   const [tasks, setTasks] = useState<LearningTask[]>([]), [error, setError] = useState(''), [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(''), [busy, setBusy] = useState('')

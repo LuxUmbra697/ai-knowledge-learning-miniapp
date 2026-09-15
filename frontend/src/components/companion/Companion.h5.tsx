@@ -2,15 +2,17 @@ import { ReactNode, useEffect, useRef, useState } from 'react'
 import Taro from '@tarojs/taro'
 import { clampPosition, safePosition } from './position'
 import { useCompanion } from './useCompanion'
+import { useInteraction } from './useInteraction'
+import { Icon } from '../Icon'
 const storageKey = 'ai-learn:v1:companion-position'
 
 export default function Companion({ reducedMotion, onHide, onSafeChange, layout }: { reducedMotion: boolean; onHide: () => void; onSafeChange: (safe: boolean) => void; layout?: ReactNode }) {
   const element = useRef<HTMLDivElement>(null)
-  const [menu, setMenu] = useState(false)
   const [visible, setVisible] = useState(true)
   const [safe, setSafe] = useState(true)
   useEffect(() => onSafeChange(safe), [safe, onSafeChange])
   const state = useCompanion(visible && safe)
+  const interaction = useInteraction(state.nextPose, visible && safe)
   const position = useRef({ x: 0, y: 120 })
   const dragging = useRef<{ x: number; y: number; startX: number; startY: number } | null>(null)
   const place = () => {
@@ -49,15 +51,20 @@ export default function Companion({ reducedMotion, onHide, onSafeChange, layout 
     const timer = setTimeout(place, 500)
     return () => { observer.disconnect(); clearTimeout(timer); cancelAnimationFrame(frame); document.removeEventListener('scroll', scroll, true); window.removeEventListener('resize', restore); document.removeEventListener('visibilitychange', visibility); document.removeEventListener('focusin', focus); document.removeEventListener('focusout', blur) }
   }, [])
-  return <div ref={element} data-form={Taro.getStorageSync('ai-learn:v1:appearance')?.companionForm || 'pink'} data-pose={state.pose} className={`companion pose-${state.pose} ${reducedMotion || !state.enabled ? '' : 'companion-animated'}`} style={{ visibility: visible && safe && state.visible ? 'visible' : 'hidden' }}
+  return <div ref={element} data-form={Taro.getStorageSync('ai-learn:v1:appearance')?.companionForm || 'pink'} data-pose={state.pose} data-reaction={interaction.reaction} className={`companion pose-${state.pose} ${reducedMotion || !state.enabled ? '' : 'companion-animated'}`} style={{ visibility: visible && safe && state.visible ? 'visible' : 'hidden' }}
+    role='button' tabIndex={0} aria-label={`${interaction.name}，学习伙伴`}
+    onKeyDown={event => { if (event.target === event.currentTarget && ['Enter', ' '].includes(event.key)) { event.preventDefault(); interaction.start(0, 0); interaction.end(0, 0) } }}
+    onContextMenu={e => e.preventDefault()}
     onPointerDown={e => {
-      if ((e.target as HTMLElement).closest('button')) return
+      if (!e.isPrimary || e.button !== 0 || (e.target as HTMLElement).closest('button')) return
       e.currentTarget.setPointerCapture(e.pointerId)
       dragging.current = { x: e.clientX, y: e.clientY, startX: position.current.x, startY: position.current.y }
+      interaction.start(e.clientX, e.clientY)
     }}
     onPointerMove={e => {
       if (!dragging.current) return
       const start = dragging.current
+      if (!interaction.move(e.clientX, e.clientY)) return
       position.current = clampPosition({ x: start.startX + e.clientX - start.x, y: start.startY + e.clientY - start.y }, window.innerWidth, window.innerHeight)
       e.currentTarget.style.transform = `translate(${position.current.x}px, ${position.current.y}px)`
     }}
@@ -65,12 +72,12 @@ export default function Companion({ reducedMotion, onHide, onSafeChange, layout 
       const start = dragging.current
       dragging.current = null
       if (!start) return
-      if (Math.hypot(e.clientX - start.x, e.clientY - start.y) < 6) { setMenu(value => !value); state.nextPose() }
+      interaction.end(e.clientX, e.clientY)
       place()
       e.currentTarget.style.transform = `translate(${position.current.x}px, ${position.current.y}px)`
       Taro.setStorageSync(storageKey, position.current)
-    }} onPointerCancel={() => { dragging.current = null }}>
+    }} onPointerCancel={() => { dragging.current = null; interaction.cancel() }}>
     <img src={state.source} draggable={false} alt='学习伙伴' />
-    {menu && <button className='companion-hide' onClick={onHide}>收起伙伴</button>}
+    {interaction.menu && <div className='companion-tools'><button aria-label={`和${interaction.name}聊天`} title='伙伴对话' onClick={interaction.openChat}><Icon name='chat' size={18} /></button><button aria-label='收起伙伴' title='收起伙伴' onClick={onHide}><Icon name='close' size={18} /></button></div>}
   </div>
 }

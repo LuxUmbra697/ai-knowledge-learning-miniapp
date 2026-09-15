@@ -2,16 +2,20 @@
 
 from contextlib import asynccontextmanager
 import asyncio
+import traceback
+from uuid import uuid4
 
 import structlog
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.v1.routes import health, knowledge, quiz, report, user, tasks, learning
-from app.core.config import get_settings
+from app.api.v1.routes import health, knowledge, quiz, report, user, tasks, learning, companion
+from app.core.config import get_settings, allowed_origins, validate_runtime
 from app.core.db import close_mysql_pool, connect_mysql
 from app.core.upload_limits import UploadLimitsMiddleware
+from app.core.http_security import SecurityHeadersMiddleware, JsonBodyLimitsMiddleware
+from app.core.static_site import H5StaticFiles
 from app.core.exceptions import (
     AuthenticationError,
     ContentFilterError,
@@ -27,6 +31,7 @@ logger = structlog.get_logger()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
+    validate_runtime(settings)
     logger.info("app_starting", host=settings.app_host, port=settings.app_port)
     await connect_mysql()
     worker = None
@@ -34,6 +39,7 @@ async def lifespan(app: FastAPI):
         from app.worker import run
         from app.services.job_handlers import handlers, maintenance
         worker = asyncio.create_task(run(handlers(), maintenance=maintenance))
+    app.state.worker = worker
     try:
         yield
     finally:
@@ -46,22 +52,28 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="LuxUmbra AI 闯关学习",
-    version="0.1.0",
+    title="星知学园 · AI Learning Studio",
+    version="1.0.0",
     lifespan=lifespan,
+    docs_url=None if get_settings().app_env == 'production' else '/docs',
+    redoc_url=None,
+    openapi_url=None if get_settings().app_env == 'production' else '/openapi.json',
 )
 
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=allowed_origins(get_settings()),
+    allow_credentials=False,
+    allow_methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allow_headers=['Authorization', 'Content-Type', 'Idempotency-Key'],
+    expose_headers=['X-Request-ID'],
 )
 
 # 注册路由
 app.add_middleware(UploadLimitsMiddleware)
+app.add_middleware(JsonBodyLimitsMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 app.include_router(health.router, prefix="/api/v1")
 app.include_router(learning.router, prefix="/api/v1")
 app.include_router(quiz.router, prefix="/api/v1")
@@ -69,6 +81,7 @@ app.include_router(report.router, prefix="/api/v1")
 app.include_router(user.router, prefix="/api/v1")
 app.include_router(knowledge.router, prefix="/api/v1")
 app.include_router(tasks.router, prefix='/api/v1')
+app.include_router(companion.router, prefix='/api/v1')
 
 
 # 全局异常处理
@@ -114,18 +127,25 @@ async def knowledge_base_error_handler(request: Request, exc: KnowledgeBaseError
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
-    """兜底异常处理：避免直接暴露裸的 "Internal Server Error"，并记录完整堆栈便于排查。"""
+    """Keep stack locations for diagnosis, but never exception text, locals or provider URLs."""
+    trace_id = getattr(request.state, 'trace_id', uuid4().hex)
     logger.error(
         "unhandled_exception",
-        path=request.url.path,
         method=request.method,
-        error=str(exc),
-        exc_info=True,
+        trace_id=trace_id,
+        error_type=type(exc).__name__,
+        locations=[{'file': frame.filename.rsplit('/', 1)[-1].rsplit('\\', 1)[-1],
+                    'line': frame.lineno, 'function': frame.name} for frame in traceback.extract_tb(exc.__traceback__)[-8:]],
     )
     return JSONResponse(
         status_code=500,
-        content=ApiResponse.error(code=5000, message="服务器内部错误，请稍后重试").model_dump(),
+        content=ApiResponse.error(code=5000, message=f"服务器内部错误，请稍后重试（记录编号 {trace_id}）").model_dump(),
+        headers={'X-Request-ID': trace_id, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff'},
     )
+
+
+if get_settings().h5_static_dir:
+    app.mount('/', H5StaticFiles(directory=get_settings().h5_static_dir), name='h5')
 
 
 if __name__ == "__main__":

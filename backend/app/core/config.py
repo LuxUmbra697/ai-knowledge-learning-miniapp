@@ -3,9 +3,11 @@
 from functools import lru_cache
 import os
 from pathlib import Path
+from typing import Literal
+from urllib.parse import urlsplit
 
 from pydantic_settings import BaseSettings
-from pydantic import Field
+from pydantic import Field, ValidationError
 
 
 class Settings(BaseSettings):
@@ -66,6 +68,10 @@ class Settings(BaseSettings):
     app_host: str = "0.0.0.0"
     app_port: int = 8000
     app_debug: bool = True
+    app_env: Literal['development', 'test', 'production'] = 'development'
+    cors_origins: str = 'http://127.0.0.1:18082,http://localhost:18082'
+    h5_static_dir: str = ''
+    require_paid_models: bool = False
     worker_enabled: bool = False
     worker_daily_provider_calls: int = Field(default=100, ge=0, le=1000000)
     worker_daily_provider_input_bytes: int = Field(default=500000, ge=0, le=100000000)
@@ -92,10 +98,33 @@ class Settings(BaseSettings):
     # Log
     log_level: str = "INFO"
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore", "hide_input_in_errors": True}
+
+
+def allowed_origins(settings: Settings) -> list[str]:
+    origins = list(dict.fromkeys(origin.strip() for origin in settings.cors_origins.split(',') if origin.strip()))
+    for origin in origins:
+        parts = urlsplit(origin)
+        if (parts.scheme not in ('http', 'https') or not parts.hostname or parts.username or parts.password
+                or parts.path or parts.query or parts.fragment or '*' in origin):
+            raise RuntimeError('CORS_ORIGINS must contain explicit HTTP(S) origins without paths or credentials')
+    return origins
+
+
+def validate_runtime(settings: Settings) -> None:
+    allowed_origins(settings)
+    if settings.app_env == 'production':
+        if settings.app_debug or settings.mysql_auto_init or len(settings.jwt_secret) < 32:
+            raise RuntimeError('Production requires APP_DEBUG=false, MYSQL_AUTO_INIT=false and a strong JWT_SECRET')
+    if settings.require_paid_models and (not settings.deepseek_api_key or not settings.dashscope_api_key):
+        raise RuntimeError('REQUIRE_PAID_MODELS requires separately configured text and embedding provider credentials')
 
 
 @lru_cache
 def get_settings() -> Settings:
     filename = os.getenv("AI_LEARN_ENV_FILE", str(Path(__file__).resolve().parents[2] / ".env"))
-    return Settings(_env_file=filename or None)
+    try:
+        return Settings(_env_file=filename or None)
+    except ValidationError as error:
+        fields = ', '.join(str(item['loc'][0]) for item in error.errors(include_input=False))
+        raise RuntimeError(f'Invalid application configuration fields: {fields}') from None

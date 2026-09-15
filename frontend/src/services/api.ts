@@ -502,7 +502,7 @@ export function reindexDocument(docId: string) {
 
 export interface LearningTask {
   resource_id?: string
-  task_id: string; kind: 'index' | 'answer' | 'retrieve' | 'quiz' | 'report' | 'cleanup' | 'grade' | 'image' | 'tutor'
+  task_id: string; kind: 'index' | 'answer' | 'retrieve' | 'quiz' | 'report' | 'cleanup' | 'grade' | 'image' | 'tutor' | 'companion'
   status: 'staging' | 'queued' | 'running' | 'completed' | 'failed' | 'cancelled'
   stage: string; title?: string; created_at?: string; result: any
   error_code?: string; error_message?: string

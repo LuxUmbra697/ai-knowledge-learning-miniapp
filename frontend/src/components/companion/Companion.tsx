@@ -1,20 +1,24 @@
 import { ReactNode, useState, useRef, useEffect } from 'react'
-import { MovableArea, MovableView, Image, Button } from '@tarojs/components'
+import { MovableArea, MovableView, Image, Button, View } from '@tarojs/components'
 import Taro, { useDidHide, useDidShow, usePageScroll } from '@tarojs/taro'
-import { dockPosition, safePosition } from './position'
+import { clampPosition, safePosition } from './position'
 import { useCompanion } from './useCompanion'
+import { useInteraction } from './useInteraction'
+import { Icon } from '../Icon'
+
+const pointOf = (event: unknown) => (event as { touches?: { clientX: number; clientY: number }[] }).touches?.[0]
 
 export default function Companion({ reducedMotion, onHide, onSafeChange, layout }: { reducedMotion: boolean; onHide: () => void; onSafeChange: (safe: boolean) => void; layout?: ReactNode }) {
   const info = Taro.getWindowInfo()
   const saved = Taro.getStorageSync('ai-learn:v1:companion-position') || { x: info.windowWidth - 82, y: 120 }
-  const [position, setPosition] = useState(() => dockPosition(saved, info.windowWidth, info.windowHeight))
+  const [position, setPosition] = useState(() => clampPosition(saved, info.windowWidth, info.windowHeight))
   const live = useRef(position)
-  const start = useRef(position)
-  const [menu, setMenu] = useState(false)
+  const touch = useRef({ x: 0, y: 0 })
   const [visible, setVisible] = useState(true)
   const [safe, setSafe] = useState(true)
   useEffect(() => onSafeChange(safe), [safe, onSafeChange])
   const state = useCompanion(visible && safe)
+  const interaction = useInteraction(state.nextPose, visible && safe)
   const place = () => {
     const next = Taro.getWindowInfo()
     Taro.createSelectorQuery().selectAll('.primary-button, .secondary-button, .text-button, .icon-button, .answer-option, .studio-input, .studio-textarea, .mobile-navigation, .stat, .page-title, .page-subtitle, .welcome-title, .section-title, .row-title, .field-hint, .question-stem, .answer-explanation, .claim-text, .notebook-toolbar, .diagnosis-picker, .diagram-surface, .map-toolbar').boundingClientRect(rectangles => {
@@ -39,14 +43,16 @@ export default function Companion({ reducedMotion, onHide, onSafeChange, layout 
   if (!visible) return null
   return <MovableArea className='companion-area' style={{ visibility: safe ? 'visible' : 'hidden' }}><MovableView className={`companion-native pose-${state.pose} ${reducedMotion || !state.enabled ? '' : 'companion-animated'}`} direction='all' x={position.x} y={position.y} inertia={false}
     onChange={event => { live.current = { x: event.detail.x, y: event.detail.y } }}
-    onTouchStart={() => { start.current = live.current }}
+    onTouchStart={event => { const point = pointOf(event); if (point) { touch.current = { x: point.clientX, y: point.clientY }; interaction.start(point.clientX, point.clientY) } }}
+    onTouchMove={event => { const point = pointOf(event); if (point) { touch.current = { x: point.clientX, y: point.clientY }; interaction.move(point.clientX, point.clientY) } }}
+    onTouchCancel={interaction.cancel}
     onTouchEnd={() => {
-      if (Math.hypot(live.current.x - start.current.x, live.current.y - start.current.y) < 6) { setMenu(value => !value); state.nextPose() }
+      interaction.end(touch.current.x, touch.current.y)
       const current = Taro.getWindowInfo()
-      const next = dockPosition(live.current, current.windowWidth, current.windowHeight)
-      setPosition(next); Taro.setStorageSync('ai-learn:v1:companion-position', next)
+      const next = clampPosition(live.current, current.windowWidth, current.windowHeight)
+      live.current = next; setPosition(next); Taro.setStorageSync('ai-learn:v1:companion-position', next)
       place()
     }}>
-    <Image src={state.source} mode='aspectFit' />{menu && <Button className='companion-hide' onClick={onHide}>收起伙伴</Button>}
+    <Image src={state.source} mode='aspectFit' />{interaction.menu && <View className='companion-tools'><Button aria-label={`和${interaction.name}聊天`} onTouchStart={event => event.stopPropagation()} onTouchEnd={event => event.stopPropagation()} onClick={interaction.openChat}><Icon name='chat' size={18} /></Button><Button aria-label='收起伙伴' onTouchStart={event => event.stopPropagation()} onTouchEnd={event => event.stopPropagation()} onClick={onHide}><Icon name='close' size={18} /></Button></View>}
   </MovableView></MovableArea>
 }

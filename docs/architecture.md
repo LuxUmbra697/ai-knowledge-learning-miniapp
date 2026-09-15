@@ -130,6 +130,34 @@ not inferred prerequisite graphs. [Learning paths](learning-paths.md) store expl
 prerequisite edges and immutable confirmed plans; their deterministic recommendation policy is
 separate from BKT mastery estimation and FSRS scheduling.
 
+## Companion Conversations
+
+Both selectable characters have separate versioned canonical biographies, primary/secondary
+personality traits and four ordered chapters. Dialogue is a bounded single-model task, not a
+second autonomous agent. Each `(user_id, character_id)` owns its conversation, confirmed memories
+and story progress. The model receives only unlocked canon, at most six recent turns and twelve
+confirmed preferences; it has no document, SQL, shell or account-management tools.
+
+Memory suggestions quote the current message and require a user confirmation. Individual memory
+edits do not erase transcripts; the explicit full-memory reset clears transcript and persisted job
+content too, while retaining cost counters. Cancellation and reset fence publication. The latest
+100 conversation turns remain available. The companion is explicitly fictional, and its chat is
+not the cited knowledge assistant. Canonical prompts and schema checks reduce inconsistency;
+they are not a formal guarantee of semantic consistency for every possible conversation.
+
+## HTTP Boundaries
+
+Production startup rejects debug mode, automatic schema initialization and short JWT secrets.
+Explicit CORS origins replace wildcard credentials. JSON mutation bodies are bounded to 512 KiB;
+uploads retain their separate limits. Error diagnostics retain request IDs and stack locations,
+not raw exception strings or provider URLs. `/api/v1/health` is liveness;
+`/api/v1/ready` checks the database and embedded worker.
+
+Optional packaged H5 serving only falls back for page namespaces; API and missing-asset errors
+remain errors. H5 CSP permits same-origin scripts and Blob reads used by local file upload and
+Mermaid, not arbitrary remote scripts. Path separation does not isolate the origin from another
+same-domain application's XSS; no domain-wide service worker is installed.
+
 ## Current Limitations
 
 Image downloads use `outbound_service`: public HTTPS/443 only, actual connector DNS-result checks,
@@ -149,7 +177,7 @@ bucket-wide delete. See [private illustrations](quiz-illustrations.md).
 
 - Native WeChat automation and device verification are pending the local tool authorization/service-port gate.
 - Cloud schema selection and backup/migration rehearsal remain pending; test databases are independent loopback schemas.
-- Retired-index maintenance and production security headers still need release hardening.
+- Retired-index maintenance and deployed security-header verification still need release validation.
 - Private questions have exact quotation and available-fragment coverage validation, not a measured guarantee of full knowledge-point coverage or semantic entailment.
 - Windows parser subprocess timeouts are tested, but Linux-only memory limits have no equivalent verified Windows hard cap.
 - The small synthetic retrieval dataset proves reproducibility, not real-user learning outcomes or general answer correctness.

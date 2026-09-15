@@ -128,6 +128,40 @@ button:disabled { opacity: .55; cursor: default; }
 .companion-dock > image, .companion-dock > taro-image-core { width: 40px; height: 46px; }
 .companion-reserved { height: 160px; display: flex; justify-content: flex-end; align-items: center; margin: -12px 0 20px; border-bottom: 1px solid var(--line); }
 .companion-reserved .companion-portrait { width: 92px; height: 150px; }
+.companion-tools { position: absolute; bottom: 0; left: 0; width: 76px; height: 88px; display: flex; flex-direction: column; background: var(--paper); border: 1px solid var(--line); border-radius: 6px; }
+.companion-tools button, .companion-tools taro-button-core { width: 76px; min-width: 0; height: 44px; min-height: 44px; padding: 0; display: flex; align-items: center; justify-content: center; background: transparent; border: 0; }
+.companion-tools .studio-icon img { width: 18px; height: 18px; animation: none; }
+.companion[data-reaction='drag'] > img { animation: companion-cheer .7s ease-out; }
+.companion-room-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+.room-character-tabs, .room-tabs { display: flex; border-bottom: 1px solid var(--line); gap: 8px; }
+.room-character-tabs button, .room-character-tabs taro-button-core, .room-tabs button, .room-tabs taro-button-core { background: transparent; color: var(--muted); border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 8px 12px; min-height: 44px; font-size: 14px; }
+.room-character-tabs .active, .room-tabs .active { color: var(--accent); border-bottom-color: var(--accent); }
+.companion-room { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 32px; border-top: 1px solid var(--line); padding-top: 24px; }
+.room-character { display: flex; flex-direction: column; gap: 12px; align-items: center; text-align: center; }
+.room-portrait { position: relative; width: 170px; height: 252px; cursor: pointer; }
+.room-portrait > image, .room-portrait > taro-image-core { width: 160px; height: 238px; }
+.room-portrait img { position: static; display: block; width: 100%; height: 100%; object-fit: contain; }
+.room-emotion { position: absolute; bottom: 0; left: 0; right: 0; font-size: 12px; color: var(--accent); background: var(--paper); padding: 3px; }
+.room-name { font-size: 24px; font-weight: 700; }.room-role { font-size: 12px; color: var(--muted); }.room-personality { font-size: 14px; line-height: 1.8; }
+.room-content { min-width: 0; }.room-transcript { height: 440px; border-bottom: 1px solid var(--line); padding: 16px 0; box-sizing: border-box; }
+.room-greeting { padding: 12px 0 20px; font-size: 15px; line-height: 1.9; color: var(--accent); }
+.room-turn { padding: 8px 0 20px; display: flex; flex-direction: column; gap: 14px; }
+.room-user-text { align-self: flex-end; max-width: 88%; background: var(--surface); border-left: 2px solid var(--secondary); padding: 10px 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.room-reply { display: flex; flex-direction: column; gap: 8px; border-left: 2px solid var(--accent); padding-left: 16px; margin-right: 12px; font-size: 15px; line-height: 1.9; white-space: pre-wrap; overflow-wrap: anywhere; }
+.room-memory-used { font-size: 12px; color: var(--muted); }.room-composer { padding-top: 16px; }.room-composer .studio-textarea { min-height: 82px; height: 82px; }.room-composer .section-heading { margin-top: 12px; gap: 12px; }.room-composer .tiny-label { max-width: 65%; }
+.room-memories, .room-story { padding-top: 20px; display: flex; flex-direction: column; gap: 16px; }.room-memory-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }.room-memory-row > view:first-child, .room-memory-row > taro-view-core:first-child { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; overflow-wrap: anywhere; }
+.room-memory-editor { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }.room-memory-editor .studio-input { width: 100%; box-sizing: border-box; }.room-reset { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+.room-chapter { display: flex; flex-direction: column; gap: 12px; padding: 16px 0; border-bottom: 1px solid var(--line); font-size: 15px; line-height: 2; }
+.room-motion.action-wave > image, .room-motion.action-wave > taro-image-core { animation: companion-wave 2.5s ease-in-out infinite; }
+.room-motion.action-celebrate > image, .room-motion.action-celebrate > taro-image-core { animation: companion-cheer 2s ease-in-out 2; }
+.room-motion.action-nod > image, .room-motion.action-nod > taro-image-core { animation: companion-idle 3s ease-in-out 2; }
+.room-motion.emotion-shy > image, .room-motion.emotion-shy > taro-image-core { transform: rotate(-3deg); }
+@media (max-width: 760px) {
+  .companion-room { grid-template-columns: minmax(0, 1fr); gap: 18px; padding-top: 16px; }
+  .room-character { display: grid; grid-template-columns: 98px minmax(0, 1fr); gap: 6px 14px; text-align: left; align-items: center; }
+  .room-portrait { grid-row: 1 / 5; width: 98px; height: 116px; }.room-portrait > image, .room-portrait > taro-image-core { width: 94px; height: 106px; }.room-name { font-size: 21px; }.room-personality { font-size: 13px; line-height: 1.6; }.room-character > .room-personality { display: none; }.room-role { line-height: 1.6; }.room-emotion { font-size: 10px; text-align: center; }.room-transcript { height: calc(100vh - 710px); min-height: 140px; max-height: 320px; }.room-composer .primary-button { min-width: 88px; }
+  .studio.studio-compact .studio-main { padding-top: 16px; }.studio-compact .page-heading { margin-bottom: 12px; }.studio-compact .page-title { font-size: 22px; }
+}
 .companion-reserved .companion-portrait img { position: static; width: 100%; height: 100%; object-fit: contain; display: block; }
 .pose-1.companion-animated img, .pose-1.companion-animated image { animation: companion-wave 1.6s ease-in-out infinite; }@keyframes companion-wave { 0%,100% { transform: rotate(-2deg); } 50% { transform: rotate(3deg); } }
 .pose-2.companion-animated img, .pose-2.companion-animated image { animation: companion-cheer 1.2s ease-in-out infinite; }@keyframes companion-cheer { 0%,100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-7px) scale(1.025); } }
