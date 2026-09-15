@@ -15,6 +15,15 @@ test('character selection clears old content immediately and late responses cann
   await page.goto('learning/companion/index?character=pink')
   await expect(page.locator('.room-name')).toHaveText('樱野小满')
   await expect(page.locator('.companion-dock img')).toHaveAttribute('src', /companion-pink/)
+  const portraitFits = async () => {
+    const host = (await page.locator('.room-portrait > taro-image-core').boundingBox())!
+    const image = (await page.locator('.room-portrait img').boundingBox())!
+    expect(image.x).toBeGreaterThanOrEqual(host.x - 1)
+    expect(image.y).toBeGreaterThanOrEqual(host.y - 1)
+    expect(image.x + image.width).toBeLessThanOrEqual(host.x + host.width + 1)
+    expect(image.y + image.height).toBeLessThanOrEqual(host.y + host.height + 1)
+  }
+  await portraitFits()
   let release = () => {}
   const delayed = new Promise<void>(resolve => { release = resolve })
   let intercepted = false
@@ -37,6 +46,7 @@ test('character selection clears old content immediately and late responses cann
   await page.unroute('**/api/v1/companions/orange')
   await page.locator('.room-character-tabs').getByText('秋庭澄', { exact: true }).click()
   await expect(page.locator('.room-name')).toHaveText('秋庭澄')
+  await portraitFits()
   await expect(page.locator('.companion-room')).toHaveClass(/room-orange/)
   await expect(page.locator('.companion-dock img')).toHaveAttribute('src', /companion-orange/)
   await expect(page).toHaveURL(/character=orange/)

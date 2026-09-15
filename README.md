@@ -173,7 +173,7 @@ npm --prefix frontend run test:e2e
 | --- | --- |
 | 后端回归 | 新建锁定环境：432 项离线、67 项隔离 MySQL 通过；26 项前端单元通过 |
 | H5 回归 | Chromium：26 项通过、4 项额外付费场景跳过；包含实际 API/数据库、已保存的供应商结果、角色切换与迟到响应回归 |
-| 双端构建 | 连续构建互不覆盖；H5 入口 gzip 122,056 B，weapp 主包 1,062,722 B；官方编译器通过 8 个 WXSS 文件，非真机性能指标 |
+| 双端构建 | 连续构建互不覆盖；H5 入口 gzip 122,053 B，weapp 主包 1,062,836 B；官方编译器通过 8 个 WXSS 文件，非真机性能指标 |
 | 公网实测 | 真实讲义索引、4 个引用片段、5 种题型、服务端判分、三类梳理图与指定错题本；无新增旧站路由回归 |
 | RAG | 104 条合成样例；dense MRR 0.950，混合 0.929，词项重排 0.929；三者 Recall@4 均 1.0。**未测出混合优于 dense** |
 | 算法实验 | 800 名合成学习者、24,000 条记录，按学习者划分 480/160/160；BKT 测试 Brier 从默认 0.19552 到拟合 0.18329，仅证明合成实验流程 |
@@ -303,7 +303,7 @@ Explicit paid smoke commands are documented in [testing](docs/testing.md).
 
 Fresh locked environment: 432 offline, 67 MySQL and 26 frontend unit tests passed.
 H5 regression: 26 passed, four additional paid cases skipped; saved real-provider outputs were reused.
-Both builds pass; entry gzip 122,056 bytes, weapp main 1,062,722 bytes, eight official WXSS
+Both builds pass; entry gzip 122,053 bytes, weapp main 1,062,836 bytes, eight official WXSS
 compilations passed. These are build measurements, not device/concurrency benchmarks.
 
 The 104-case synthetic RAG benchmark reports MRR 0.950 dense vs. 0.929 hybrid/lexical-reranked,

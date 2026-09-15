@@ -140,7 +140,7 @@ button:disabled { opacity: .55; cursor: default; }
 .room-character { display: flex; flex-direction: column; gap: 12px; align-items: center; text-align: center; }
 .room-portrait { position: relative; width: 170px; height: 252px; cursor: pointer; }
 .room-portrait > image, .room-portrait > taro-image-core { width: 160px; height: 238px; }
-.room-portrait img { position: static; display: block; width: 100%; height: 100%; object-fit: contain; }
+.room-portrait img { position: static; display: block; width: 100%; height: 100%; object-fit: contain; transform: none; }
 .room-emotion { position: absolute; bottom: 0; left: 0; right: 0; font-size: 12px; color: var(--accent); background: var(--paper); padding: 3px; }
 .room-name { font-size: 24px; font-weight: 700; }.room-role { font-size: 12px; color: var(--muted); }.room-personality { font-size: 14px; line-height: 1.8; }
 .room-content { min-width: 0; }.room-transcript { height: 440px; border-bottom: 1px solid var(--line); padding: 16px 0; box-sizing: border-box; }
@@ -162,7 +162,7 @@ button:disabled { opacity: .55; cursor: default; }
   .room-portrait { grid-row: 1 / 5; width: 98px; height: 116px; }.room-portrait > image, .room-portrait > taro-image-core { width: 94px; height: 106px; }.room-name { font-size: 21px; }.room-personality { font-size: 13px; line-height: 1.6; }.room-character > .room-personality { display: none; }.room-role { line-height: 1.6; }.room-emotion { font-size: 10px; text-align: center; }.room-transcript { height: calc(100vh - 710px); min-height: 140px; max-height: 320px; }.room-composer .primary-button { min-width: 88px; }
   .studio.studio-compact .studio-main { padding-top: 16px; }.studio-compact .page-heading { margin-bottom: 12px; }.studio-compact .page-title { font-size: 22px; }
 }
-.companion-reserved .companion-portrait img { position: static; width: 100%; height: 100%; object-fit: contain; display: block; }
+.companion-reserved .companion-portrait img { position: static; width: 100%; height: 100%; object-fit: contain; display: block; transform: none; }
 .pose-1.companion-animated img, .pose-1.companion-animated image { animation: companion-wave 1.6s ease-in-out infinite; }@keyframes companion-wave { 0%,100% { transform: rotate(-2deg); } 50% { transform: rotate(3deg); } }
 .pose-2.companion-animated img, .pose-2.companion-animated image { animation: companion-cheer 1.2s ease-in-out infinite; }@keyframes companion-cheer { 0%,100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-7px) scale(1.025); } }
 .form-swatch { width: 36px; height: 36px; border-radius: 50%; border: 3px solid var(--paper); outline: 1px solid var(--line); }.form-swatch.pink { background: #ed9dbc; }.form-swatch.orange { background: #efa668; }.form-swatch.selected { outline: 2px solid var(--accent); }.pose-selector { display: flex; gap: 2px; padding: 4px; background: var(--soft); border-radius: 6px; margin-bottom: 16px; }.pose-selector button { flex: 1; min-height: 40px; padding: 4px; font-size: 12px; }.pose-selector .active { background: var(--paper); border-radius: 4px; color: var(--accent); }
