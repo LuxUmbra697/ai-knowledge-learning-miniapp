@@ -15,7 +15,7 @@ export default function Companion({ reducedMotion, onHide, onSafeChange, layout 
   const dragging = useRef<{ x: number; y: number; startX: number; startY: number } | null>(null)
   const place = () => {
     if (dragging.current) return
-    const boxes = [...document.querySelectorAll('taro-button-core, input, textarea, .mobile-navigation, .stat, .page-title, .page-subtitle, .welcome-title, .section-title, .row-title, .field-hint, .question-stem, .answer-explanation, .claim-text, .notebook-toolbar, .diagnosis-picker')]
+    const boxes = [...document.querySelectorAll('taro-button-core, input, textarea, .mobile-navigation, .stat, .page-title, .page-subtitle, .welcome-title, .section-title, .row-title, .field-hint, .question-stem, .answer-explanation, .claim-text, .notebook-toolbar, .diagnosis-picker, .diagram-surface, .map-toolbar')]
       .filter(node => !node.closest('.companion') && node.getClientRects().length > 0)
       .map(node => node.getBoundingClientRect()).filter(box => box.width > 0 && box.height > 0)
     const next = safePosition(position.current, window.innerWidth, window.innerHeight, boxes)

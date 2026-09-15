@@ -53,7 +53,8 @@ export default function QuizPage() {
       setQuizId(targetId)
       const attempts = result.answer_records || []
       const next = result.questions.findIndex(q => !attempts.some(a => a.question_id === q.id))
-      const position = next < 0 ? 0 : next
+      const linked = result.questions.findIndex(q => q.id === router.params.questionId)
+      const position = linked >= 0 ? linked : next < 0 ? 0 : next
       const draft = Taro.getStorageSync(draftKeyFor(targetId))
       setQuiz(result); setRecords(attempts); setIndex(position)
       const target = result.questions[position]

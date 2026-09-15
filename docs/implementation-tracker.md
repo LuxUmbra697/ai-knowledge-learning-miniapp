@@ -11,7 +11,7 @@ This ledger records observed results; planned capabilities are not delivery clai
 | M1 | Taro H5/weapp, separate outputs, independent login, five themes | H5 core flow passed; native runtime gate pending | `frontend/e2e`; `screenshots/h5`; DevTools service port unavailable |
 | M2 | Bounded parsing, scoped hybrid retrieval, citations, 100-case evaluation | Retrieval/citation checkpoint verified; remaining gates below | 104 synthetic cases; real index and answer evidence; dual builds |
 | M3 | Bounded learning agent, durable worker, cancellation/recovery | Index, retrieval, answer, report and private text practice verified; public-topic/image migration and tutoring graph pending | MySQL recovery/cancellation tests, real model tasks and H5 history |
-| M4 | Mastery, FSRS, prerequisites, reproducible offline experiment | Pending | No implementation yet |
+| M4 | Mastery, FSRS, prerequisites, reproducible offline experiment | FSRS/BKT, review, named notebooks and study maps verified locally; prerequisite planning and offline fitting experiment pending | Owned atomic learning events, review/notebook/map DB and H5 tests |
 | M5 | Browser and DevTools workflows, screenshots, regression | In progress alongside each module | Actual H5 screenshots exist; no weapp screenshots claimed |
 | M6 | New deployment plus all existing sites healthy | Pending | No gateway mutations |
 | M7 | Bilingual README, documentation, private handoff, GitHub and CI | Pending | Remote history verified |
@@ -329,7 +329,7 @@ The following owner requests are part of the remaining acceptance scope, not com
 | ID | Requested behavior | Acceptance requirement | Status |
 | --- | --- | --- | --- |
 | QUIZ-09 | User-selected total and per-type counts | Single, multiple, fill-in, judgment and written response; exact blueprint validation; bounded task batches and authoritative scoring | Pending |
-| REPORT-04 | Mermaid learning and relationship diagrams | Stored graph data after review; sanitized H5 renderer and tested native equivalent; invalid graphs fail visibly | Pending |
+| REPORT-04 | Mermaid learning and relationship diagrams | Stored graph data after review; sanitized H5 renderer and tested native equivalent; invalid graphs fail visibly | H5 and persisted data verified; native Canvas built, IDE runtime pending |
 | REVIEW-03 | Named error notebooks | Create notebook, explicitly add/remove an owned wrong question, select destination, idempotency and cross-user denial | Implemented; isolated DB and H5 verified; native runtime pending |
 | UI-04 | Visible companion and recovery | Focus pages must not silently remove it; safe collapsed state, restore/hide control, mobile/desktop/native checks | H5 fixed and verified; native build passed, IDE runtime pending |
 | UI-05 | Simpler hand-painted anime visual design | Original nature/study artwork, restrained surfaces and typography, no pervasive dot field or generic AI marketing composition; five themes and real screenshots | H5 simplified and verified across five themes; native runtime pending |
@@ -340,6 +340,33 @@ and verification. This addendum extends the original M0-M7 scope, without removi
 algorithm-experiment, native-testing, documentation or coexistence requirements.
 
 ## Continuing Decisions
+
+### Learning Maps and Wrong-Answer Review (2026-09-15)
+
+- Migration 11 stores owner-scoped structured graphs derived from completed authoritative attempts.
+  Exact current-source validation runs on every read; tombstoned sources are removed from the map
+  and its hash changes. A graph does not grant a new public route to a private document.
+- Three views cover content, shared-source relationships and wrong questions. They preserve original
+  labels, question deep links and source links, without inventing prerequisite or causal edges.
+  Reports also show stored written-assessment criteria. Empty model weak-points no longer falsely
+  imply that the saved attempts contain no errors.
+- H5 uses pinned, lazy Mermaid and DOMPurify with strict configuration and image-only SVG output.
+  A real screenshot exposed numeric entities displayed as text; the regression now checks actual SVG
+  Chinese labels, not just a nonzero image size. Additional tests cover malicious labels and no active
+  SVG tags, stale source removal, graph limits, broken edges, cycles and repeat publication.
+- Native uses separate Dagre/Canvas 2D code with bounded viewport, pan/zoom and an accessible node
+  list. Layout units and weapp build pass; IDE still refuses CLI because the service port is disabled.
+  H5 screenshots are not claimed as native evidence. See `study-maps.md` for rendering boundaries.
+- Verification checkpoint: 355 offline tests, 40 full isolated DB tests plus two focused map DB tests
+  after adding source-deletion coverage; 16 frontend units and TypeScript passed. Two graph browser
+  scenarios passed in 10 seconds, including saved actual paid output with zero new provider calls.
+  Full H5 regression exposed an ambiguous old confirmation locator after adding a Picker; it now
+  targets the actual cancellation modal, retaining task cancellation and persistence assertions.
+- Final associated full H5 regression: 15 passed in 1.3 minutes, 3 opt-in paid scenarios skipped.
+- Shared asynchronous JS decreased from about 15.3 MiB to 4 MiB by deduplicating dependencies.
+  Full H5 artifacts: 5111031 bytes; entry gzip: 120870 bytes; native main: 1033161 bytes. No Mermaid
+  or DOMPurify in native output. Evidence: `study-maps-ui.json`, `study-maps-build-size.json` under
+  `evidence/`, and actual H5 screenshots 37-38. No deployment or reference-project changes.
 
 ### Five-Type Practice and Durable Written Assessment (2026-09-15)
 

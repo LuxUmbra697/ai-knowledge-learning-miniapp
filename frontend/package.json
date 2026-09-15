@@ -25,6 +25,7 @@
   ],
   "dependencies": {
     "@babel/preset-react": "^7.28.5",
+    "@dagrejs/dagre": "1.1.8",
     "@tarojs/components": "4.1.11",
     "@tarojs/helper": "4.1.11",
     "@tarojs/plugin-framework-react": "4.1.11",
@@ -34,6 +35,8 @@
     "@tarojs/runtime": "4.1.11",
     "@tarojs/shared": "4.1.11",
     "@tarojs/taro": "4.1.11",
+    "dompurify": "3.4.15",
+    "mermaid": "11.17.2",
     "react": "^18.0.0",
     "react-dom": "^18.0.0"
   },

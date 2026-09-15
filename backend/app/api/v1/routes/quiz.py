@@ -55,3 +55,9 @@ async def answer_question(quiz_id: str, req: AnswerSubmission, user_id: int = De
 async def answer_with_review(quiz_id: str, req: AnswerSubmission, user_id: int = Depends(get_current_user), idempotency_key: str | None = Header(default=None)):
     from app.services.written_grade_service import submit
     return ApiResponse.success(data=await submit(quiz_id, user_id, req, idempotency_key))
+
+
+@router.get('/{quiz_id}/maps', response_model=ApiResponse)
+async def learning_maps(quiz_id: str, user_id: int = Depends(get_current_user)):
+    from app.services.learning_map_service import get_map
+    return ApiResponse.success(data=await get_map(quiz_id, user_id))

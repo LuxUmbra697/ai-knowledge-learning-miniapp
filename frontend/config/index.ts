@@ -42,6 +42,11 @@ export default defineConfig<'webpack5'>(async (merge) => {
       },
     },
     h5: {
+      webpackChain(chain) {
+        chain.merge({ optimization: { splitChunks: { cacheGroups: {
+          diagramShared: { test: /[\\/]node_modules[\\/]/, name: 'diagram-shared', chunks: 'async', minChunks: 2, priority: 30, reuseExistingChunk: true },
+        } } } })
+      },
       publicPath: '/ai-learn/',
       staticDirectory: 'static',
       devServer: {

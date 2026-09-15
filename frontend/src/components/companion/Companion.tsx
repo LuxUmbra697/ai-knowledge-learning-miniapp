@@ -17,7 +17,7 @@ export default function Companion({ reducedMotion, onHide, onSafeChange, layout 
   const state = useCompanion(visible && safe)
   const place = () => {
     const next = Taro.getWindowInfo()
-    Taro.createSelectorQuery().selectAll('.primary-button, .secondary-button, .text-button, .icon-button, .answer-option, .studio-input, .studio-textarea, .mobile-navigation, .stat, .page-title, .page-subtitle, .welcome-title, .section-title, .row-title, .field-hint, .question-stem, .answer-explanation, .claim-text, .notebook-toolbar, .diagnosis-picker').boundingClientRect(rectangles => {
+    Taro.createSelectorQuery().selectAll('.primary-button, .secondary-button, .text-button, .icon-button, .answer-option, .studio-input, .studio-textarea, .mobile-navigation, .stat, .page-title, .page-subtitle, .welcome-title, .section-title, .row-title, .field-hint, .question-stem, .answer-explanation, .claim-text, .notebook-toolbar, .diagnosis-picker, .diagram-surface, .map-toolbar').boundingClientRect(rectangles => {
       const candidate = safePosition(live.current, next.windowWidth, next.windowHeight, Array.isArray(rectangles) ? rectangles : [])
       setSafe(!!candidate)
       if (candidate) { live.current = candidate; setPosition(previous => previous.x === candidate.x && previous.y === candidate.y ? previous : candidate) }

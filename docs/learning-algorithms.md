@@ -51,9 +51,10 @@ prior counters, so repeated tests do not accidentally consume the next test's bu
 limits are not disabled. `frontend/e2e/review.spec.ts` runs against the isolated local API with no
 external provider calls. Runtime captures are in `docs/screenshots/h5/07-review-plan.png` and 23-25.
 
-This module does not yet provide named error notebooks, prerequisite graphs, trained parameters
-or evidence of improved retention. Those remain separately tracked acceptance work. Native build
-success must not be described as native-device verification.
+Named error notebooks are implemented with explicit collection and versioned mutations. See
+`study-maps.md` for derived question/source relationships, which are not prerequisite graphs.
+Prerequisite planning, trained personal parameters and evidence of improved retention remain
+separately tracked work. Native build success must not be described as native-device verification.
 
 FSRS is the MIT-licensed [open-spaced-repetition/py-fsrs](https://github.com/open-spaced-repetition/py-fsrs)
 implementation. BKT here is a small explicit Bayesian update, not a newly trained foundation model.

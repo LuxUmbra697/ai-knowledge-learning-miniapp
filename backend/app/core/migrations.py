@@ -148,6 +148,13 @@ MIGRATIONS = {
                 REFERENCES learning_cards(user_id,quiz_id,question_id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci""",
     ],
+    11: ["""CREATE TABLE IF NOT EXISTS quiz_learning_maps (
+        user_id BIGINT UNSIGNED NOT NULL, quiz_id VARCHAR(64) NOT NULL,
+        source_hash CHAR(64) NOT NULL, graph_json JSON NOT NULL, updated_at DATETIME NOT NULL,
+        PRIMARY KEY(user_id,quiz_id),
+        CONSTRAINT fk_study_map_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+        CONSTRAINT fk_study_map_quiz FOREIGN KEY(quiz_id) REFERENCES quiz_sessions(quiz_id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"""],
 }
 
 

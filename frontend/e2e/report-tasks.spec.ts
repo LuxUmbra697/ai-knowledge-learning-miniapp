@@ -40,7 +40,7 @@ test('report cancellation and checkpoint recovery use real API persistence witho
   const cancelled = fixture()
   await openPending(cancelled)
   await page.getByText('取消报告', { exact: true }).click()
-  await page.getByText('确定', { exact: true }).click()
+  await page.locator('.taro-model__confirm').click()
   await expect(page.getByText('报告任务已取消，作答记录仍然保留', { exact: true })).toBeVisible()
   expect((await get(`learning/tasks/${cancelled.taskId}`)).status).toBe('cancelled')
   expect((await get('user/profile')).total_xp).toBe(0)

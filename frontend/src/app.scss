@@ -138,6 +138,22 @@ button:disabled { opacity: .55; cursor: default; }
 @media (max-width: 800px) { .academy-background { top: 72px; height: calc(100% - 72px); }.studio-guest .studio-main { padding: 28px 20px 40px; }.studio-guest .login-form { padding: 18px 20px 22px; }.shelf-panorama { height: auto; aspect-ratio: 3 / 1; } }
 @media (max-width: 800px) { .study-panorama { height: auto; aspect-ratio: 3 / 1; }.study-window { margin-bottom: 20px; }.welcome-band .welcome-title { font-size: 18px; }.welcome-band .primary-button { padding: 8px 12px; }.welcome-band { gap: 12px; } }
 .review-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid var(--line); margin-bottom: 24px; }
+.learning-map { margin: 28px 0; padding: 24px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); min-width: 0; }
+.learning-map > .muted { margin: 10px 0 16px; }
+.map-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
+.map-tabs .text-button { min-width: 0; min-height: 48px; color: var(--muted); border-bottom: 2px solid transparent; }
+.map-tabs .active { border-bottom-color: var(--accent); color: var(--accent); font-weight: 600; }
+.map-toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 14px 0; }
+.studio .map-toolbar .text-button { color: var(--accent); }
+.map-toolbar > picker, .map-toolbar > taro-picker-core { max-width: 100%; overflow-wrap: anywhere; }
+.map-zoom { display: flex; align-items: center; gap: 12px; }
+.map-zoom > slider, .map-zoom > taro-slider-core { flex: 1; min-width: 0; max-width: 240px; }
+.map-viewport { width: 100%; max-height: 440px; overflow: auto; background: var(--paper); border: 1px solid var(--line); border-radius: 4px; }
+.map-image { display: block; max-width: none; height: auto; margin: 12px auto; }
+.map-node-list { margin-top: 20px; max-height: 360px; overflow-y: auto; }
+.map-node { padding: 14px 12px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.map-node.wrong { border-left: 3px solid var(--secondary); }
+.map-node > text, .map-node > taro-text-core { display: block; }
 .studio .review-tabs .text-button { min-width: 0; padding: 12px 4px; white-space: normal; font-size: 14px; border-bottom: 2px solid transparent; }
 .studio .review-tabs .active { border-bottom-color: var(--accent); color: var(--accent); }
 .review-row, .concept-row { padding: 20px 0; border-bottom: 1px solid var(--line); }
