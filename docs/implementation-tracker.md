@@ -330,7 +330,7 @@ The following owner requests are part of the remaining acceptance scope, not com
 | --- | --- | --- | --- |
 | QUIZ-09 | User-selected total and per-type counts | Single, multiple, fill-in, judgment and written response; exact blueprint validation; bounded task batches and authoritative scoring | Pending |
 | REPORT-04 | Mermaid learning and relationship diagrams | Stored graph data after review; sanitized H5 renderer and tested native equivalent; invalid graphs fail visibly | Pending |
-| REVIEW-03 | Named error notebooks | Create notebook, explicitly add/remove an owned wrong question, select destination, idempotency and cross-user denial | Pending |
+| REVIEW-03 | Named error notebooks | Create notebook, explicitly add/remove an owned wrong question, select destination, idempotency and cross-user denial | Implemented; isolated DB and H5 verified; native runtime pending |
 | UI-04 | Visible companion and recovery | Focus pages must not silently remove it; safe collapsed state, restore/hide control, mobile/desktop/native checks | H5 fixed and verified; native build passed, IDE runtime pending |
 | UI-05 | Simpler hand-painted anime visual design | Original nature/study artwork, restrained surfaces and typography, no pervasive dot field or generic AI marketing composition; five themes and real screenshots | H5 simplified and verified across five themes; native runtime pending |
 
@@ -340,6 +340,32 @@ and verification. This addendum extends the original M0-M7 scope, without removi
 algorithm-experiment, native-testing, documentation or coexistence requirements.
 
 ## Continuing Decisions
+
+### Named Error Notebooks (2026-09-15)
+
+- Migration 10 adds owned notebooks and memberships without changing original attempts or review
+  schedules. Creation and repeated insertion are idempotent; rename/delete use versions. Composite
+  foreign keys prevent cross-owner memberships. The API rejects correct-only cards and forged
+  request identity. No question is automatically added to a named notebook.
+- Learners can create, select, rename and delete notebooks, explicitly collect a wrong question
+  from answer analysis or a report, and remove only its membership. Deleting a notebook retains
+  the original wrong-answer record, BKT observations and FSRS schedule.
+- Added failing tests before implementation. Verification: 332 offline tests, 35 isolated MySQL
+  tests, TypeScript and touched-backend Ruff checks passed. The full H5 suite passed 10 scenarios;
+  3 opt-in paid scenarios skipped. Saved paid quiz output was reused without a new provider call.
+- Screenshot inspection found low-contrast Taro button text and a companion overlapping the
+  changed toolbar. Added regressions before fixing explicit ink color and debounced layout/scroll
+  avoidance; observers and timers are disposed on unmount. Native code builds, but IDE execution
+  is still pending. H5 gzip entry: 120047 bytes; weapp main: 701647 bytes.
+- Evidence: `evidence/notebooks-ui.json`, `evidence/notebooks-build-size.json`, H5 screenshots
+  `27-notebook-destination.png` and `28-error-notebook.png`.
+- Limits: at most 30 notebooks per account, 80-character names and 50 cards per current list query.
+  Historical attempts predating learning-card migration have not been backfilled. Migration 10
+  has only run against isolated local/test databases; production is unchanged.
+
+| ID | Implementation | Tests | Evidence |
+| --- | --- | --- | --- |
+| REVIEW-03 | `notebook_service.py`, learning routes, `NotebookDialog.tsx`, review page | `integration/test_notebooks.py`, `e2e/notebooks.spec.ts` | Actual API/DB and H5 screenshots 27-28 |
 
 ### Companion Visibility Regression (2026-09-15)
 

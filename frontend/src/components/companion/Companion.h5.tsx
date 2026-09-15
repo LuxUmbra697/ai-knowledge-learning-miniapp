@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { ReactNode, useEffect, useRef, useState } from 'react'
 import Taro from '@tarojs/taro'
 import { clampPosition, safePosition } from './position'
 import { useCompanion } from './useCompanion'
 const storageKey = 'ai-learn:v1:companion-position'
 
-export default function Companion({ reducedMotion, onHide, onSafeChange }: { reducedMotion: boolean; onHide: () => void; onSafeChange: (safe: boolean) => void }) {
+export default function Companion({ reducedMotion, onHide, onSafeChange, layout }: { reducedMotion: boolean; onHide: () => void; onSafeChange: (safe: boolean) => void; layout?: ReactNode }) {
   const element = useRef<HTMLDivElement>(null)
   const [menu, setMenu] = useState(false)
   const [visible, setVisible] = useState(true)
@@ -15,7 +15,7 @@ export default function Companion({ reducedMotion, onHide, onSafeChange }: { red
   const dragging = useRef<{ x: number; y: number; startX: number; startY: number } | null>(null)
   const place = () => {
     if (dragging.current) return
-    const boxes = [...document.querySelectorAll('taro-button-core, input, textarea, .mobile-navigation, .stat, .page-title, .page-subtitle, .welcome-title, .section-title, .row-title, .field-hint, .question-stem, .answer-explanation, .claim-text')]
+    const boxes = [...document.querySelectorAll('taro-button-core, input, textarea, .mobile-navigation, .stat, .page-title, .page-subtitle, .welcome-title, .section-title, .row-title, .field-hint, .question-stem, .answer-explanation, .claim-text, .notebook-toolbar, .diagnosis-picker')]
       .filter(node => !node.closest('.companion') && node.getClientRects().length > 0)
       .map(node => node.getBoundingClientRect()).filter(box => box.width > 0 && box.height > 0)
     const next = safePosition(position.current, window.innerWidth, window.innerHeight, boxes)
@@ -24,6 +24,7 @@ export default function Companion({ reducedMotion, onHide, onSafeChange }: { red
     position.current = next
     if (element.current) element.current.style.transform = `translate(${next.x}px, ${next.y}px)`
   }
+  useEffect(() => { const timer = setTimeout(place, 40); return () => clearTimeout(timer) }, [layout])
   useEffect(() => {
     const restore = () => {
       position.current = clampPosition(Taro.getStorageSync(storageKey) || { x: window.innerWidth - 82, y: 120 }, window.innerWidth, window.innerHeight)
@@ -40,9 +41,13 @@ export default function Companion({ reducedMotion, onHide, onSafeChange }: { red
     document.addEventListener('focusout', blur)
     let frame = 0
     const scroll = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(place) }
+    const observer = new MutationObserver(records => {
+      if (records.some(record => !(record.target as Element).closest?.('.companion, .companion-reserved'))) scroll()
+    })
+    observer.observe(document.body, { childList: true, characterData: true, subtree: true })
     document.addEventListener('scroll', scroll, true)
     const timer = setTimeout(place, 500)
-    return () => { clearTimeout(timer); cancelAnimationFrame(frame); document.removeEventListener('scroll', scroll, true); window.removeEventListener('resize', restore); document.removeEventListener('visibilitychange', visibility); document.removeEventListener('focusin', focus); document.removeEventListener('focusout', blur) }
+    return () => { observer.disconnect(); clearTimeout(timer); cancelAnimationFrame(frame); document.removeEventListener('scroll', scroll, true); window.removeEventListener('resize', restore); document.removeEventListener('visibilitychange', visibility); document.removeEventListener('focusin', focus); document.removeEventListener('focusout', blur) }
   }, [])
   return <div ref={element} data-form={Taro.getStorageSync('ai-learn:v1:appearance')?.companionForm || 'pink'} data-pose={state.pose} className={`companion pose-${state.pose} ${reducedMotion || !state.enabled ? '' : 'companion-animated'}`} style={{ visibility: visible && safe && state.visible ? 'visible' : 'hidden' }}
     onPointerDown={e => {

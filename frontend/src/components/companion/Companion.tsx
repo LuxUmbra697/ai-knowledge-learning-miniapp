@@ -1,10 +1,10 @@
-import { useState, useRef, useEffect } from 'react'
+import { ReactNode, useState, useRef, useEffect } from 'react'
 import { MovableArea, MovableView, Image, Button } from '@tarojs/components'
-import Taro, { useDidHide, useDidShow } from '@tarojs/taro'
+import Taro, { useDidHide, useDidShow, usePageScroll } from '@tarojs/taro'
 import { dockPosition, safePosition } from './position'
 import { useCompanion } from './useCompanion'
 
-export default function Companion({ reducedMotion, onHide, onSafeChange }: { reducedMotion: boolean; onHide: () => void; onSafeChange: (safe: boolean) => void }) {
+export default function Companion({ reducedMotion, onHide, onSafeChange, layout }: { reducedMotion: boolean; onHide: () => void; onSafeChange: (safe: boolean) => void; layout?: ReactNode }) {
   const info = Taro.getWindowInfo()
   const saved = Taro.getStorageSync('ai-learn:v1:companion-position') || { x: info.windowWidth - 82, y: 120 }
   const [position, setPosition] = useState(() => dockPosition(saved, info.windowWidth, info.windowHeight))
@@ -17,12 +17,15 @@ export default function Companion({ reducedMotion, onHide, onSafeChange }: { red
   const state = useCompanion(visible && safe)
   const place = () => {
     const next = Taro.getWindowInfo()
-    Taro.createSelectorQuery().selectAll('.primary-button, .secondary-button, .text-button, .icon-button, .answer-option, .studio-input, .studio-textarea, .mobile-navigation, .stat, .page-title, .page-subtitle, .welcome-title, .section-title, .row-title, .field-hint, .question-stem, .answer-explanation, .claim-text').boundingClientRect(rectangles => {
+    Taro.createSelectorQuery().selectAll('.primary-button, .secondary-button, .text-button, .icon-button, .answer-option, .studio-input, .studio-textarea, .mobile-navigation, .stat, .page-title, .page-subtitle, .welcome-title, .section-title, .row-title, .field-hint, .question-stem, .answer-explanation, .claim-text, .notebook-toolbar, .diagnosis-picker').boundingClientRect(rectangles => {
       const candidate = safePosition(live.current, next.windowWidth, next.windowHeight, Array.isArray(rectangles) ? rectangles : [])
       setSafe(!!candidate)
-      if (candidate) { live.current = candidate; setPosition(candidate) }
+      if (candidate) { live.current = candidate; setPosition(previous => previous.x === candidate.x && previous.y === candidate.y ? previous : candidate) }
     }).exec()
   }
+  const scrollTimer = useRef<ReturnType<typeof setTimeout>>()
+  usePageScroll(() => { if (!scrollTimer.current) scrollTimer.current = setTimeout(() => { scrollTimer.current = undefined; place() }, 80) })
+  useEffect(() => { const timer = setTimeout(place, 40); return () => clearTimeout(timer) }, [layout])
   useDidHide(() => setVisible(false))
   useDidShow(() => { setVisible(true); place() })
   useEffect(() => {
@@ -31,7 +34,7 @@ export default function Companion({ reducedMotion, onHide, onSafeChange }: { red
     Taro.onWindowResize(resize)
     Taro.onKeyboardHeightChange(keyboard)
     const timer = setTimeout(place, 500)
-    return () => { clearTimeout(timer); Taro.offWindowResize(resize); Taro.offKeyboardHeightChange(keyboard) }
+    return () => { clearTimeout(timer); clearTimeout(scrollTimer.current); Taro.offWindowResize(resize); Taro.offKeyboardHeightChange(keyboard) }
   }, [])
   if (!visible) return null
   return <MovableArea className='companion-area' style={{ visibility: safe ? 'visible' : 'hidden' }}><MovableView className={`companion-native pose-${state.pose} ${reducedMotion || !state.enabled ? '' : 'companion-animated'}`} direction='all' x={position.x} y={position.y} inertia={false}

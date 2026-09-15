@@ -130,6 +130,24 @@ MIGRATIONS = {
             CONSTRAINT fk_event_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci""",
     ],
+    10: [
+        """CREATE TABLE IF NOT EXISTS learning_notebooks (
+            notebook_id VARCHAR(64) NOT NULL PRIMARY KEY, user_id BIGINT UNSIGNED NOT NULL,
+            name VARCHAR(80) NOT NULL, name_key CHAR(64) NOT NULL, version INT NOT NULL DEFAULT 1,
+            created_at DATETIME(6) NOT NULL, updated_at DATETIME(6) NOT NULL,
+            UNIQUE KEY idx_notebook_name(user_id,name_key), UNIQUE KEY idx_notebook_owner(notebook_id,user_id),
+            CONSTRAINT fk_notebook_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci""",
+        """CREATE TABLE IF NOT EXISTS learning_notebook_items (
+            notebook_id VARCHAR(64) NOT NULL, user_id BIGINT UNSIGNED NOT NULL,
+            quiz_id VARCHAR(64) NOT NULL, question_id VARCHAR(64) NOT NULL, created_at DATETIME(6) NOT NULL,
+            PRIMARY KEY(notebook_id,user_id,quiz_id,question_id),
+            CONSTRAINT fk_notebook_item_owner FOREIGN KEY(notebook_id,user_id)
+                REFERENCES learning_notebooks(notebook_id,user_id) ON DELETE CASCADE,
+            CONSTRAINT fk_notebook_item_question FOREIGN KEY(user_id,quiz_id,question_id)
+                REFERENCES learning_cards(user_id,quiz_id,question_id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci""",
+    ],
 }
 
 

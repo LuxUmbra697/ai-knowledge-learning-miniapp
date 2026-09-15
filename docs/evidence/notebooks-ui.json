@@ -1,0 +1,21 @@
+{
+  "recorded_at": "2026-09-15T03:06:30.881Z",
+  "environment": "Chromium + isolated MySQL + real API; synthetic questions",
+  "provider_calls": 0,
+  "checks": [
+    "empty_named_notebook",
+    "explicit_add_after_answer",
+    "idempotent_add",
+    "create_and_add_from_report",
+    "cross_user_denial",
+    "forged_user_rejected",
+    "native_Taro_picker_interaction_in_H5",
+    "rename",
+    "remove_membership_only",
+    "delete_confirmation",
+    "learning_observations_unchanged",
+    "mobile_and_desktop_layout",
+    "no_page_errors"
+  ],
+  "native_runtime": "Pending IDE access"
+}

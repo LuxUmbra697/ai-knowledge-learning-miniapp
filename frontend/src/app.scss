@@ -120,6 +120,11 @@ button:disabled { opacity: .55; cursor: default; }
 .studio .review-tabs .text-button { min-width: 0; padding: 12px 4px; white-space: normal; font-size: 14px; border-bottom: 2px solid transparent; }
 .studio .review-tabs .active { border-bottom-color: var(--accent); color: var(--accent); }
 .review-row, .concept-row { padding: 20px 0; border-bottom: 1px solid var(--line); }
+.notebook-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 20px; border-bottom: 1px solid var(--line); padding-bottom: 18px; }
+.notebook-selector { gap: 12px; overflow-wrap: anywhere; }.notebook-toolbar > picker, .notebook-toolbar > taro-picker-core { min-width: 0; max-width: 100%; }
+.notebook-destinations { max-height: 240px; overflow-y: auto; }
+.studio .notebook-destination { display: flex; align-items: center; color: var(--ink); text-align: left; gap: 12px; min-height: 52px; width: 100%; border-bottom: 1px solid var(--line); padding: 12px 0; white-space: normal; overflow-wrap: anywhere; }
+.notebook-destination > .muted { margin-left: auto; flex: none; }.notebook-form-actions { display: flex; justify-content: flex-end; margin-top: 18px; }
 .review-row > .row-title, .review-row > .muted, .concept-row > .muted, .concept-row > .tiny-label { display: block; margin: 10px 0; }
 .review-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 16px; }
 .diagnosis-picker { border-bottom: 1px solid var(--accent); min-height: 44px; display: flex; align-items: center; flex-wrap: wrap; }

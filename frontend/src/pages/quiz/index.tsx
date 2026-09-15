@@ -4,6 +4,7 @@ import Taro, { useRouter, useDidShow, useDidHide } from '@tarojs/taro'
 import { getQuizDetail, submitAnswer, QuizDetailResponse, AnswerRecord, getCachedUser, getLearningTask, cancelLearningTask, LearningTask, waitForLogin, getToken } from '../../services/api'
 import { StudioShell, Notice, navigate } from '../../components/StudioShell'
 import { Icon } from '../../components/Icon'
+import { NotebookDialog } from '../../components/NotebookDialog'
 import { PollControl, pollUntil } from '../../services/polling'
 import { taskPhase } from '../../services/taskDisplay'
 import { quizTaskResult } from '../../services/quizSession'
@@ -18,6 +19,7 @@ export default function QuizPage() {
   const [index, setIndex] = useState(0), [selected, setSelected] = useState<string[]>([])
   const [records, setRecords] = useState<AnswerRecord[]>([])
   const [error, setError] = useState(''), [busy, setBusy] = useState(false)
+  const [notebook, setNotebook] = useState(false)
   const lock = useRef(false), start = useRef(Date.now())
   const live = useRef(true), control = useRef<PollControl>()
   const draftKeyFor = (id: string) => `ai-learn:v1:draft:${getCachedUser()?.id}:${id}`
@@ -81,6 +83,7 @@ export default function QuizPage() {
   }
   const move = (next: number) => { setIndex(next); setSelected([]); start.current = Date.now() }
   return <StudioShell title={quiz?.title || '知识练习'} subtitle='先独立思考，再与解析对照。' focus>
+    {notebook && question && <NotebookDialog target={{ quizId, questionId: question.id }} onClose={() => setNotebook(false)} />}
     <View className='practice-surface'>
       {error && <Notice message={error} retry={load} />}
       {!question && !error && <Text className='muted'>{task ? taskPhase(task.stage) : '正在读取练习'}</Text>}
@@ -93,6 +96,7 @@ export default function QuizPage() {
         <View className='answer-options'>{question.options.map(option => <Button key={option.key} className={`answer-option ${(record?.selected_answers || selected).includes(option.key) ? 'selected' : ''} ${record && question.answer?.includes(option.key) ? 'correct' : record && record.selected_answers.includes(option.key) ? 'wrong' : ''}`} onClick={() => choose(option.key)} aria-pressed={(record?.selected_answers || selected).includes(option.key)}><Text className='option-key'>{option.key}</Text><Text className='option-text'>{option.text}</Text></Button>)}</View>
         {!record && <Button className='primary-button' disabled={!selected.length || busy} onClick={submit}>{busy ? '正在提交' : '确认答案'}</Button>}
         {record && <View className='answer-explanation'><Text className='section-title'>{record.is_correct ? '回答正确' : '再理解一次'}</Text><Text className='muted'>你的选择：{record.selected_answers.join('、')} · 参考答案：{question.answer?.join('、')}</Text><Text>{question.explanation}</Text></View>}
+        {record && !record.is_correct && <Button className='secondary-button' onClick={() => setNotebook(true)}><Icon name='book' size={16} />加入错题本</Button>}
         {record && !!question.citations?.length && <View className='quiz-evidence'><Text className='section-title'>对照原文</Text>{question.citations.map((citation, i) => <View className='quiz-citation' key={`${citation.evidence_id}-${i}`}>
           {citation.status === 'verified' && citation.doc_id && citation.chunk_id ? <><Text className='citation-quote' selectable>{citation.quote}</Text><Button className='text-button citation-link' onClick={() => Taro.navigateTo({ url: `/learning/document/index?docId=${encodeURIComponent(citation.doc_id!)}&chunkId=${encodeURIComponent(citation.chunk_id!)}&revision=${citation.revision}` })}><Icon name='book' size={16} /><Text>{citation.file_name}{citation.page ? ` · 第 ${citation.page} 页` : citation.section ? ` · ${citation.section}` : ''}</Text></Button></> : <Text className='muted'>此引用暂不可用，原材料可能已变更或删除。</Text>}
         </View>)}</View>}

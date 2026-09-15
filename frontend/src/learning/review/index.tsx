@@ -3,6 +3,8 @@ import { View, Text, Button, Picker } from '@tarojs/components'
 import Taro, { useDidShow, useDidHide } from '@tarojs/taro'
 import { StudioShell, Notice, Empty, navigate } from '../../components/StudioShell'
 import { Icon } from '../../components/Icon'
+import { NotebookDialog } from '../../components/NotebookDialog'
+import { Notebook, NotebookTarget, listNotebooks, notebookCards, removeNotebookCard, deleteNotebook } from '../../services/notebooks'
 import { PollControl } from '../../services/polling'
 import { ApiError, getCachedUser, getLearningSummary, getReviewCards, getReviewResult, submitReview, updateReviewCard, waitForLogin, getToken, LearningSummary, ReviewCard, ReviewResult } from '../../services/api'
 
@@ -16,22 +18,27 @@ export default function ReviewPage() {
   const [items, setItems] = useState<ReviewCard[]>([]), [active, setActive] = useState<ReviewCard | null>(null)
   const [result, setResult] = useState<ReviewResult | null>(null), [selected, setSelected] = useState<string[]>([])
   const [error, setError] = useState(''), [busy, setBusy] = useState(false), [loading, setLoading] = useState(true)
+  const [books, setBooks] = useState<Notebook[]>([]), [bookId, setBookId] = useState('')
+  const [dialog, setDialog] = useState<{ target?: NotebookTarget; existing?: Notebook } | null>(null)
   const live = useRef(true), lock = useRef(false), control = useRef<PollControl>()
   const key = () => `ai-learn:v1:review:${getCachedUser()?.id}`
   const accept = (value: ReviewResult, submittedVersion: number) => {
     Taro.setStorageSync(key(), { cardId: value.card_id, version: submittedVersion })
     if (live.current) { setResult(value); setActive(null); setSelected([]) }
   }
-  const load = async (tab = mode) => {
+  const load = async (tab = mode, selectedBook = bookId) => {
     control.current?.cancel(); const current = new PollControl(); control.current = current
     setLoading(true)
     try {
       await waitForLogin()
       if (!getToken()) { navigate('/pages/login/index'); return }
       const state = await getLearningSummary(current)
-      const list = await getReviewCards(tab === 'progress' ? 'all' : tab, current)
+      const available = await listNotebooks(current)
+      const book = available.items.find(item => item.notebook_id === selectedBook)
+      if (!book) setBookId('')
+      const list = tab === 'wrong' && book ? await notebookCards(book.notebook_id, current) : await getReviewCards(tab === 'progress' ? 'all' : tab, current)
       if (!live.current || current.cancelled) return
-      setSummary(state); setItems(list.items); setError('')
+      setSummary(state); setItems(list.items); setBooks(available.items); setError('')
       const saved = Taro.getStorageSync(key())
       if (saved && /^card_[a-f0-9]{32}$/.test(saved.cardId) && Number.isSafeInteger(saved.version) && saved.version >= 1) {
         const restored = Array.isArray(saved.answers) ? await submitReview(saved.cardId, saved.version, saved.answers, current) : await getReviewResult(saved.cardId, saved.version, current)
@@ -63,7 +70,21 @@ export default function ReviewPage() {
     catch (reason) { if (live.current) setError(reason instanceof Error ? reason.message : '保存失败') }
   }
   const question = result?.question || active?.question
+  const currentBook = books.find(book => book.notebook_id === bookId)
+  const remove = async (cardId: string) => {
+    if (!currentBook) return
+    try { await removeNotebookCard(currentBook.notebook_id, cardId); load() }
+    catch (reason) { if (live.current) setError(reason instanceof Error ? reason.message : '移除失败') }
+  }
+  const deleteBook = async () => {
+    if (!currentBook) return
+    const response = await Taro.showModal({ title: '删除错题本', content: `删除“${currentBook.name}”？原作答、错题记录和复习计划都会保留。` })
+    if (!response.confirm) return
+    try { await deleteNotebook(currentBook); setBookId(''); load('wrong', '') }
+    catch (reason) { if (live.current) setError(reason instanceof Error ? reason.message : '删除失败') }
+  }
   return <StudioShell active='home' title='复习与掌握' subtitle='把一次理解，留到更远的日子。' focus={!!question}>
+    {dialog && <NotebookDialog {...dialog} onClose={() => setDialog(null)} onSaved={book => { if (!dialog.target) { setBookId(book.notebook_id); load('wrong', book.notebook_id) } else load() }} />}
     {error && <Notice message={error} retry={() => load()} />}
     {question ? <View className='practice-surface review-practice'>
       <Button className='text-button' onClick={() => back()}>返回复习队列</Button>
@@ -72,15 +93,23 @@ export default function ReviewPage() {
       <View className='answer-options'>{question.options.map(option => <Button key={option.key} className={`answer-option ${(result?.record.selected_answers || selected).includes(option.key) ? 'selected' : ''} ${result && question.answer?.includes(option.key) ? 'correct' : ''}`} onClick={() => choose(option.key)}><Text className='option-key'>{option.key}</Text><Text className='option-text'>{option.text}</Text></Button>)}</View>
       {!result && <Button className='primary-button' disabled={!selected.length || busy} onClick={submit}>{busy ? '正在提交' : '完成本次复习'}</Button>}
       {result && <View className='answer-explanation'><Text className='section-title'>{result.record.is_correct ? '这次记住了' : '再巩固一次'}</Text><Text>参考答案：{question.answer?.join('、')}</Text><Text>{question.explanation}</Text><Text className='next-review'>下次复习：{dateText(result.due_at)}</Text><Text className='muted'>累计 {result.knowledge.observation_count} 次作答 · 默认参数掌握估计 {Math.round(result.knowledge.mastery * 100)}%</Text><Button className='text-button' onClick={() => Taro.navigateTo({ url: `/pages/quiz/index?quizId=${result.quiz_id}` })}>查看原练习与证据<Icon name='book' size={16} /></Button></View>}
+      {result && !result.record.is_correct && <Button className='secondary-button' onClick={() => setDialog({ target: { cardId: result.card_id } })}><Icon name='book' size={16} />加入错题本</Button>}
     </View> : <>
       {summary && <View className='stats-row'><View className='stat'><Text className='muted'>到期题目</Text><Text className='stat-number'>{summary.due_count}</Text></View><View className='stat'><Text className='muted'>今日已复习</Text><Text className='stat-number'>{summary.today_reviews}</Text></View><View className='stat'><Text className='muted'>本轮建议</Text><Text className='stat-number'>{summary.recommended_count}</Text></View></View>}
       <View className='review-tabs'>{modes.map(([value, label]) => <Button key={value} className={`text-button ${mode === value ? 'active' : ''}`} onClick={() => back(value)}>{label}</Button>)}</View>
+      {mode === 'wrong' && <View className='notebook-toolbar'>
+        <Picker mode='selector' range={['全部错题', ...books.map(book => `${book.name} (${book.question_count || 0})`)]} value={Math.max(0, books.findIndex(book => book.notebook_id === bookId) + 1)} onChange={event => { const id = books[Number(event.detail.value) - 1]?.notebook_id || ''; setBookId(id); load('wrong', id) }}><View className='diagnosis-picker notebook-selector'>{currentBook ? currentBook.name : '全部错题'}<Icon name='book' size={16} /></View></Picker>
+        <Button className='text-button' onClick={() => setDialog({})}>新建错题本</Button>
+        {currentBook && <><Button className='text-button' onClick={() => setDialog({ existing: currentBook })}>重命名</Button><Button className='text-button' onClick={deleteBook}>删除错题本</Button></>}
+      </View>}
       {loading && <Text className='muted'>正在读取学习记录</Text>}
       {!loading && mode !== 'progress' && !items.length && <Empty title={mode === 'due' ? '目前没有到期复习' : mode === 'wrong' ? '还没有错题记录' : '还没有收藏'} text='每次练习都会留下真实的作答记录。' />}
       {mode !== 'progress' && items.map(card => <View className='review-row' key={card.card_id}>
         <View className='section-heading'><Text className='tag'>{card.label}</Text><Button className='text-button' onClick={() => change(card, { favorite: !card.favorite })}><Icon name='book' size={16} />{card.favorite ? '取消收藏' : '收藏'}</Button></View>
         <Text className='row-title'>{card.question.stem}</Text><Text className='muted'>复习时间 {dateText(card.due_at)} · 累计答错 {card.wrong_count} 次</Text>
         <View className='review-actions'>{new Date(card.due_at) <= new Date() ? <Button className='primary-button' onClick={() => { Taro.removeStorageSync(key()); setActive(card); setSelected([]); setError('') }}><Icon name='review' size={16} />开始复习</Button> : <Button className='secondary-button' onClick={() => Taro.navigateTo({ url: `/pages/quiz/index?quizId=${card.quiz_id}` })}>原练习解析</Button>}
+          {card.wrong_count > 0 && <Button className='text-button' onClick={() => setDialog({ target: { cardId: card.card_id } })}><Icon name='book' size={16} />加入错题本</Button>}
+          {mode === 'wrong' && currentBook && <Button className='text-button' onClick={() => remove(card.card_id)}>从此本移除</Button>}
           {card.wrong_count > 0 && <Picker mode='selector' range={causes} value={Math.max(0, causeKeys.indexOf(card.diagnosis))} onChange={event => change(card, { diagnosis: causeKeys[Number(event.detail.value)] })}><View className='diagnosis-picker'>错因：{causes[Math.max(0, causeKeys.indexOf(card.diagnosis))]}<Text className='muted'>{card.diagnosis ? ' · 我的确认' : ''}</Text></View></Picker>}
         </View>
       </View>)}

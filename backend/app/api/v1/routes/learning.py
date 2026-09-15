@@ -1,12 +1,56 @@
 """Owned learning state and authoritative, optimistic-versioned reviews."""
 from typing import Literal
+
 from fastapi import APIRouter, Depends, Query
 
 from app.core.auth import get_current_user
 from app.models.common import ApiResponse
 from app.services import learning_state_service as service
+from app.services import notebook_service as books
 
 router = APIRouter(prefix='/learning', tags=['learning'])
+
+
+@router.get('/notebooks')
+async def notebooks(user_id: int = Depends(get_current_user)):
+    return ApiResponse.success(data={'items': await books.list_notebooks(user_id)})
+
+
+@router.post('/notebooks')
+async def create_notebook(req: books.NotebookName, user_id: int = Depends(get_current_user)):
+    return ApiResponse.success(data=await books.create(user_id, req))
+
+
+@router.put('/notebooks/{notebook_id}')
+async def rename_notebook(notebook_id: str, req: books.NotebookRename, user_id: int = Depends(get_current_user)):
+    return ApiResponse.success(data=await books.rename(notebook_id, user_id, req))
+
+
+@router.delete('/notebooks/{notebook_id}')
+async def delete_notebook(notebook_id: str, version: int = Query(ge=1), user_id: int = Depends(get_current_user)):
+    await books.delete(notebook_id, user_id, version)
+    return ApiResponse.success()
+
+
+@router.get('/notebooks/{notebook_id}/cards')
+async def notebook_cards(notebook_id: str, user_id: int = Depends(get_current_user)):
+    return ApiResponse.success(data={'items': await books.items(notebook_id, user_id), 'limit': 50})
+
+
+@router.put('/notebooks/{notebook_id}/cards/{card_id}')
+async def add_notebook_card(notebook_id: str, card_id: str, user_id: int = Depends(get_current_user)):
+    return ApiResponse.success(data=await books.add(notebook_id, user_id, card_id))
+
+
+@router.post('/notebooks/{notebook_id}/questions')
+async def add_notebook_question(notebook_id: str, req: books.NotebookQuestion, user_id: int = Depends(get_current_user)):
+    return ApiResponse.success(data=await books.add_question(notebook_id, user_id, req))
+
+
+@router.delete('/notebooks/{notebook_id}/cards/{card_id}')
+async def remove_notebook_card(notebook_id: str, card_id: str, user_id: int = Depends(get_current_user)):
+    await books.remove(notebook_id, user_id, card_id)
+    return ApiResponse.success()
 
 
 @router.get('/summary')

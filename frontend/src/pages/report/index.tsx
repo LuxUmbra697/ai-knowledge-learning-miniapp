@@ -3,6 +3,7 @@ import { View, Text, Button } from '@tarojs/components'
 import Taro, { useRouter, useDidShow, useDidHide } from '@tarojs/taro'
 import { getQuizDetail, generateReportAsync, getLearningTask, cancelLearningTask, getCachedUser, waitForLogin, getToken, QuizDetailResponse, ReportData, LearningTask } from '../../services/api'
 import { StudioShell, Notice, navigate } from '../../components/StudioShell'
+import { NotebookDialog } from '../../components/NotebookDialog'
 import { PollControl, pollUntil } from '../../services/polling'
 import { taskPhase } from '../../services/taskDisplay'
 import { restorableReport, reportTaskMatches } from '../../services/reportSession'
@@ -12,6 +13,7 @@ export default function ReportPage() {
   const quizId = router.params.quizId || ''
   const [quiz, setQuiz] = useState<QuizDetailResponse | null>(null), [report, setReport] = useState<ReportData | null>(null)
   const [error, setError] = useState(''), [busy, setBusy] = useState(false)
+  const [notebookQuestion, setNotebookQuestion] = useState('')
   const [task, setTask] = useState<LearningTask | null>(null)
   const lock = useRef(false), live = useRef(true), control = useRef<PollControl>()
   const storageKey = () => `ai-learn:v1:report:${getCachedUser()?.id}:${quizId}`
@@ -73,6 +75,7 @@ export default function ReportPage() {
     catch (reason) { if (live.current) setError(reason instanceof Error ? reason.message : '取消失败，请稍后重试') }
   }
   return <StudioShell title='这一程的学习收获' subtitle={quiz?.title || '学习报告'} focus={busy}>
+    {notebookQuestion && <NotebookDialog target={{ quizId, questionId: notebookQuestion }} onClose={() => setNotebookQuestion('')} />}
     {error && <Notice message={error} retry={load} />}
     {!quiz && !error && <Text className='muted'>正在读取作答记录</Text>}
     {quiz && <>
@@ -81,7 +84,7 @@ export default function ReportPage() {
       {complete && !report && <View className='section-band report-actions'><Button className='primary-button' disabled={busy} onClick={generate}>{busy ? taskPhase(task?.stage || 'queued') : '生成学习报告'}</Button>{busy && task && <Button className='text-button' onClick={cancel}>取消报告</Button>}</View>}
       {task && <View className='report-task'><Text className='muted'>任务：{taskPhase(task.stage)} · 外部调用 {task.trace.model_calls} 次</Text><Button className='text-button' onClick={() => Taro.navigateTo({ url: '/learning/tasks/index' })}>查看执行记录</Button></View>}
       {report && <><Text className='section-title'>本次总结</Text><View className='report-list'>{report.three_line_summary.map((line, i) => <Text key={i}>{line}</Text>)}</View><Text className='section-title'>需要巩固的知识点</Text><View className='report-list'>{report.weak_points.length ? report.weak_points.map((line, i) => <Text key={i}>{line}</Text>) : <Text className='muted'>本次练习未发现错误，后续复习仍有助于保持记忆。</Text>}</View><Text className='section-title'>下一步建议</Text><View className='report-list'>{report.advice.map((line, i) => <Text key={i}>{line}</Text>)}</View></>}
-      <Text className='section-title'>作答与解析</Text>{quiz.questions.map((q, i) => { const record = records.find(r => r.question_id === q.id); return <View className='report-question' key={q.id}><Text className='row-title'>{i + 1}. {q.stem}</Text><Text className='muted'>{record ? `你的选择：${record.selected_answers.join('、')} · ${record.is_correct ? '正确' : '需巩固'}` : '尚未提交'}</Text>{record && <View className='answer-explanation'><Text className='muted'>参考答案：{q.answer?.join('、')}</Text><Text>{q.explanation}</Text></View>}</View> })}
+      <Text className='section-title'>作答与解析</Text>{quiz.questions.map((q, i) => { const record = records.find(r => r.question_id === q.id); return <View className='report-question' key={q.id}><Text className='row-title'>{i + 1}. {q.stem}</Text><Text className='muted'>{record ? `你的选择：${record.selected_answers.join('、')} · ${record.is_correct ? '正确' : '需巩固'}` : '尚未提交'}</Text>{record && <View className='answer-explanation'><Text className='muted'>参考答案：{q.answer?.join('、')}</Text><Text>{q.explanation}</Text></View>}{record && !record.is_correct && <Button className='secondary-button' onClick={() => setNotebookQuestion(q.id)}>加入错题本</Button>}</View> })}
     </>}
     <Button className='secondary-button' onClick={() => navigate('/pages/index/index')}>返回学习首页</Button>
   </StudioShell>

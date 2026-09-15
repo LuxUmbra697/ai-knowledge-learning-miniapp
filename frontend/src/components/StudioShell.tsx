@@ -61,7 +61,7 @@ export function StudioShell({ children, active, title, subtitle, guest = false, 
       </View>
     </View>
     {!guest && <View className='mobile-navigation'>{navigation.map(item => <Button key={item.key} className={`mobile-nav-item ${active === item.key ? 'active' : ''}`} onClick={() => navigate(item.path)}><Icon name={item.icon} /><Text>{item.label}</Text></Button>)}</View>}
-    {floating && !guest && !appearance && <Companion reducedMotion={settings.reducedMotion} onSafeChange={setFloatingSafe} onHide={() => settings.update({ companionFolded: true })} />}
+    {floating && !guest && !appearance && <Companion layout={children} reducedMotion={settings.reducedMotion} onSafeChange={setFloatingSafe} onHide={() => settings.update({ companionFolded: true })} />}
     {appearance && <View className='modal-backdrop' onClick={() => setAppearance(false)}><View className='appearance-dialog' onClick={event => event.stopPropagation()}>
       <View className='section-heading'><Text className='section-title'>我的学园外观</Text><Button className='icon-button' aria-label='关闭外观设置' onClick={() => setAppearance(false)}><Icon name='close' /></Button></View>
       <View className='theme-options'>{themes.map(theme => <Button key={theme.id} className={`theme-option ${settings.theme === theme.id ? 'selected' : ''}`} onClick={() => settings.update({ theme: theme.id })}>

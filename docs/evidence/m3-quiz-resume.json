@@ -1,9 +1,9 @@
 {
-  "recorded_at": "2026-09-15T00:39:08.171Z",
+  "recorded_at": "2026-09-15T03:06:37.576Z",
   "source": "Synthetic teaching document + real provider output, not real study data",
   "environment": "Chromium + isolated MySQL/Chroma + controlled worker",
   "reuse_only": true,
-  "ui_ready_ms": 137,
+  "ui_ready_ms": 113,
   "task_calls": 2,
   "returned_tokens": 1979,
   "unmetered_calls": 1,

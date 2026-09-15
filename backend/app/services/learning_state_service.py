@@ -1,14 +1,15 @@
 """Transactional learning observations, FSRS reviews and user-confirmed error labels."""
-from datetime import datetime, timedelta, timezone
 import hashlib
 import json
+from datetime import datetime, timedelta, timezone
 from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict, Field, StrictBool
 
-from app.learning import knowledge_tracing as bkt, scheduler
+from app.learning import knowledge_tracing as bkt
+from app.learning import scheduler
 from app.repositories.rag_index_repository import transaction
 from app.services.quiz_evidence_service import visible_question
 
@@ -79,7 +80,7 @@ async def record_initial(cur, user_id, quiz_id, question, record):
                       'VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)',
                       (card_id, user_id, quiz_id, question['id'], mapping['id'], encoded(schedule['card']), sql_time(due),
                        record['is_correct'], int(not record['is_correct']), sql_time(now), sql_time(now)))
-    event = dict(record=record, knowledge=knowledge, schedule=schedule, version=1, due_at=due.isoformat())
+    event = {'record': record, 'knowledge': knowledge, 'schedule': schedule, 'version': 1, 'due_at': due.isoformat()}
     await cur.execute('INSERT INTO learning_events(user_id,card_id,version,source,event_json,created_at) VALUES(%s,%s,0,\'practice\',%s,%s)',
                       (user_id, card_id, encoded(event), sql_time(now)))
 
@@ -103,23 +104,30 @@ async def summary(user_id, zone_name='Asia/Shanghai'):
     for event in events[:5000]:
         day = event['created_at'].replace(tzinfo=timezone.utc).astimezone(start.tzinfo).date().isoformat()
         trend[day] += 1
-    return dict(as_of=now.isoformat(), timezone=zone_name, total_cards=int(counts['total']), due_count=int(counts['due']),
-                recommended_count=min(20, int(counts['due'])), today_answers=today.get('practice', 0), today_reviews=today.get('review', 0),
-                concepts=list(concepts), trend=[{'day': day, 'count': count} for day, count in trend.items()], trend_truncated=len(events) > 5000,
-                scheduler_version=scheduler.VERSION, knowledge_version=bkt.VERSION,
-                cold_start='Default, unpersonalized parameters. Repeated questions are correlated; estimates are not exam scores.')
+    return {'as_of': now.isoformat(), 'timezone': zone_name, 'total_cards': int(counts['total']), 'due_count': int(counts['due']),
+            'recommended_count': min(20, int(counts['due'])), 'today_answers': today.get('practice', 0), 'today_reviews': today.get('review', 0),
+            'concepts': list(concepts), 'trend': [{'day': day, 'count': count} for day, count in trend.items()], 'trend_truncated': len(events) > 5000,
+            'scheduler_version': scheduler.VERSION, 'knowledge_version': bkt.VERSION,
+            'cold_start': 'Default, unpersonalized parameters. Repeated questions are correlated; estimates are not exam scores.'}
 
 
-async def cards(user_id, mode='due'):
+async def cards(user_id, mode='due', notebook_id=None):
     from app.services.grading_service import public_quiz
     clauses = {'due': ' AND c.due_at<=%s', 'wrong': ' AND c.wrong_count>0', 'favorites': ' AND c.favorite=1', 'all': ''}
     if mode not in clauses:
         raise HTTPException(422, '复习列表类型无效')
     args = (user_id, user_id, sql_time(utcnow())) if mode == 'due' else (user_id, user_id)
+    notebook_clause = ''
     async with transaction() as cur:
+        if notebook_id:
+            await cur.execute('SELECT notebook_id FROM learning_notebooks WHERE notebook_id=%s AND user_id=%s', (notebook_id, user_id))
+            if not await cur.fetchone():
+                raise HTTPException(404, '错题本不存在')
+            notebook_clause = ' AND EXISTS(SELECT 1 FROM learning_notebook_items i WHERE i.notebook_id=%s AND i.user_id=c.user_id AND i.quiz_id=c.quiz_id AND i.question_id=c.question_id)'
+            args = (*args, notebook_id)
         await cur.execute('SELECT c.*,q.questions_json,p.label,p.mastery,p.attempts,p.mapping_confidence FROM learning_cards c '
                           'JOIN quiz_sessions q ON c.quiz_id=q.quiz_id JOIN learning_concepts p ON c.user_id=p.user_id AND c.concept_id=p.concept_id '
-                          'WHERE c.user_id=%s AND q.user_id=%s' + clauses[mode] + ' ORDER BY c.due_at,c.card_id LIMIT 50', args)
+                          'WHERE c.user_id=%s AND q.user_id=%s' + clauses[mode] + notebook_clause + ' ORDER BY c.due_at,c.card_id LIMIT 50', args)
         rows = await cur.fetchall()
     result = []
     for row in rows:
@@ -159,7 +167,7 @@ async def submit_review(card_id, user_id, request):
             knowledge = await observe(cur, user_id, mapping, record['is_correct'], now)
             schedule = scheduler.review(decoded(card['card_json']), card_id, record['is_correct'], now)
             due = datetime.fromisoformat(schedule['card']['due'])
-            result = dict(record=record, knowledge=knowledge, schedule=schedule, version=card['version'] + 1, due_at=due.isoformat())
+            result = {'record': record, 'knowledge': knowledge, 'schedule': schedule, 'version': card['version'] + 1, 'due_at': due.isoformat()}
             await cur.execute('UPDATE learning_cards SET card_json=%s,due_at=%s,version=version+1,last_correct=%s,wrong_count=wrong_count+%s,updated_at=%s WHERE card_id=%s AND user_id=%s',
                               (encoded(schedule['card']), sql_time(due), record['is_correct'], int(not record['is_correct']), sql_time(now), card_id, user_id))
             await cur.execute('INSERT INTO learning_events(user_id,card_id,version,source,event_json,created_at) VALUES(%s,%s,%s,\'review\',%s,%s)',
