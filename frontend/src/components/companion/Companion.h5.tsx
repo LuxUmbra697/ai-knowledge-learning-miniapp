@@ -4,17 +4,18 @@ import { clampPosition, safePosition } from './position'
 import { useCompanion } from './useCompanion'
 const storageKey = 'ai-learn:v1:companion-position'
 
-export default function Companion({ reducedMotion, onHide }: { reducedMotion: boolean; onHide: () => void }) {
+export default function Companion({ reducedMotion, onHide, onSafeChange }: { reducedMotion: boolean; onHide: () => void; onSafeChange: (safe: boolean) => void }) {
   const element = useRef<HTMLDivElement>(null)
   const [menu, setMenu] = useState(false)
   const [visible, setVisible] = useState(true)
   const [safe, setSafe] = useState(true)
+  useEffect(() => onSafeChange(safe), [safe, onSafeChange])
   const state = useCompanion(visible && safe)
   const position = useRef({ x: 0, y: 120 })
   const dragging = useRef<{ x: number; y: number; startX: number; startY: number } | null>(null)
   const place = () => {
     if (dragging.current) return
-    const boxes = [...document.querySelectorAll('taro-button-core, input, textarea, .mobile-navigation, .stat, .page-title, .page-subtitle, .welcome-title, .section-title, .row-title, .field-hint')]
+    const boxes = [...document.querySelectorAll('taro-button-core, input, textarea, .mobile-navigation, .stat, .page-title, .page-subtitle, .welcome-title, .section-title, .row-title, .field-hint, .question-stem, .answer-explanation, .claim-text')]
       .filter(node => !node.closest('.companion') && node.getClientRects().length > 0)
       .map(node => node.getBoundingClientRect()).filter(box => box.width > 0 && box.height > 0)
     const next = safePosition(position.current, window.innerWidth, window.innerHeight, boxes)

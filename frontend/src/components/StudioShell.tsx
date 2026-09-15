@@ -1,9 +1,10 @@
 import { PropsWithChildren, useState } from 'react'
-import { View, Text, Button, Switch } from '@tarojs/components'
+import { View, Text, Button, Switch, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { themes, useStudio } from './StudioProvider'
 import { Icon } from './Icon'
 import Companion from './companion/Companion'
+import { useCompanion } from './companion/useCompanion'
 
 export const navigation = [
   { key: 'home', label: '学习首页', icon: 'home', path: '/pages/index/index' },
@@ -18,7 +19,19 @@ export function StudioShell({ children, active, title, subtitle, guest = false, 
 }>) {
   const settings = useStudio()
   const [appearance, setAppearance] = useState(false)
-  return <View className={`studio theme-${settings.theme} ${settings.reducedMotion ? 'reduced-motion' : ''} ${settings.companion && !focus && !guest ? 'has-companion' : ''}`}>
+  const [floatingSafe, setFloatingSafe] = useState(true)
+  const [expanded, setExpanded] = useState(false)
+  const portrait = useCompanion(!guest && !appearance && settings.companion)
+  const reserved = focus || !floatingSafe
+  const floating = settings.companion && !focus && !settings.companionFolded
+  const shown = settings.companion && (reserved ? expanded : !settings.companionFolded)
+  const partnerLabel = !settings.companion ? '显示学习伙伴' : shown ? '收起学习伙伴' : '展开学习伙伴'
+  const togglePartner = () => {
+    if (!settings.companion) { settings.update({ companion: true, companionFolded: false }); return }
+    if (reserved) { settings.update({ companionFolded: expanded }); setExpanded(value => !value) }
+    else settings.update({ companionFolded: !settings.companionFolded })
+  }
+  return <View className={`studio theme-${settings.theme} ${settings.reducedMotion ? 'reduced-motion' : ''} ${floating && floatingSafe && !guest ? 'has-companion' : ''}`}>
     <View className='studio-topbar'>
       <View className='studio-brand' onClick={() => navigate('/pages/index/index')}>
         <View className='brand-mark'><Icon name='book' size={22} /></View>
@@ -26,6 +39,10 @@ export function StudioShell({ children, active, title, subtitle, guest = false, 
       </View>
       <View className='topbar-end'>
         <Text className='theme-caption'>{themes.find(t => t.id === settings.theme)?.name}</Text>
+        {!guest && <Button className='icon-button companion-dock' aria-label={partnerLabel} data-state={!settings.companion ? 'hidden' : shown ? 'expanded' : 'folded'} onClick={togglePartner}>
+          {settings.companion ? <Image src={portrait.source} mode='aspectFit' /> : <Icon name='user' />}
+          <Text className='tooltip'>{partnerLabel}</Text>
+        </Button>}
         <Button className='icon-button' aria-label='外观设置' onClick={() => setAppearance(true)}><Icon name='settings' /><Text className='tooltip'>外观设置</Text></Button>
       </View>
     </View>
@@ -37,11 +54,14 @@ export function StudioShell({ children, active, title, subtitle, guest = false, 
       </View>}
       <View className='studio-main'>
         <View className='page-heading'><Text className='page-title'>{title}</Text>{subtitle && <Text className='page-subtitle'>{subtitle}</Text>}</View>
+        {!guest && !appearance && reserved && shown && <View className={`companion-reserved pose-${portrait.pose} ${portrait.enabled ? 'companion-animated' : ''}`}>
+          <Image className='companion-portrait' src={portrait.source} mode='aspectFit' onClick={portrait.nextPose} />
+        </View>}
         {children}
       </View>
     </View>
     {!guest && <View className='mobile-navigation'>{navigation.map(item => <Button key={item.key} className={`mobile-nav-item ${active === item.key ? 'active' : ''}`} onClick={() => navigate(item.path)}><Icon name={item.icon} /><Text>{item.label}</Text></Button>)}</View>}
-    {settings.companion && !focus && !guest && !appearance && <Companion reducedMotion={settings.reducedMotion} onHide={() => settings.update({ companion: false })} />}
+    {floating && !guest && !appearance && <Companion reducedMotion={settings.reducedMotion} onSafeChange={setFloatingSafe} onHide={() => settings.update({ companionFolded: true })} />}
     {appearance && <View className='modal-backdrop' onClick={() => setAppearance(false)}><View className='appearance-dialog' onClick={event => event.stopPropagation()}>
       <View className='section-heading'><Text className='section-title'>我的学园外观</Text><Button className='icon-button' aria-label='关闭外观设置' onClick={() => setAppearance(false)}><Icon name='close' /></Button></View>
       <View className='theme-options'>{themes.map(theme => <Button key={theme.id} className={`theme-option ${settings.theme === theme.id ? 'selected' : ''}`} onClick={() => settings.update({ theme: theme.id })}>

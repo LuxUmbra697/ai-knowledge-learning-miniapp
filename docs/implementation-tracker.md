@@ -331,7 +331,7 @@ The following owner requests are part of the remaining acceptance scope, not com
 | QUIZ-09 | User-selected total and per-type counts | Single, multiple, fill-in, judgment and written response; exact blueprint validation; bounded task batches and authoritative scoring | Pending |
 | REPORT-04 | Mermaid learning and relationship diagrams | Stored graph data after review; sanitized H5 renderer and tested native equivalent; invalid graphs fail visibly | Pending |
 | REVIEW-03 | Named error notebooks | Create notebook, explicitly add/remove an owned wrong question, select destination, idempotency and cross-user denial | Pending |
-| UI-04 | Visible companion and recovery | Focus pages must not silently remove it; safe collapsed state, restore/hide control, mobile/desktop/native checks | Investigating: shell focus exclusion and no-space hiding confirmed |
+| UI-04 | Visible companion and recovery | Focus pages must not silently remove it; safe collapsed state, restore/hide control, mobile/desktop/native checks | H5 fixed and verified; native build passed, IDE runtime pending |
 | UI-05 | Simpler hand-painted anime visual design | Original nature/study artwork, restrained surfaces and typography, no pervasive dot field or generic AI marketing composition; five themes and real screenshots | Pending |
 
 GitHub code pushes are explicitly authorized; credentials must never be uploaded. Local paid model
@@ -340,6 +340,21 @@ and verification. This addendum extends the original M0-M7 scope, without removi
 algorithm-experiment, native-testing, documentation or coexistence requirements.
 
 ## Continuing Decisions
+
+### Companion Visibility Regression (2026-09-15)
+
+- Reproduced focus-page removal in Chromium before changing the shell. A persistent topbar partner
+  control now stays available, including when floating placement cannot find room. Focus pages
+  expand into reserved document-flow space. Hide, fold and restore are separate states.
+- Screenshot review found a second defect: animated `transform` replaced the Taro image's centering
+  transform, clipping the expanded character. A failing full-image-bounds test was added before the
+  correction. The native drag release also reads current, not initial, viewport dimensions.
+- Two browser scenarios passed in 9.9 s: focus display, full portrait, no answer overlap, persisted
+  fold/hide and restore, crowded 320x330 fallback, desktop recovery, drag, all five themes and motion.
+  Existing frontend units/typecheck remain passing. Both builds passed; H5 entry gzip 119949 bytes,
+  weapp main 574180 bytes. Native IDE runtime remains unverified, not described as fixed by a build.
+- Evidence: `evidence/companion-visibility.json`, `evidence/companion-build-size.json`, and the actual
+  H5 screenshot `screenshots/h5/26-companion-focus.png`. No provider calls or production changes.
 
 - Preserve Taro 4.1.11, MySQL and Chroma; enhance existing modules.
 - Deterministic tests must disable dotenv and network before importing the application.

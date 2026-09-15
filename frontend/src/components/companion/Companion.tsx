@@ -4,7 +4,7 @@ import Taro, { useDidHide, useDidShow } from '@tarojs/taro'
 import { dockPosition, safePosition } from './position'
 import { useCompanion } from './useCompanion'
 
-export default function Companion({ reducedMotion, onHide }: { reducedMotion: boolean; onHide: () => void }) {
+export default function Companion({ reducedMotion, onHide, onSafeChange }: { reducedMotion: boolean; onHide: () => void; onSafeChange: (safe: boolean) => void }) {
   const info = Taro.getWindowInfo()
   const saved = Taro.getStorageSync('ai-learn:v1:companion-position') || { x: info.windowWidth - 82, y: 120 }
   const [position, setPosition] = useState(() => dockPosition(saved, info.windowWidth, info.windowHeight))
@@ -13,10 +13,11 @@ export default function Companion({ reducedMotion, onHide }: { reducedMotion: bo
   const [menu, setMenu] = useState(false)
   const [visible, setVisible] = useState(true)
   const [safe, setSafe] = useState(true)
+  useEffect(() => onSafeChange(safe), [safe, onSafeChange])
   const state = useCompanion(visible && safe)
   const place = () => {
     const next = Taro.getWindowInfo()
-    Taro.createSelectorQuery().selectAll('.primary-button, .secondary-button, .text-button, .studio-input, .studio-textarea, .mobile-navigation, .stat, .page-title, .page-subtitle, .welcome-title, .section-title, .row-title, .field-hint').boundingClientRect(rectangles => {
+    Taro.createSelectorQuery().selectAll('.primary-button, .secondary-button, .text-button, .icon-button, .answer-option, .studio-input, .studio-textarea, .mobile-navigation, .stat, .page-title, .page-subtitle, .welcome-title, .section-title, .row-title, .field-hint, .question-stem, .answer-explanation, .claim-text').boundingClientRect(rectangles => {
       const candidate = safePosition(live.current, next.windowWidth, next.windowHeight, Array.isArray(rectangles) ? rectangles : [])
       setSafe(!!candidate)
       if (candidate) { live.current = candidate; setPosition(candidate) }
@@ -38,7 +39,8 @@ export default function Companion({ reducedMotion, onHide }: { reducedMotion: bo
     onTouchStart={() => { start.current = live.current }}
     onTouchEnd={() => {
       if (Math.hypot(live.current.x - start.current.x, live.current.y - start.current.y) < 6) { setMenu(value => !value); state.nextPose() }
-      const next = dockPosition(live.current, info.windowWidth, info.windowHeight)
+      const current = Taro.getWindowInfo()
+      const next = dockPosition(live.current, current.windowWidth, current.windowHeight)
       setPosition(next); Taro.setStorageSync('ai-learn:v1:companion-position', next)
       place()
     }}>

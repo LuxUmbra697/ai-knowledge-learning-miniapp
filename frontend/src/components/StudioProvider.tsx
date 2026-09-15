@@ -8,8 +8,8 @@ export const themes = [
   { id: 'forest', name: '森之图书馆', accent: '#326b55', paper: '#f1f7f2', motif: '藏书' },
   { id: 'scroll', name: '赤金绘卷', accent: '#a73a38', paper: '#fff7ed', motif: '印记' },
 ] as const
-type Settings = { theme: string; reducedMotion: boolean; companion: boolean; companionForm: 'pink' | 'orange'; companionPose: 'auto' | 'read' | 'wave' | 'celebrate' }
-const defaults: Settings = { theme: 'sakura', reducedMotion: false, companion: true, companionForm: 'pink', companionPose: 'auto' }
+type Settings = { theme: string; reducedMotion: boolean; companion: boolean; companionFolded: boolean; companionForm: 'pink' | 'orange'; companionPose: 'auto' | 'read' | 'wave' | 'celebrate' }
+const defaults: Settings = { theme: 'sakura', reducedMotion: false, companion: true, companionFolded: false, companionForm: 'pink', companionPose: 'auto' }
 const StudioContext = createContext({ ...defaults, update: (_value: Partial<Settings>) => {} })
 
 export function StudioProvider({ children }: PropsWithChildren) {
@@ -17,6 +17,7 @@ export function StudioProvider({ children }: PropsWithChildren) {
     const saved = Taro.getStorageSync('ai-learn:v1:appearance') || {}
     return { ...defaults, theme: themes.some(t => t.id === saved.theme) ? saved.theme : defaults.theme,
       reducedMotion: saved.reducedMotion === true, companion: saved.companion !== false,
+      companionFolded: saved.companionFolded === true,
       companionForm: saved.companionForm === 'orange' ? 'orange' : 'pink',
       companionPose: ['auto', 'read', 'wave', 'celebrate'].includes(saved.companionPose) ? saved.companionPose : 'auto' }
   })

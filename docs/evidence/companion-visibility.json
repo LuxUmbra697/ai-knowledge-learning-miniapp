@@ -1,0 +1,16 @@
+{
+  "recorded_at": "2026-09-15T00:52:02.950Z",
+  "runtime": "Chromium, real local API and isolated synthetic answers",
+  "provider_calls": 0,
+  "checks": [
+    "focus_visible_dock",
+    "portrait_asset_loaded",
+    "expanded_reserved_space",
+    "no_answer_overlap",
+    "fold_restore",
+    "crowded_viewport_fallback",
+    "resize_recovery",
+    "hide_persist_and_restore"
+  ],
+  "native": "Build only; runtime verification pending"
+}

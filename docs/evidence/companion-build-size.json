@@ -1,0 +1,25 @@
+{
+  "measured_at": "2026-09-15T00:52:47.565Z",
+  "node": "v22.19.0",
+  "taro": "4.1.11",
+  "budgets": {
+    "h5_entry_gzip_bytes": 180000,
+    "weapp_main_bytes": 2097152
+  },
+  "platforms": {
+    "h5": {
+      "files": 24,
+      "bytes": 1656148,
+      "entry_gzip_bytes": 119949
+    },
+    "weapp": {
+      "files": 55,
+      "bytes": 607933,
+      "main_bytes": 574180,
+      "subpackages": {
+        "learning/": 33753
+      }
+    }
+  },
+  "budgets_passed": true
+}
