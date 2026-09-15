@@ -1,3 +1,15 @@
+import { QuestionCounts, validCounts } from './quizBlueprint'
+
+export type TopicPractice = { key: string; taskId?: string; input: string; counts: QuestionCounts; web: boolean }
+
+export function restorableTopic(value: unknown): TopicPractice | null {
+  const request = restorableQuiz(value)
+  if (!request) return null
+  const data = value as TopicPractice
+  if (typeof data.input !== 'string' || !data.input.trim() || data.input.length > 2000 || typeof data.web !== 'boolean' || !data.counts || !validCounts(data.counts)) return null
+  return { ...request, input: data.input, counts: data.counts, web: data.web }
+}
+
 export function restorableQuiz(value: unknown): { key: string; taskId?: string } | null {
   if (!value || typeof value !== 'object') return null
   const pending = value as { key?: unknown; taskId?: unknown }

@@ -264,7 +264,7 @@ class TestQuizAuthentication:
             assert resp.status_code == 401
             model.assert_not_awaited()
 
-    async def test_quiz_generate_with_token(self, auth_header):
+    async def test_quiz_generate_with_token(self, auth_header, durable_quiz_transport):
         """有 token 时应正常工作且落库"""
         from app.models.quiz import QuizOutput, Question, QuestionOption
 
@@ -282,6 +282,7 @@ class TestQuizAuthentication:
                 ),
             ],
         )
+        queue = durable_quiz_transport(mock_output)
         with patch(
             "app.services.quiz_service.generate_quiz",
             new_callable=AsyncMock,
@@ -298,7 +299,10 @@ class TestQuizAuthentication:
                     headers=auth_header,
                 )
             assert resp.status_code == 200
-            mock_save.assert_called_once()
+            queue.create.assert_awaited_once()
+            assert queue.create.await_args.args[1] == 1
+            queue.wait.assert_awaited_once_with('job_' + 'a' * 32, 1, seconds=60)
+            mock_save.assert_not_awaited()
 
 
 @pytest.mark.asyncio

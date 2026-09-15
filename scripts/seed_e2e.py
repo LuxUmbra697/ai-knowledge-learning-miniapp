@@ -12,7 +12,7 @@ from app.core.db import connect_mysql, close_mysql_pool, get_mysql_pool
 from app.repositories.quiz_repository import save_quiz_session
 
 
-async def main(user_id: int, staged_upload=False, report_checkpoint=False, release_report=None, quiz_checkpoint=False, release_quiz=None, learning_review=False):
+async def main(user_id: int, staged_upload=False, report_checkpoint=False, release_report=None, quiz_checkpoint=False, release_quiz=None, learning_review=False, public_quiz_checkpoint=False):
     await connect_mysql()
     try:
         async with get_mysql_pool().acquire() as conn:
@@ -59,25 +59,30 @@ async def main(user_id: int, staged_upload=False, report_checkpoint=False, relea
              "answer": ["B"], "explanation": "没有足够记录时应使用明确的冷启动策略，不能宣称完成了个性化训练。",
              "knowledge_point": "冷启动", "difficulty": "easy"},
         ]
-        if quiz_checkpoint:
+        if quiz_checkpoint or public_quiz_checkpoint:
             import hashlib
             from langchain_core.documents import Document
             from app.repositories import rag_index_repository as index, job_repository as jobs
             from app.services.vector_store_service import index_version
-            doc_id = 'doc_' + uuid.uuid4().hex
-            text = '\n'.join(q['explanation'] for q in questions)
-            version = index_version()
-            doc = await index.reserve(doc_id, user_id, '合成练习恢复验收.md', 'md', len(text.encode()), hashlib.sha256(text.encode()).hexdigest(), version, 10)
-            doc_id = doc['doc_id']
-            await index.publish(doc_id, user_id, 1, version, [Document(page_content=text, metadata={'chunk_id': 'e2e_chunk'})])
-            await jobs.cancel(doc['task_id'], user_id)
             query = '确定性浏览器练习恢复验收'
-            payload = dict(query=query, question_count=3, difficulty='mixed', doc_ids=[doc_id], scope=[[doc_id, 1, version]], mode='rerank')
-            from app.models.evidence import evidence_from_row
-            evidence = evidence_from_row((await index.scoped_chunks(user_id, [doc_id], version))[0], 'E1').model_dump()
-            for question in questions:
-                question['citations'] = [{'evidence_id': 'E1', 'quote': question['explanation']}]
-            source = json.dumps({'source_type': 'private_document', 'evidence': [evidence]}, ensure_ascii=False)
+            doc_id, source = None, ''
+            payload = dict(query=query, question_count=3, difficulty='mixed', doc_ids=[], scope=[], mode='rerank')
+            if public_quiz_checkpoint:
+                payload['question_counts'] = dict(single=1, multiple=1, judge=1, fill=0, written=0)
+            else:
+                doc_id = 'doc_' + uuid.uuid4().hex
+                text = '\n'.join(q['explanation'] for q in questions)
+                version = index_version()
+                doc = await index.reserve(doc_id, user_id, '合成练习恢复验收.md', 'md', len(text.encode()), hashlib.sha256(text.encode()).hexdigest(), version, 10)
+                doc_id = doc['doc_id']
+                await index.publish(doc_id, user_id, 1, version, [Document(page_content=text, metadata={'chunk_id': 'e2e_chunk'})])
+                await jobs.cancel(doc['task_id'], user_id)
+                payload.update(doc_ids=[doc_id], scope=[[doc_id, 1, version]])
+                from app.models.evidence import evidence_from_row
+                evidence = evidence_from_row((await index.scoped_chunks(user_id, [doc_id], version))[0], 'E1').model_dump()
+                for question in questions:
+                    question['citations'] = [{'evidence_id': 'E1', 'quote': question['explanation']}]
+                source = json.dumps({'source_type': 'private_document', 'evidence': [evidence]}, ensure_ascii=False)
             output = dict(title='学习方法与证据意识', summary='合成验收题库，验证任务恢复与作答流程', questions=questions)
             async with index.transaction() as cur:
                 task = await jobs.insert(cur, user_id, 'quiz', payload, uuid.uuid4().hex)
@@ -131,7 +136,8 @@ if __name__ == "__main__":
     parser.add_argument('--report-checkpoint', action='store_true')
     parser.add_argument('--release-report')
     parser.add_argument('--quiz-checkpoint', action='store_true')
+    parser.add_argument('--public-quiz-checkpoint', action='store_true')
     parser.add_argument('--release-quiz')
     parser.add_argument('--learning-review', action='store_true')
     args = parser.parse_args()
-    asyncio.run(main(args.user_id, args.staged_upload, args.report_checkpoint, args.release_report, args.quiz_checkpoint, args.release_quiz, args.learning_review))
+    asyncio.run(main(args.user_id, args.staged_upload, args.report_checkpoint, args.release_report, args.quiz_checkpoint, args.release_quiz, args.learning_review, args.public_quiz_checkpoint))

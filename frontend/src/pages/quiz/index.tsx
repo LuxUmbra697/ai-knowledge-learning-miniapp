@@ -5,6 +5,7 @@ import { getQuizDetail, submitAnswer, QuizDetailResponse, AnswerRecord, getCache
 import { StudioShell, Notice, navigate } from '../../components/StudioShell'
 import { Icon } from '../../components/Icon'
 import { NotebookDialog } from '../../components/NotebookDialog'
+import { QuizSources } from '../../components/QuizSources'
 import { PollControl, pollUntil } from '../../services/polling'
 import { taskPhase } from '../../services/taskDisplay'
 import { quizTaskResult } from '../../services/quizSession'
@@ -109,6 +110,7 @@ export default function QuizPage() {
       {!question && !error && <Text className='muted'>{task ? taskPhase(task.stage) : '正在读取练习'}</Text>}
       {task && !quiz && <View className='report-task'><Text className='muted'>外部调用 {task.trace.model_calls} 次</Text>{!['completed', 'failed', 'cancelled'].includes(task.status) && <Button className='text-button' onClick={cancel}>取消练习</Button>}<Button className='text-button' onClick={() => Taro.navigateTo({ url: '/learning/tasks/index' })}>查看执行记录</Button></View>}
       {question && <>
+        <QuizSources source={quiz?.source_context} />
         <View className='section-heading'><Text className='tag'>{questionLabels[question.type]}</Text><Text className='muted'>第 {index + 1} / {quiz!.questions.length} 题 · 已完成 {records.length} 题</Text></View>
         <View className='practice-progress'><View className='practice-progress-fill' style={{ width: `${records.length / quiz!.questions.length * 100}%` }} /></View>
         <Text className='question-stem'>{question.stem}</Text>

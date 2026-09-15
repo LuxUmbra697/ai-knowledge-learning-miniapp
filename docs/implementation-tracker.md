@@ -10,11 +10,43 @@ This ledger records observed results; planned capabilities are not delivery clai
 | M0 | Isolated baseline; authenticated ownership; authoritative grading; safe config | Core checks passed; release hardening continues | `evidence/m0-local.json`; 159 deterministic tests |
 | M1 | Taro H5/weapp, separate outputs, independent login, five themes | H5 core flow passed; native runtime gate pending | `frontend/e2e`; `screenshots/h5`; DevTools service port unavailable |
 | M2 | Bounded parsing, scoped hybrid retrieval, citations, 100-case evaluation | Retrieval/citation checkpoint verified; remaining gates below | 104 synthetic cases; real index and answer evidence; dual builds |
-| M3 | Bounded learning agent, durable worker, cancellation/recovery | Index, retrieval, answer, report and private text practice verified; public-topic/image migration and tutoring graph pending | MySQL recovery/cancellation tests, real model tasks and H5 history |
+| M3 | Bounded learning agent, durable worker, cancellation/recovery | Index, retrieval, answer, report, public/private text practice verified; image migration and tutoring graph pending | MySQL recovery/cancellation tests, real model tasks and H5 history |
 | M4 | Mastery, FSRS, prerequisites, reproducible offline experiment | FSRS/BKT, review, named notebooks, maps and synthetic fitting experiment verified locally; prerequisite planning pending | Owned atomic learning events, DB/H5 tests, `eval/learning` raw experiment |
 | M5 | Browser and DevTools workflows, screenshots, regression | In progress alongside each module | Actual H5 screenshots exist; no weapp screenshots claimed |
 | M6 | New deployment plus all existing sites healthy | Pending | No gateway mutations |
 | M7 | Bilingual README, documentation, private handoff, GitHub and CI | Pending | Remote history verified |
+
+## Public Practice Loop (2026-09-15)
+
+- Public text generation now uses the owned durable queue and empty private-document scope.
+  Home-page request bodies and keys survive missing POST responses and refresh; completed tasks
+  reopen without another provider call. New groups require explicit action after termination.
+- Optional public web search requires request-level consent; private documents cannot enable it.
+  One bounded basic search enters the shared provider ledger. No raw pages, URL extraction, redirects,
+  hidden retries or silent failure fallback. Migration 12 commits source metadata with the quiz;
+  public references are labelled unverified and withheld until completion, not private citations.
+- New tests initially reproduced the old process-local admission and private-retrieval mistake.
+  Associated deterministic tests and 45 real isolated MySQL cases passed. H5 exercised cancellation,
+  server-accepted/client-lost response, stable key/count recovery, worker checkpoint restore and
+  explicit new groups. The synthetic UI case made zero external calls.
+- Paid local integration used one Tavily search and one DeepSeek generation: 2 calls, 3253 reported
+  tokens, 9104 ms. Currency and search token usage are unknown. The generated questions are not a
+  human-labelled quality benchmark. See `evidence/public-quiz-live.json`, `public-practice-ui.json`,
+  `screenshots/h5/39-topic-practice-options.png`, `40-public-practice-recovered.png` and
+  `41-live-public-practice.png`. Last screenshot reuses the paid result without new calls.
+- Native runtime, the legacy image task path and production deployment remain separate open gates.
+  No reference project, shared gateway or cloud schema was changed in this loop.
+- Verification: 374 offline tests, 45 isolated MySQL cases, 17 frontend units, TypeScript and both
+  builds passed. Full Chromium suite: 17 passed / 3 paid-only scenarios skipped; saved paid fixtures
+  were reused. Screenshot review then found generic input width overriding the quota controls.
+  The added regression failed at 280 px versus the 72 px bound before fixing scoped input widths.
+  The public scenarios passed again at 320/390/1440 widths; screenshot 39 was replaced with the
+  actual corrected layout. H5 entry gzip 120182 bytes; native main package 1036411 bytes.
+
+| Requirement | Code | Tests | Evidence |
+| --- | --- | --- | --- |
+| TASK-QUIZ-PUBLIC | `quiz_task_service.py`, `quizSession.ts`, home page | `test_public_quiz_tasks.py`, `integration/test_quiz_tasks.py`, `public-practice.spec.ts` | Public task UI and paid evidence above |
+| SEARCH-CONSENT | `public_search_service.py`, migration 12, `QuizSources.tsx` | `test_public_search.py`, owned provenance DB tests | Explicit source label in H5, provider call ledger |
 
 ## Initial Audit Findings
 

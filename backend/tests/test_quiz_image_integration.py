@@ -50,8 +50,9 @@ def mock_quiz_output():
 
 @pytest.mark.asyncio
 class TestQuizGenerateWithImages:
-    async def test_generate_images_false_skips_image_service(self, mock_quiz_output):
+    async def test_generate_images_false_skips_image_service(self, mock_quiz_output, durable_quiz_transport):
         """未勾选生成图片时，不应调用 image_service，questions 不带 image_url"""
+        queue = durable_quiz_transport(mock_quiz_output)
         with patch(
             "app.services.quiz_service.fetch_knowledge_context",
             new_callable=AsyncMock,
@@ -74,6 +75,7 @@ class TestQuizGenerateWithImages:
             result = await quiz_service.handle_quiz_generate(req, user_id=1)
 
         mock_image_gen.assert_not_called()
+        queue.create.assert_awaited_once_with(req, 1, None)
         assert result.image_notice is None
         assert all(q.image_url is None for q in result.questions)
 

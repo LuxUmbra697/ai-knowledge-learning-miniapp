@@ -5,7 +5,6 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.models.quiz import QuizGenerateRequest, QuizOutput
-from app.core.exceptions import QuizGenerationError
 from app.llm import quiz_chain, langchain_factory
 from app.services import quiz_service
 from app.repositories import quiz_repository, task_repository
@@ -40,13 +39,14 @@ def test_valid_exercise_preserves_all_three_question_types(sample_quiz_response_
 
 
 @pytest.mark.asyncio
-async def test_sync_generation_does_not_succeed_when_storage_fails(monkeypatch, sample_quiz_response_data):
-    monkeypatch.setattr(quiz_service, '_fetch_context', AsyncMock(return_value=''))
-    monkeypatch.setattr(quiz_service, 'generate_quiz', AsyncMock(return_value=QuizOutput.model_validate(output(sample_quiz_response_data))))
-    monkeypatch.setattr(quiz_service.quiz_repository, 'save_quiz_session', AsyncMock(side_effect=RuntimeError('private database diagnostic')))
-    with pytest.raises(QuizGenerationError) as error:
+async def test_sync_generation_does_not_succeed_when_storage_fails(durable_quiz_transport, sample_quiz_response_data):
+    queue = durable_quiz_transport(QuizOutput.model_validate(output(sample_quiz_response_data)))
+    queue.wait.side_effect = HTTPException(409, '处理暂时失败，已保存任务记录')
+    with pytest.raises(HTTPException) as error:
         await quiz_service.handle_quiz_generate(QuizGenerateRequest(user_input='RAG basics'), user_id=1)
-    assert 'private database diagnostic' not in str(error.value)
+    assert error.value.status_code == 409
+    assert 'private database diagnostic' not in error.value.detail
+    queue.restore.assert_not_awaited()
 
 
 @pytest.mark.asyncio

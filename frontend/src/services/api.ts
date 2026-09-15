@@ -119,6 +119,7 @@ export function generateQuizAsync(
   generateImages = false,
   idempotencyKey?: string,
   questionCounts?: QuestionCounts,
+  useWebSearch = false,
 ) {
   return request<{ task_id: string }>('/quiz/generate/async', {
     method: 'POST',
@@ -128,7 +129,8 @@ export function generateQuizAsync(
       question_count: questionCount,
       difficulty: 'mixed',
       doc_id: docId,
-      generate_images: generateImages,
+        generate_images: generateImages,
+        use_web_search: useWebSearch,
       question_counts: questionCounts,
     },
   })
@@ -352,6 +354,12 @@ export interface QuizData {
   summary: string
   questions: Question[]
   image_notice?: string | null
+  source_context?: QuizSourceContext | null
+}
+
+export interface QuizSourceContext {
+  source_type: 'private_document' | 'model_knowledge' | 'public_web'
+  sources: { title: string; url: string; excerpt: string }[]
 }
 
 export interface QuizTaskStatus {
@@ -419,6 +427,7 @@ export interface QuizDetailResponse {
   quiz_id: string
   title: string
   summary: string
+  source_context?: QuizSourceContext | null
   user_input?: string
   questions: Question[]
   answer_records?: AnswerRecord[]

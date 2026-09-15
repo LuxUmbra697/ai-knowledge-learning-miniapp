@@ -62,6 +62,8 @@ def decode_json(value):
 
 def public_quiz(data: dict, revealed: set[str] | None = None) -> dict:
     visible = revealed or set()
+    if data.get('source_context') and not all(q['id'] in visible for q in data.get('questions', [])):
+        data = {**data, 'source_context': {**data['source_context'], 'sources': []}}
     return {**data, "questions": [
         dict(question) if question["id"] in visible else {
             key: value for key, value in question.items() if key not in ("answer", "explanation", "citations", "accepted_answers", "rubric")

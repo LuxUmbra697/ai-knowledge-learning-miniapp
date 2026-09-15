@@ -1,4 +1,4 @@
-"""Owned private text practice on the shared durable queue. Legacy image/web paths stay explicit."""
+"""Owned text practice on the shared durable queue, with explicit public-search consent."""
 import uuid
 
 from fastapi import HTTPException
@@ -9,21 +9,25 @@ from app.llm.quiz_batches import generate_quiz_set as generate_quiz
 from app.models.quiz import QuizGenerateResponse, QuizTaskStatusResponse
 from app.repositories import job_repository as jobs, quiz_repository, rag_index_repository as index
 from app.services import vector_store_service as vectors, retrieval_service, rag_service
+from app.services import public_search_service
 
 
 async def create(req, user_id, key=None):
     if not user_id:
         raise HTTPException(401, '请先登录')
-    if not req.doc_id or req.generate_images:
-        raise HTTPException(422, '此任务入口仅接收知识库文字练习')
+    if req.generate_images:
+        raise HTTPException(422, '此任务入口仅接收文字练习')
     if not check_content(req.user_input):
         raise ContentFilterError('输入内容包含不当内容，请修改后重试')
-    rows = await index.scoped_chunks(user_id, [req.doc_id], vectors.index_version())
-    if not rows:
+    rows = await index.scoped_chunks(user_id, [req.doc_id], vectors.index_version()) if req.doc_id else []
+    if req.doc_id and not rows:
         raise HTTPException(409, '材料没有可用片段，请重新建立索引')
     scope = [list(item) for item in sorted({(row['doc_id'], row['revision'], row['index_version']) for row in rows})]
     payload = dict(query=req.user_input, question_count=req.question_count, difficulty=req.difficulty,
-                   doc_ids=[req.doc_id], scope=scope, mode='rerank')
+                   doc_ids=[req.doc_id] if req.doc_id else [], scope=scope, mode='rerank')
+    if req.use_web_search:
+        public_search_service.require_available()
+        payload['use_web_search'] = True
     if req.question_counts is not None:
         payload['question_counts'] = req.question_counts.model_dump()
     return await jobs.enqueue(user_id, 'quiz', payload, key or uuid.uuid4().hex)
@@ -31,16 +35,21 @@ async def create(req, user_id, key=None):
 
 async def run(context):
     from app.services.job_handlers import validate_scope
-    await validate_scope(context)
     payload = context.payload
+    private = bool(payload['doc_ids'])
+    if private:
+        await validate_scope(context)
     source = context.checkpoints.get('quiz_sources')
     if source is None:
-        result = await retrieval_service.retrieve(context.user_id, payload['doc_ids'], payload['query'],
-                                                  mode=payload['mode'], context=context)
-        source = rag_service.serialize_context(result)
+        if private:
+            result = await retrieval_service.retrieve(context.user_id, payload['doc_ids'], payload['query'],
+                                                      mode=payload['mode'], context=context)
+            source = rag_service.serialize_context(result)
+        else:
+            source = await public_search_service.fetch_context(context) if payload.get('use_web_search') else ''
         await context.checkpoint('quiz_sources', source)
     output = await generate_quiz(payload['query'], payload['question_count'], payload['difficulty'],
-                                 search_context=source, private_source=True, context=context,
+                                 search_context=source, private_source=private, context=context,
                                  question_counts=payload.get('question_counts'))
     await context.checkpoint('quiz_validated', {'question_count': len(output.questions)})
     return await quiz_repository.publish_generated_quiz(context, output)

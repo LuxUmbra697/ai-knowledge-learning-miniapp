@@ -38,31 +38,25 @@ async def test_quiz_generate_with_search_context(mock_quiz_output):
     """有搜索上下文时正常生成题目"""
     with (
         patch(
-            "app.services.quiz_service.fetch_knowledge_context",
+            "app.services.public_search_service.fetch_context",
             new_callable=AsyncMock,
             return_value="Harness 是一个持续交付平台...",
         ),
         patch(
-            "app.services.quiz_service.generate_quiz",
+            "app.services.quiz_task_service.generate_quiz",
             new_callable=AsyncMock,
             return_value=mock_quiz_output,
         ) as mock_gen,
         patch("app.services.quiz_service.check_content", return_value=True),
-        patch("app.services.quiz_service.quiz_repository") as mock_repo,
+        patch("app.services.quiz_task_service.quiz_repository.publish_generated_quiz", new_callable=AsyncMock, return_value={'quiz_id': 'quiz_public'}) as publish,
     ):
-        mock_repo.save_quiz_session = AsyncMock()
-
-        from app.models.quiz import QuizGenerateRequest
-        from app.services.quiz_service import handle_quiz_generate
-
-        req = QuizGenerateRequest(
-            user_input="Harness Engineering",
-            question_count=5,
-            difficulty="mixed",
-        )
-        result = await handle_quiz_generate(req)
-
-        assert result.title == "测试题库"
+        from types import SimpleNamespace
+        from app.services.quiz_task_service import run
+        context = SimpleNamespace(user_id=1, payload=dict(query='Harness Engineering', question_count=5, difficulty='mixed',
+                                                         doc_ids=[], scope=[], use_web_search=True), checkpoints={}, checkpoint=AsyncMock())
+        result = await run(context)
+        assert result['quiz_id'] == 'quiz_public'
+        publish.assert_awaited_once_with(context, mock_quiz_output)
         # 验证 search_context 被传递
         mock_gen.assert_called_once()
         call_kwargs = mock_gen.call_args
@@ -71,34 +65,28 @@ async def test_quiz_generate_with_search_context(mock_quiz_output):
 
 @pytest.mark.asyncio
 async def test_quiz_generate_without_search_context(mock_quiz_output):
-    """搜索返回空时仍正常生成题目"""
+    """Without consent, public generation does not contact search or private retrieval."""
     with (
         patch(
-            "app.services.quiz_service.fetch_knowledge_context",
+            "app.services.public_search_service.fetch_context",
             new_callable=AsyncMock,
             return_value="",
-        ),
+        ) as search,
         patch(
-            "app.services.quiz_service.generate_quiz",
+            "app.services.quiz_task_service.generate_quiz",
             new_callable=AsyncMock,
             return_value=mock_quiz_output,
         ) as mock_gen,
         patch("app.services.quiz_service.check_content", return_value=True),
-        patch("app.services.quiz_service.quiz_repository") as mock_repo,
+        patch("app.services.quiz_task_service.quiz_repository.publish_generated_quiz", new_callable=AsyncMock, return_value={'quiz_id': 'quiz_public'}),
     ):
-        mock_repo.save_quiz_session = AsyncMock()
-
-        from app.models.quiz import QuizGenerateRequest
-        from app.services.quiz_service import handle_quiz_generate
-
-        req = QuizGenerateRequest(
-            user_input="Python 基础",
-            question_count=5,
-            difficulty="mixed",
-        )
-        result = await handle_quiz_generate(req)
-
-        assert result.title == "测试题库"
+        from types import SimpleNamespace
+        from app.services.quiz_task_service import run
+        context = SimpleNamespace(user_id=1, payload=dict(query='Python 基础', question_count=5, difficulty='mixed', doc_ids=[], scope=[]),
+                                  checkpoints={}, checkpoint=AsyncMock())
+        result = await run(context)
+        assert result['quiz_id'] == 'quiz_public'
+        search.assert_not_awaited()
         call_kwargs = mock_gen.call_args
         assert call_kwargs.kwargs.get("search_context") == ""
 

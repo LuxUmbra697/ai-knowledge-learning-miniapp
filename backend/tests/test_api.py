@@ -127,7 +127,8 @@ class TestHealthAPI:
 
 @pytest.mark.asyncio
 class TestQuizAPI:
-    async def test_generate_quiz_success(self, mock_quiz_output, authenticated_headers):
+    async def test_generate_quiz_success(self, mock_quiz_output, authenticated_headers, durable_quiz_transport):
+        queue = durable_quiz_transport(mock_quiz_output)
         with patch(
             "app.services.quiz_service.generate_quiz",
             new_callable=AsyncMock,
@@ -148,7 +149,11 @@ class TestQuizAPI:
             assert body["code"] == 0
             assert len(body["data"]["questions"]) == 5
             assert all("answer" not in q and "explanation" not in q for q in body["data"]["questions"])
-            persist.assert_awaited_once()
+            queue.create.assert_awaited_once()
+            queue.wait.assert_awaited_once()
+            queue.restore.assert_awaited_once()
+            assert queue.create.await_args.args[1] == queue.wait.await_args.args[1]
+            persist.assert_not_awaited()
 
     async def test_generate_quiz_empty_input(self, authenticated_headers):
         transport = ASGITransport(app=app)

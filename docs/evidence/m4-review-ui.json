@@ -1,5 +1,5 @@
 {
-  "recorded_at": "2026-09-15T04:20:56.810Z",
+  "recorded_at": "2026-09-15T05:00:34.391Z",
   "environment": "Chromium + isolated MySQL + real API + FSRS 6.3.2; synthetic historical answers",
   "provider_calls": 0,
   "checks": [

@@ -74,9 +74,12 @@ class QuizGenerateRequest(BaseModel):
     generate_images: bool = Field(
         default=False, description="是否为每道题目生成配图"
     )
+    use_web_search: bool = Field(default=False, strict=True, description="是否将本次公开主题发送给网页搜索服务")
 
     @model_validator(mode='after')
     def validate_counts(self):
+        if self.doc_id and self.use_web_search:
+            raise ValueError('私人材料练习不向网页搜索发送内容')
         if self.question_counts is not None:
             total = sum(self.question_counts.model_dump().values())
             if not 1 <= total <= 20:
@@ -92,6 +95,7 @@ class QuizGenerateResponse(BaseModel):
     title: str
     summary: str
     questions: list[Question]
+    source_context: dict | None = None
     image_notice: str | None = Field(
         default=None, description="配图相关的提示信息（如未登录/额度已用完/部分题目未配图等），无异常时为 None"
     )

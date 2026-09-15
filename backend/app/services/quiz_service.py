@@ -81,7 +81,7 @@ async def handle_quiz_generate(
     user_id: Optional[int] = None,
     key: str | None = None,
 ) -> QuizGenerateResponse:
-    if req.doc_id and not req.generate_images:
+    if not req.generate_images:
         from app.services import quiz_task_service
         from app.services.learning_task_service import wait_result
         task = await quiz_task_service.create(req, user_id, key)
@@ -147,7 +147,7 @@ async def create_quiz_task(
     key: str | None = None,
 ) -> QuizTaskCreateResponse:
     """创建异步出题任务，立即返回 task_id"""
-    if req.doc_id and not req.generate_images:
+    if not req.generate_images:
         from app.services import quiz_task_service
         task = await quiz_task_service.create(req, user_id, key)
         return QuizTaskCreateResponse(task_id=task['task_id'])

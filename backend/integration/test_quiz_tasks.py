@@ -108,8 +108,12 @@ async def test_changed_source_or_cancelled_job_cannot_publish(users, invalidate)
 
 
 @pytest.mark.asyncio
-async def test_failed_final_task_write_rolls_back_generated_quiz(users, monkeypatch):
-    _req, task = await fixture(users[0])
+@pytest.mark.parametrize('private', [False, True])
+async def test_failed_final_task_write_rolls_back_generated_quiz(users, monkeypatch, private):
+    if private:
+        _req, task = await fixture(users[0])
+    else:
+        task = await service.create(QuizGenerateRequest(user_input='Public checkpoint', question_count=3), users[0], uuid.uuid4().hex)
     context = TaskContext(await jobs.claim())
     async def fail(*_args):
         raise RuntimeError('Synthetic final task write failure')
@@ -118,6 +122,59 @@ async def test_failed_final_task_write_rolls_back_generated_quiz(users, monkeypa
         await quiz_repository.publish_generated_quiz(context, validate_quiz(OUTPUT, 3, 'mixed'))
     assert await quiz_count(task['task_id']) == 0
     assert (await jobs.get_owned(task['task_id'], users[0]))['status'] == 'running'
+    async with index.transaction() as cur:
+        await cur.execute('SELECT COUNT(*) AS n FROM quiz_source_context WHERE user_id=%s', (users[0],))
+        assert (await cur.fetchone())['n'] == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('web', [False, True])
+async def test_public_practice_recovers_checkpoint_and_persists_owned_provenance(users, monkeypatch, web):
+    from app.services import public_search_service as search, history_service
+    from app.services.grading_service import submit_question, AnswerSubmission
+    from app.llm import quiz_chain
+    monkeypatch.setattr(search, 'require_available', lambda: None)
+    request = QuizGenerateRequest(user_input='Public recovery fixture', question_count=3, use_web_search=web)
+    task = await service.create(request, users[0], 'public-first-device')
+    duplicate = await service.create(request, users[0], 'public-second-device')
+    assert duplicate['task_id'] == task['task_id']
+    context = TaskContext(await jobs.claim())
+    assert context.payload['scope'] == context.payload['doc_ids'] == []
+    if web:
+        sources = search.normalize_results({'results': [dict(url='https://docs.python.org/3/', title='Synthetic reference', content='Synthetic public excerpt')]})
+        await jobs.reserve_call(context.task_id, context.lease_token, 'public_search')
+        await jobs.complete_call(context.task_id, context.lease_token, 'public_search', {'output': sources}, None)
+    await jobs.reserve_call(context.task_id, context.lease_token, 'quiz')
+    await jobs.complete_call(context.task_id, context.lease_token, 'quiz', {'output': [{'content': json.dumps(OUTPUT), 'finish_reason': 'stop'}]}, 10)
+    async with index.transaction() as cur:
+        await cur.execute('UPDATE learning_jobs SET lease_until=UTC_TIMESTAMP()-INTERVAL 1 SECOND WHERE task_id=%s', (task['task_id'],))
+    monkeypatch.setattr(quiz_chain, 'get_chat_model', lambda: pytest.fail('Recovery must not call the model'))
+    monkeypatch.setattr(search, '_search', lambda *_: pytest.fail('Recovery must not call the search provider'))
+    restored = TaskContext(await jobs.claim())
+    reference = await service.run(restored)
+    detail = await history_service.get_quiz_detail(reference['quiz_id'], users[0])
+    assert detail.source_context['source_type'] == ('public_web' if web else 'model_knowledge')
+    assert detail.source_context['sources'] == []
+    assert all('answer' not in q and 'explanation' not in q for q in detail.questions)
+    assert await history_service.get_quiz_detail(reference['quiz_id'], users[1]) is None
+    assert (await jobs.get_owned(task['task_id'], users[0]))['trace']['model_calls'] == 1 + int(web)
+    assert (await service.create(request, users[0], 'public-second-device'))['task_id'] == task['task_id']
+    for question in OUTPUT['questions']:
+        await submit_question(reference['quiz_id'], users[0], AnswerSubmission(question_id=question['id'], selected_answers=question['answer']))
+    completed = await history_service.get_quiz_detail(reference['quiz_id'], users[0])
+    assert len(completed.source_context['sources']) == int(web)
+    if web:
+        assert completed.source_context['sources'][0]['excerpt'] == 'Synthetic public excerpt'
+
+
+@pytest.mark.asyncio
+async def test_cancelled_public_practice_cannot_publish_or_create_provenance(users):
+    task = await service.create(QuizGenerateRequest(user_input='Public cancellation', question_count=3), users[0], 'public-cancel-key')
+    context = TaskContext(await jobs.claim())
+    await jobs.cancel(task['task_id'], users[0])
+    with pytest.raises(jobs.TaskLeaseLost):
+        await quiz_repository.publish_generated_quiz(context, validate_quiz(OUTPUT, 3, 'mixed'))
+    assert await quiz_count(task['task_id']) == 0
 
 
 @pytest.mark.asyncio

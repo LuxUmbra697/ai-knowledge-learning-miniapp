@@ -36,8 +36,9 @@ def mock_quiz_output():
 
 @pytest.mark.asyncio
 class TestHandleQuizGenerateNoDocId:
-    async def test_no_doc_id_uses_web_search_not_rag(self, mock_quiz_output):
-        """无 doc_id 时应完全走原有联网搜索路径，不调用 rag_service，行为与之前一致"""
+    async def test_no_doc_id_uses_owned_queue_without_implicit_search(self, mock_quiz_output, durable_quiz_transport):
+        """Public requests use the queue; web search now needs explicit consent."""
+        queue = durable_quiz_transport(mock_quiz_output)
         with patch(
             "app.services.quiz_service.fetch_knowledge_context",
             new_callable=AsyncMock,
@@ -60,7 +61,8 @@ class TestHandleQuizGenerateNoDocId:
             result = await quiz_service.handle_quiz_generate(req, user_id=1)
 
         assert result.title == "测试题库"
-        mock_web_search.assert_called_once()
+        queue.create.assert_awaited_once_with(req, 1, None)
+        mock_web_search.assert_not_awaited()
         mock_rag.assert_not_called()
 
 

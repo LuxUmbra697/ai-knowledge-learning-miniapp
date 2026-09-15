@@ -12,7 +12,7 @@ from dotenv import dotenv_values
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def configure(with_models=False):
+def configure(with_models=False, with_search=False):
     if not with_models:
         for name in ('DEEPSEEK_API_KEY', 'DASHSCOPE_API_KEY', 'DASHSCOPE_IMAGE_API_KEY',
                      'TAVILY_API_KEY', 'COS_SECRET_ID', 'COS_SECRET_KEY'):
@@ -31,7 +31,7 @@ def configure(with_models=False):
                       MYSQL_AUTO_INIT="false", MYSQL_POOL_MAXSIZE="3", MYSQL_POOL_MINSIZE="1",
                       JWT_SECRET=signing_key.read_text(encoding="ascii"), APP_DEBUG="true",
                       CHROMA_PERSIST_DIR=str(private / "chroma"), KB_UPLOAD_DIR=str(private / "uploads"),
-                      ENABLE_WEB_SEARCH="false", COS_UPLOAD_PREFIX="ai-learn-local-test/",
+                      ENABLE_WEB_SEARCH="true" if with_models and with_search else "false", COS_UPLOAD_PREFIX="ai-learn-local-test/",
                       ANONYMIZED_TELEMETRY="false")
     os.environ['WORKER_ENABLED'] = 'true'
     sys.path.insert(0, str(ROOT / "backend"))
@@ -50,10 +50,13 @@ async def initialize():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--with-models", action="store_true")
+    parser.add_argument("--with-search", action="store_true", help="Enable opt-in public-topic Tavily search; requires --with-models")
     parser.add_argument("--initialize", action="store_true")
     parser.add_argument("--port", type=int, default=18081)
     args = parser.parse_args()
-    configure(args.with_models)
+    if args.with_search and not args.with_models:
+        parser.error('--with-search requires --with-models')
+    configure(args.with_models, args.with_search)
     if args.initialize:
         asyncio.run(initialize())
     else:

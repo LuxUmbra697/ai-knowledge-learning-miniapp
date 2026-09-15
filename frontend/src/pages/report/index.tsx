@@ -81,6 +81,7 @@ export default function ReportPage() {
     {error && <Notice message={error} retry={load} />}
     {!quiz && !error && <Text className='muted'>正在读取作答记录</Text>}
     {quiz && <>
+      <QuizSources source={quiz.source_context} />
       <View className='stats-row'><View className='stat'><Text className='muted'>已提交</Text><Text className='stat-number'>{records.length}/{quiz.questions.length}</Text></View><View className='stat'><Text className='muted'>答对题数</Text><Text className='stat-number'>{correct}</Text></View><View className='stat'><Text className='muted'>本次正确率</Text><Text className='stat-number'>{records.length ? `${Math.round(correct / records.length * 100)}%` : '暂无'}</Text></View></View>
       {!complete && <View className='notice'><Text>练习尚未完成，完成后可生成学习报告。</Text><Button className='text-button' onClick={() => Taro.navigateTo({ url: `/pages/quiz/index?quizId=${quizId}` })}>继续作答</Button></View>}
       {complete && !report && <View className='section-band report-actions'><Button className='primary-button' disabled={busy} onClick={generate}>{busy ? taskPhase(task?.stage || 'queued') : '生成学习报告'}</Button>{busy && task && <Button className='text-button' onClick={cancel}>取消报告</Button>}</View>}
@@ -92,3 +93,4 @@ export default function ReportPage() {
     <Button className='secondary-button' onClick={() => navigate('/pages/index/index')}>返回学习首页</Button>
   </StudioShell>
 }
+import { QuizSources } from '../../components/QuizSources'

@@ -88,8 +88,46 @@ testing or measured grading accuracy. See `evidence/text-quiz-live.json` and the
 
 ## Remaining Boundaries
 
-Private text generation and written grading use the durable queue. The original public-topic and
-image-generation paths still need migration to the same task protocol. Native builds are separate
+Public and private text generation and written grading use the durable queue. The original
+image-generation path still needs migration to the same task protocol. Native builds are separate
 from actual WeChat IDE/device verification, which remains pending. No deployment success is claimed
 by local screenshots or model calls. FSRS/BKT use the resulting observations as uncertain proxies,
 not verified measures of student knowledge.
+
+## Public Topic Practice
+
+Both text entry points enqueue owned `quiz` jobs; synchronous compatibility requests only wait for
+the result. Public requests carry empty document scope and never query the user's private corpus.
+The home page persists the exact topic, type counts, search consent and request key before POST.
+A lost response is retried using that key. Reopening a completed request does not create another
+paid task. Starting another group is explicit and only available after the previous task terminates.
+
+`use_web_search` defaults to false and cannot be combined with `doc_id`. A public request without
+search is labelled as model knowledge, not cited evidence. With explicit consent, one Tavily basic
+search is reserved in the existing daily/task provider budget, with a 15-second HTTP timeout and
+18-second total deadline. It uses at most three results and a 64 KiB response cap; automatic depth,
+raw pages, extraction, images, redirects and SDK retries are disabled. Each excerpt is limited to
+1000 characters. Failures and no results terminate with an actionable message, not silent fallback.
+This replaces the unrestricted ReAct search only for text practice; it is not described as a
+multi-agent system. API settings follow the [Tavily search contract](https://docs.tavily.com/documentation/api-reference/endpoint/search).
+
+Migration 12 records the source context atomically with the quiz. Web references remain explicitly
+unverified at question level, separate from exact private-document citations. URLs/excerpts are
+withheld until all questions are submitted and are shown on the review page. Stored provider
+responses are reused after restart. No raw question checkpoints appear in generic task responses.
+
+The controlled 2026-09-15 local run used **2 external calls**, **3253 reported model tokens**, and
+**9104 ms** total wait. The search token/currency cost was not returned; there is no zero-cost claim.
+The run verified generation, exact three-type quotas, request replay and pre-answer hiding, not
+the semantic correctness of each question. `evidence/public-quiz-live.json` records the result.
+
+```powershell
+backend/venv/Scripts/python.exe scripts/run_local.py --with-models --with-search --port 18081
+# In a second terminal after preparing the private smoke identity fixture:
+backend/venv/Scripts/python.exe scripts/smoke_public_quiz.py --paid --web
+cd frontend
+npm run test:e2e -- public-practice.spec.ts
+```
+
+`--with-search` is explicit; the default isolated launcher still disables searches. Credentials
+are loaded only from the existing private environment file and never enter frontend artifacts.

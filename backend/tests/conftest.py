@@ -140,3 +140,22 @@ def sample_report_request(sample_quiz_response_data, sample_answer_records):
         "questions": sample_quiz_response_data["questions"],
         "answer_records": sample_answer_records,
     }
+@pytest.fixture
+def durable_quiz_transport(monkeypatch):
+    """HTTP-only fixture; actual queue persistence is covered by integration/test_quiz_tasks.py."""
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+    from app.services import quiz_task_service, learning_task_service
+    from app.models.quiz import QuizGenerateResponse
+
+    def configure(output):
+        mocks = SimpleNamespace(
+            create=AsyncMock(return_value={'task_id': 'job_' + 'a' * 32}),
+            wait=AsyncMock(return_value={'quiz_id': 'quiz_' + 'a' * 32}),
+            restore=AsyncMock(return_value=QuizGenerateResponse(quiz_id='quiz_' + 'a' * 32, **output.model_dump())),
+        )
+        monkeypatch.setattr(quiz_task_service, 'create', mocks.create)
+        monkeypatch.setattr(learning_task_service, 'wait_result', mocks.wait)
+        monkeypatch.setattr(quiz_task_service, 'result_response', mocks.restore)
+        return mocks
+    return configure

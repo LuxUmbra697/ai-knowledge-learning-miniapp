@@ -155,6 +155,12 @@ MIGRATIONS = {
         CONSTRAINT fk_study_map_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
         CONSTRAINT fk_study_map_quiz FOREIGN KEY(quiz_id) REFERENCES quiz_sessions(quiz_id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"""],
+    12: ["""CREATE TABLE IF NOT EXISTS quiz_source_context (
+        quiz_id VARCHAR(64) NOT NULL PRIMARY KEY, user_id BIGINT UNSIGNED NOT NULL,
+        context_json JSON NOT NULL,
+        CONSTRAINT fk_quiz_context_quiz FOREIGN KEY(quiz_id) REFERENCES quiz_sessions(quiz_id) ON DELETE CASCADE,
+        CONSTRAINT fk_quiz_context_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"""],
 }
 
 

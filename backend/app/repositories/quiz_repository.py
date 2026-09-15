@@ -34,6 +34,11 @@ async def publish_generated_quiz(context, output):
                           (quiz_id, context.user_id, output.title, output.summary, context.payload['query'],
                            json.dumps([q.model_dump() for q in output.questions], ensure_ascii=False)))
         # Generic task APIs must never return answer-bearing question checkpoints.
+        source = (context.checkpoints.get('public_search') or {}).get('output') or {
+            'source_type': 'private_document' if context.payload['doc_ids'] else 'model_knowledge', 'sources': [],
+        }
+        await cur.execute('INSERT INTO quiz_source_context(quiz_id,user_id,context_json) VALUES(%s,%s,%s)',
+                          (quiz_id, context.user_id, json.dumps(source, ensure_ascii=False)))
         result = {'quiz_id': quiz_id, 'title': output.title}
         await jobs.publish_result(cur, job, result)
         return result
@@ -252,5 +257,10 @@ async def get_quiz_detail(quiz_id: str, user_id: int) -> Optional[dict]:
             rp_row = await cur.fetchone()
             if rp_row:
                 result["report"] = json.loads(rp_row[0]) if isinstance(rp_row[0], str) else rp_row[0]
+
+            await cur.execute('SELECT context_json FROM quiz_source_context WHERE quiz_id=%s AND user_id=%s', (quiz_id, user_id))
+            source_row = await cur.fetchone()
+            if source_row:
+                result['source_context'] = json.loads(source_row[0]) if isinstance(source_row[0], str) else source_row[0]
 
             return result
