@@ -1,237 +1,296 @@
-# AI知识库智能学习小程序
+# 星知学园 · AI Learning Studio
 
-<div align="center">
+**把学习材料变成有出处的回答、可诊断的练习和每天做得完的复习计划。**
 
-An AI-powered WeChat mini app for topic-based quiz generation, knowledge-base learning, and intelligent study reports.
+[English](#english) · [架构](docs/architecture.md) · [启动](docs/development.md) · [测试](docs/testing.md) · [算法实验](docs/algorithm-experiments.md)
 
-<br />
+![真实 H5 学习首页](docs/screenshots/h5/01-home.png)
 
-<a href="#简体中文">
-  <img src="https://img.shields.io/badge/Language-简体中文-1677ff?style=for-the-badge" alt="简体中文" />
-</a>
-<a href="#english">
-  <img src="https://img.shields.io/badge/Language-English-111827?style=for-the-badge" alt="English" />
-</a>
+## 学什么，练什么，为什么
 
-</div>
+上传课程资料、自学笔记或面试知识，选取材料提问，再把知识点编成练习。
+答案不是一句“你答错了”：可以回到原文，查看判分依据，选择收进哪一本错题本，
+再用学习关系图和到期复习把零散知识串起来。
 
----
+- **能回到原文的问答**：中文 BM25 + 向量检索 + RRF；引用带文档版本、页码或章节、片段。找不到依据、资料冲突和接口失败分别呈现。
+- **自己决定一套题**：总量 1–20 道，单选、多选、填空、判断、问答分别设置数量。服务端判分，作答前不返回标准答案；问答按结构化评分规则复盘。
+- **循序提示的学习助手**：苏格拉底辅导、错题诊断、引用核验，生成下一套练习需要明确确认。公开主题可选择联网搜索，私人文档不发送给搜索服务。
+- **看得见依据的复习**：BKT 记录掌握估计，FSRS 安排复习，前置关系与可用时间共同约束计划。确认后保存，不偷偷改计划。
+- **自己的错题与梳理图**：新建/选择错题本，主动收藏；复盘生成内容梳理、证据网络和关系图，图与原文可以对照。
+- **有各自故事的学习伙伴**：樱野小满和秋庭澄各有独立主性格、次性格、背景及四章故事。可拖动、点击、收起；长按有 30% 概率邀请聊天。记忆按账号和角色分开，需确认，可删除或完整重置。
+- **安静一点，也鲜活一点**：五套主题、原创手绘场景、可关闭动效。H5 与微信小程序共用 Taro 业务代码，平台交互分别适配。
 
-## Table of Contents
+| 按类型配题 | 引用与学习辅导 | 复盘关系图 |
+| --- | --- | --- |
+| ![自选题型数量](docs/screenshots/h5/32-question-blueprint.png) | ![真实模型辅导](docs/screenshots/h5/45-live-socratic-tutor.png) | ![学习关系图](docs/screenshots/h5/37-study-map-390.png) |
 
-- [简体中文](#简体中文)
-  - [项目简介](#项目简介)
-  - [核心特性](#核心特性)
-  - [技术栈](#技术栈)
-  - [项目结构](#项目结构)
-  - [快速开始](#快速开始)
-  - [环境变量](#环境变量)
-  - [测试](#测试)
-  - [部署](#部署)
-- [English](#english)
-  - [Overview](#overview)
-  - [Features](#features)
-  - [Tech Stack](#tech-stack)
-  - [Project Structure](#project-structure)
-  - [Quick Start](#quick-start)
-  - [Environment Variables](#environment-variables)
-  - [Testing](#testing)
-  - [Deployment](#deployment)
+| 指定错题本 | 确认学习计划 | 独立伙伴对话 |
+| --- | --- | --- |
+| ![错题本](docs/screenshots/h5/28-error-notebook.png) | ![学习计划](docs/screenshots/h5/48-confirmed-study-plan.png) | ![小满对话](docs/screenshots/h5/52-companion-chat-390.png) |
 
----
+以上均来自真实运行的 **H5**，使用隔离测试账号与合成学习材料。不是小程序截图，也不是设计稿。
 
-## 简体中文
+## 访问状态
 
-### 项目简介
-
-AI知识库智能学习小程序是一个面向微信生态的智能学习产品。用户可以输入任意学习主题，或上传私有知识文档，系统会结合大模型、联网搜索与知识库检索能力，自动生成题目、提供讲解，并输出学习复盘报告，形成完整的学习闭环。
-
-### 核心特性
-
-- AI 自动出题：基于用户输入主题生成学习题目
-- 联网搜索增强：结合 Tavily 获取最新知识上下文
-- 知识库出题：支持 PDF、Word、Markdown、TXT 文档上传与 RAG 检索
-- 即时讲解反馈：答题后立即返回答案与解析
-- AI 学习复盘：生成掌握度、薄弱点与学习建议
-- 题目配图能力：支持 AI 生成配图并存储到腾讯云 COS
-- 微信用户体系：支持登录、历史记录与报告回看
-- 云端部署：支持 Docker 容器化部署到微信云托管
-
-### 技术栈
-
-| 模块 | 技术 |
+| 项目 | 当前状态 |
 | --- | --- |
-| 小程序前端 | Taro 4、React 18、TypeScript、Sass |
-| 后端服务 | Python 3.11、FastAPI、Pydantic v2、Uvicorn |
-| AI 编排 | LangChain、LangGraph |
-| 模型与检索 | DeepSeek、阿里云百炼、Tavily |
-| 向量数据库 | Chroma |
-| 数据存储 | MySQL、腾讯云 COS |
-| 鉴权 | 微信 `jscode2session`、JWT |
-| 测试 | pytest、pytest-asyncio |
-| 部署 | Docker、微信云托管 |
+| 源码 | [ai-knowledge-learning-miniapp](https://github.com/LuxUmbra697/ai-knowledge-learning-miniapp)，开发分支 `codex/learning-studio-upgrade` |
+| H5 目标地址 | https://lux-umbra.xyz/ai-learn/；部署验收尚未完成，不宣称已上线 |
+| API 目标前缀 | https://lux-umbra.xyz/ai-learn/api/v1 |
+| 微信小程序 | 双端连续构建已通过；开发工具运行、真机、体验版、审核及正式发布尚未验收 |
 
-### 项目结构
+## 为什么这样实现
+
+```mermaid
+flowchart LR
+  UI[Taro / React: H5 + weapp] --> API[FastAPI: JWT + 用户归属校验]
+  API --> DB[(MySQL: 资料 / 作答 / 任务 / 记忆)]
+  DB --> W[单进程内受控 worker]
+  W --> R[用户范围过滤 / BM25 + Chroma / RRF]
+  R --> E[百炼 Embedding]
+  W --> L[DeepSeek / 结构化输出校验]
+  W --> T[固定 LangGraph 辅导状态图]
+  W --> P[可选 Tavily 公开搜索]
+  W --> I[独立生图 Key / 私有 COS]
+  API --> S[BKT 掌握估计 / FSRS 复习 / 前置关系]
+```
+
+保留原有 Taro 4.1.11、React 18、FastAPI、MySQL、Chroma，不另起前端或迁移数据库。
+MySQL 同时承担任务租约、幂等和检查点；一个 API 进程内运行一个 worker，
+避免多进程同时写嵌入式 Chroma。每阶段最多三次尝试，超时、取消和供应商结果不确定都有明确状态。
+这不是多 Agent 集群，也不承诺外部 API 恰好计费一次。
+
+LangGraph 仅用于受约束辅导；原有 ReAct 不是所有业务的执行入口。
+RAG、学习算法、伙伴记忆各有独立职责，见 [架构](docs/architecture.md)、[辅导](docs/tutoring.md) 和 [学习路径](docs/learning-paths.md)。
+
+## 从克隆到运行
+
+已验证：Python **3.13.9**、Node **22.19.0**、MySQL **8.0.45**、uv **0.12.5**。
+安装 MySQL 8 服务端程序并将 mysqld 加入 PATH。以下从仓库根目录执行；
+本地工具只使用回环端口 23308 和本项目 .local/mysql/data，不连接配置中的云数据库。
+
+```sh
+git clone https://github.com/LuxUmbra697/ai-knowledge-learning-miniapp.git
+cd ai-knowledge-learning-miniapp
+git switch codex/learning-studio-upgrade
+python -m venv .venv
+```
+
+PowerShell 激活：`.\.venv\Scripts\Activate.ps1`；Linux/macOS：`source .venv/bin/activate`。
+
+```sh
+python -m pip install uv==0.12.5
+uv pip sync --require-hashes backend/requirements-dev.txt
+python scripts/local_mysql.py start
+python scripts/run_local.py --initialize
+npm --prefix frontend ci
+npm --prefix frontend run build:h5
+npm --prefix frontend run build:weapp
+node frontend/scripts/check-build.mjs --both
+```
+
+终端一启动 API 和内嵌 worker：
+
+```sh
+python scripts/run_local.py --serve-h5 --port 18081
+```
+
+终端二启动 H5 预览：
+
+```sh
+npm --prefix frontend run preview
+```
+
+浏览器打开 http://127.0.0.1:18082/ai-learn/，注册独立 H5 账号。
+没有 Key 时可验证账号、页面和已有数据；需要 AI 的操作会明确失败，不伪造生成结果。
+
+启用真实模型：仅在 backend/.env 不存在时，从 backend/.env.example 创建它，填入自己的配置。
+停止终端一后替换启动命令；仍保留隔离数据库和 COS 测试前缀：
+
+```sh
+python scripts/run_local.py --with-models --with-search --serve-h5 --port 18081
+```
+
+微信开发者工具导入 **frontend/**，miniprogramRoot 已指向 dist/weapp/。
+真实微信登录需要自己的 AppID、后端 AppSecret 和合法 HTTPS 域名；H5 不冒充 OpenID 或自动合并账号。
+小程序开发地址配置见 [双端启动说明](docs/development.md)。
+
+停止 API/预览使用各自终端的 Ctrl+C；隔离 MySQL 使用 `python scripts/local_mysql.py stop`。
+它先核验数据目录，遇到别的 MySQL 会拒绝关闭；停止不会删除数据。
+
+### 配置要点
+
+| 配置 | 用途与缺失行为 |
+| --- | --- |
+| DEEPSEEK_API_KEY | 问答、出题、复盘、辅导、伙伴对话；未配置不调用付费模型 |
+| DASHSCOPE_API_KEY | 文档和问题 Embedding；独立于生图 Key |
+| DASHSCOPE_IMAGE_API_KEY、COS_* | 可选配图；空生图地址推导默认地址，空 COS 域名使用桶域名 |
+| TAVILY_API_KEY、ENABLE_WEB_SEARCH | 明确选择的公开主题检索；私人材料禁止走此路径 |
+| WECHAT_APP_ID/SECRET | 微信 code 交换；不影响独立 H5 登录 |
+| MYSQL_*、JWT_SECRET | 真实环境数据库和强随机签名密钥；启动不自动迁移 |
+| REQUIRE_PAID_MODELS、WORKER_* | 生产要求真实文本/Embedding Key，限制每日调用与输入量 |
+
+不要用示例文件覆盖已有 .env。生产必须关闭 debug/自动建库，使用独立持久化目录。
+密钥、私人资料、向量数据、微信私人配置和本地交接记录不进入 Git 或构建上下文。
+
+## 验证与实际指标
+
+```sh
+python scripts/test_offline.py -q --tb=short
+python scripts/test_database.py --tb=short
+python scripts/evaluate_rag.py
+python scripts/experiment_bkt.py --output .local/bkt-reproduction
+npm --prefix frontend test
+npm --prefix frontend run typecheck
+npm --prefix frontend exec playwright install chromium
+npm --prefix frontend run test:e2e
+```
+
+浏览器测试需要前述本地 API、worker、隔离 MySQL 和 H5 正在运行。
+默认测试不消耗模型额度；真实供应商测试需显式开关，详见 [测试说明](docs/testing.md)。
+
+| 实测项目 | 结果与条件 |
+| --- | --- |
+| 后端回归 | 新建锁定环境：423 项离线、67 项隔离 MySQL 通过，含本地数据库保护测试 |
+| H5 回归 | Chromium：25 项通过、4 项额外付费场景跳过；包含实际 API/数据库和已保存的供应商结果，不全是 Mock |
+| 双端构建 | 连续构建互不覆盖；H5 入口 gzip 121,718 B，weapp 主包 1,059,160 B，非真机性能指标 |
+| RAG | 104 条合成样例；dense MRR 0.950，混合 0.929，词项重排 0.929；三者 Recall@4 均 1.0。**未测出混合优于 dense** |
+| 算法实验 | 800 名合成学习者、24,000 条记录，按学习者划分 480/160/160；BKT 测试 Brier 从默认 0.19552 到拟合 0.18329，仅证明合成实验流程 |
+
+[RAG 数据、参数与原始结果](docs/rag-evaluation.md) · [真实执行的拟合与校准实验](docs/algorithm-experiments.md)
+
+## 目录与维护
 
 ```text
-.
-├── backend/        # FastAPI 后端服务
-├── frontend/       # Taro 微信小程序前端
-├── docs/           # 项目文档（本地保留）
-├── openspec/       # 规格文档（本地保留）
-└── prototypes/     # 原型文件（本地保留）
+backend/app/          API、鉴权、任务、检索、学习算法与伙伴设定
+backend/tests/        无付费服务的确定性回归
+backend/integration/  隔离 MySQL、事务与恢复测试
+frontend/src/         Taro 页面、主题、平台组件
+frontend/e2e/         浏览器到 API 和数据库的回归
+scripts/              启动、评测、安全检查、发布辅助
+eval/                 合成数据、划分、参数与原始实验结果
+docs/                 公开技术说明与真实 H5 截图
+.github/workflows/    隔离 CI，不读取真实 .env 或生产数据库
 ```
 
-### 快速开始
+部署采用统一 HTTPS 网关的独立子路径，不抢占 80/443、不改其他站点的 /api/。
+迁移、备份、回滚与共存要求见 [部署说明](docs/deployment.md)。
 
-#### 1. 启动后端
+**边界**：扫描件 OCR 未接入；引用逐字匹配不等于语义正确；问答判分不是人类评分保证；
+没有真实学习者训练、LoRA/蒸馏或高并发成绩。伙伴是虚构角色，不替代有证据的学习助手。
+同域不同路径不是完整安全隔离。微信真机、线上容量和生产恢复需分别验收。
+后续重点是独立人工评测、更长资料、真实设备和长期学习数据。
 
-```bash
-cd backend
-python -m venv venv
-venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-copy .env.example .env
-python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-后端启动后可访问：
-
-- `http://localhost:8000/docs`
-- `http://localhost:8000/api/v1/health`
-
-#### 2. 启动前端
-
-```bash
-cd frontend
-npm install
-npm run dev:weapp
-```
-
-然后使用微信开发者工具打开 `frontend/dist`。
-
-### 环境变量
-
-后端运行依赖 `.env` 配置，请基于 `backend/.env.example` 创建本地环境变量文件。
-
-```bash
-cd backend
-copy .env.example .env
-```
-
-生产环境请通过部署平台环境变量注入真实配置，不要提交敏感信息到仓库。
-
-### 测试
-
-```bash
-cd backend
-pytest
-```
-
-### 部署
-
-项目已提供微信云托管可用的容器配置：
-
-- `backend/Dockerfile`
-- `backend/.dockerignore`
-
-后端可以直接通过 Docker 容器方式部署到微信云托管或其他兼容平台。
+保留原项目合法署名与依赖授权；原创装饰、算法和第三方素材说明见 [来源与许可](docs/assets-attribution.md)。
 
 ---
 
 ## English
 
-### Overview
+### Study With Sources, Diagnosis and a Real Review Plan
 
-AI Knowledge Base Smart Learning Mini App is an intelligent learning product built for the WeChat ecosystem. Users can enter any learning topic or upload private knowledge documents, and the system uses LLMs, web search, and knowledge-base retrieval to generate quizzes, explanations, and learning reports in a complete study workflow.
+**AI Learning Studio** turns private documents into cited answers, configurable practice,
+server-assessed feedback and manageable review plans, for course notes, self-study and interview preparation.
 
-### Features
+Upload PDF/DOCX/TXT/Markdown, ask against selected documents, choose 1–20 questions across single-choice,
+multiple-choice, fill-in, true/false and written types, then inspect the assessment and original evidence.
+Explicitly collect mistakes into named notebooks. Content, evidence-network and relationship diagrams
+connect the review to its sources. Socratic tutoring provides incremental guidance and asks before
+creating practice. BKT estimates mastery, FSRS schedules reviews, and prerequisites/time constrain plans.
 
-- AI-powered quiz generation based on user topics
-- Web search enhancement with Tavily for up-to-date context
-- Knowledge-base quiz generation with PDF, Word, Markdown, and TXT uploads
-- Instant answer checking and explanations
-- AI learning report with mastery analysis and suggestions
-- AI-generated question illustrations with Tencent COS storage
-- WeChat user system with login, history, and report review
-- Docker-based deployment for WeChat Cloud Run
+Five themes share stable navigation. Two original fictional adult companions, Xiaoman and Cheng,
+have different primary/secondary traits, biographies, four story chapters and owner/character-scoped
+confirmed memories. Drag, tap, collapse, hide or long-press; long press has a 30% chance of offering
+dedicated chat. A gesture alone never buys a model call. Memories can be edited, removed or fully reset.
 
-### Tech Stack
+Screenshots above show the actual **H5 application**, isolated accounts and synthetic data,
+not mockups or WeChat runtime screenshots.
 
-| Layer | Technology |
-| --- | --- |
-| Mini App Frontend | Taro 4, React 18, TypeScript, Sass |
-| Backend | Python 3.11, FastAPI, Pydantic v2, Uvicorn |
-| AI Orchestration | LangChain, LangGraph |
-| Models & Retrieval | DeepSeek, Alibaba Bailian, Tavily |
-| Vector Store | Chroma |
-| Storage | MySQL, Tencent COS |
-| Auth | WeChat `jscode2session`, JWT |
-| Testing | pytest, pytest-asyncio |
-| Deployment | Docker, WeChat Cloud Run |
+### Availability and Design
 
-### Project Structure
+Source: [ai-knowledge-learning-miniapp](https://github.com/LuxUmbra697/ai-knowledge-learning-miniapp),
+branch `codex/learning-studio-upgrade`.
+Intended H5: https://lux-umbra.xyz/ai-learn/, API: /ai-learn/api/v1.
+**Public deployment acceptance is not complete.** Both builds pass; native IDE/device tests,
+experience upload, platform review and official publication remain separately unverified.
 
-```text
-.
-├── backend/        # FastAPI backend
-├── frontend/       # Taro-based WeChat mini app frontend
-├── docs/           # project docs (kept locally)
-├── openspec/       # spec files (kept locally)
-└── prototypes/     # prototype files (kept locally)
+The diagram above reflects the implementation: Taro 4.1.11/React 18, FastAPI, MySQL, Chroma,
+Chinese BM25/RRF, DeepSeek and DashScope. MySQL owns leases, idempotency, checkpoints and learning state.
+One worker shares the API process and embedded Chroma. LangGraph is used for bounded tutoring,
+not a claim of a multi-agent platform. Optional Tavily accepts public topics only; optional images
+use a separate key and private COS. See [architecture](docs/architecture.md),
+[assessment](docs/practice-and-assessment.md), [tutoring](docs/tutoring.md) and [paths](docs/learning-paths.md).
+
+### Run Locally
+
+Verified: Python 3.13.9, Node 22.19.0, MySQL 8.0.45, uv 0.12.5. Put the MySQL 8 server binary on PATH.
+Clone and create a virtual environment:
+
+```sh
+git clone https://github.com/LuxUmbra697/ai-knowledge-learning-miniapp.git
+cd ai-knowledge-learning-miniapp
+git switch codex/learning-studio-upgrade
+python -m venv .venv
 ```
 
-### Quick Start
+Activate with `.\.venv\Scripts\Activate.ps1` on PowerShell or
+`source .venv/bin/activate` on Linux/macOS, then:
 
-#### 1. Start the backend
-
-```bash
-cd backend
-python -m venv venv
-venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-copy .env.example .env
-python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```sh
+python -m pip install uv==0.12.5
+uv pip sync --require-hashes backend/requirements-dev.txt
+python scripts/local_mysql.py start
+python scripts/run_local.py --initialize
+npm --prefix frontend ci
+npm --prefix frontend run build:h5
+npm --prefix frontend run build:weapp
+node frontend/scripts/check-build.mjs --both
+python scripts/run_local.py --serve-h5 --port 18081
 ```
 
-Available endpoints after startup:
+In a second terminal run `npm --prefix frontend run preview`, open
+http://127.0.0.1:18082/ai-learn/ and register an independent H5 account. The launcher forces this
+project's isolated database at loopback port 23308, never the cloud database from dotenv.
+Ctrl+C stops foreground processes. `python scripts/local_mysql.py stop` checks ownership and preserves data.
 
-- `http://localhost:8000/docs`
-- `http://localhost:8000/api/v1/health`
+For real AI, create backend/.env from its example **only if absent**, supply your own credentials,
+and replace the API command with
+`python scripts/run_local.py --with-models --with-search --serve-h5 --port 18081`.
+Text and embedding keys are required for this mode. Separate image/COS, public search and WeChat
+credentials enable their respective capabilities. Missing credentials produce explicit errors,
+not fake responses. Empty image-base/COS-domain options retain their provider defaults.
 
-#### 2. Start the frontend
+Import **frontend/** in WeChat DevTools; the config selects dist/weapp/. Supply your AppID,
+server-side AppSecret and legal HTTPS domains. H5 credentials do not impersonate OpenIDs and
+accounts are not automatically merged. [Development](docs/development.md) covers startup order,
+platform configuration, stopping and troubleshooting.
 
-```bash
-cd frontend
-npm install
-npm run dev:weapp
-```
+### Verification and Maintenance
 
-Then open `frontend/dist` in WeChat DevTools.
+The test block in the Chinese section runs offline tests, isolated MySQL integration, cached RAG
+evaluation, BKT fitting, frontend unit/type checks and actual-browser tests. Browser tests need the
+local stack. Default CI does not read real dotenv, touch production or spend provider credits.
+Explicit paid smoke commands are documented in [testing](docs/testing.md).
 
-### Environment Variables
+Fresh locked environment: 423 offline and 67 MySQL tests passed, including database-safety tests.
+H5: 25 passed, four additional paid cases skipped. Both builds pass; entry gzip 121,718 bytes,
+weapp main 1,059,160 bytes. These are build measurements, not device/concurrency benchmarks.
 
-The backend relies on `.env` configuration. Create a local environment file from `backend/.env.example`.
+The 104-case synthetic RAG benchmark reports MRR 0.950 dense vs. 0.929 hybrid/lexical-reranked,
+all Recall@4 1.0. **No hybrid improvement is claimed.** The BKT experiment splits 800 synthetic
+learners 480/160/160 and changes test Brier from default 0.19552 to fitted 0.18329.
+It validates an experiment on synthetic data, not real learning effectiveness.
+[Retrieval results](docs/rag-evaluation.md) and [algorithm results](docs/algorithm-experiments.md)
+include data, parameters, commands and raw evidence.
 
-```bash
-cd backend
-copy .env.example .env
-```
+The directory map above separates application code, offline/database/browser tests, scripts,
+evaluation and public documentation. [Deployment](docs/deployment.md) explains shared HTTPS,
+explicit migrations, persistence, backups and rollback. Secrets, certificates, private uploads,
+vectors and personal handoff notes are excluded from Git and build contexts. Production must disable
+debug/auto-initialization and use a strong JWT secret. Same-origin paths are not full isolation.
 
-For production, inject real secrets through your deployment platform instead of committing them into the repository.
-
-### Testing
-
-```bash
-cd backend
-pytest
-```
-
-### Deployment
-
-This project already includes container files for WeChat Cloud Run:
-
-- `backend/Dockerfile`
-- `backend/.dockerignore`
-
-The backend can be deployed as a Docker container to WeChat Cloud Run or other compatible platforms.
+OCR, semantic entailment guarantees, real-user parameter training, fine-tuning/distillation and
+high-concurrency claims are deliberately absent. Written grading is model-assisted, not human
+ground truth. Native devices and production recovery require separate evidence. Priorities are
+independently labeled evaluation, longer documents, real devices and longitudinal data.
+Existing lawful attribution is preserved; see [algorithms and original artwork](docs/assets-attribution.md).

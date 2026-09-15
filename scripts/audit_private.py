@@ -16,6 +16,7 @@ def secret_scan(config):
     secrets = {k: v for k, v in config.items() if v and len(v) >= 8
                and any(word in k for word in ("KEY", "SECRET", "PASSWORD"))}
     findings = []
+    synthetic_fixtures = []
     revisions = subprocess.check_output(["git", "rev-list", "--all"], cwd=ROOT, text=True).split()
     scanned = set()
     for rev in revisions:
@@ -23,17 +24,20 @@ def secret_scan(config):
         for entry in filter(None, entries):
             metadata, raw_name = entry.split(b"\t", 1)
             blob = metadata.split()[-1].decode()
-            if blob in scanned:
+            if (blob, raw_name) in scanned:
                 continue
-            scanned.add(blob)
+            scanned.add((blob, raw_name))
             name = raw_name.decode("utf-8")
             data = subprocess.check_output(["git", "cat-file", "blob", blob], cwd=ROOT)
             matched = [key for key, value in secrets.items() if value.encode() in data]
-            if matched or re.search(
-                rb"-----BEGIN (?:RSA |OPENSSH |EC )?PRIVATE KEY-----|sk-[A-Za-z0-9_-]{24,}", data
-            ):
+            candidates = re.findall(rb"-----BEGIN (?:RSA |OPENSSH |EC )?PRIVATE KEY-----|sk-[A-Za-z0-9_-]{24,}", data)
+            known_fixture = b'sk-' + b'secret12345678901234567890123456'
+            if name == 'backend/tests/test_companion_contract.py' and known_fixture in candidates:
+                synthetic_fixtures.append({'revision': rev[:12], 'path': name, 'reason': 'Exact synthetic credential-rejection fixture; not a configured secret'})
+                candidates = [value for value in candidates if value != known_fixture]
+            if matched or candidates:
                 findings.append({"revision": rev[:12], "path": name, "keys": matched})
-    return {"revisions": len(revisions), "findings": findings}
+    return {"revisions": len(revisions), "findings": findings, 'synthetic_fixture_matches': synthetic_fixtures}
 
 
 def database(config):

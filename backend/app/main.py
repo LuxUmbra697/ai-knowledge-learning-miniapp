@@ -2,8 +2,6 @@
 
 from contextlib import asynccontextmanager
 import asyncio
-import traceback
-from uuid import uuid4
 
 import structlog
 from fastapi import FastAPI, Request
@@ -14,7 +12,7 @@ from app.api.v1.routes import health, knowledge, quiz, report, user, tasks, lear
 from app.core.config import get_settings, allowed_origins, validate_runtime
 from app.core.db import close_mysql_pool, connect_mysql
 from app.core.upload_limits import UploadLimitsMiddleware
-from app.core.http_security import SecurityHeadersMiddleware, JsonBodyLimitsMiddleware
+from app.core.http_security import SecurityHeadersMiddleware, JsonBodyLimitsMiddleware, SafeErrorsMiddleware, safe_error_response
 from app.core.static_site import H5StaticFiles
 from app.core.exceptions import (
     AuthenticationError,
@@ -61,6 +59,7 @@ app = FastAPI(
 )
 
 # CORS
+app.add_middleware(SafeErrorsMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins(get_settings()),
@@ -128,20 +127,7 @@ async def knowledge_base_error_handler(request: Request, exc: KnowledgeBaseError
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
     """Keep stack locations for diagnosis, but never exception text, locals or provider URLs."""
-    trace_id = getattr(request.state, 'trace_id', uuid4().hex)
-    logger.error(
-        "unhandled_exception",
-        method=request.method,
-        trace_id=trace_id,
-        error_type=type(exc).__name__,
-        locations=[{'file': frame.filename.rsplit('/', 1)[-1].rsplit('\\', 1)[-1],
-                    'line': frame.lineno, 'function': frame.name} for frame in traceback.extract_tb(exc.__traceback__)[-8:]],
-    )
-    return JSONResponse(
-        status_code=500,
-        content=ApiResponse.error(code=5000, message=f"服务器内部错误，请稍后重试（记录编号 {trace_id}）").model_dump(),
-        headers={'X-Request-ID': trace_id, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff'},
-    )
+    return safe_error_response(request.scope, exc, logger)
 
 
 if get_settings().h5_static_dir:

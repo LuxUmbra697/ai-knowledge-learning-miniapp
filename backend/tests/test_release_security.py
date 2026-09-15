@@ -149,3 +149,15 @@ async def test_wechat_transport_error_and_unhandled_error_logs_are_redacted(monk
     assert 'private-' not in str(logger.mock_calls)
     assert b'private-' not in response.body
     assert b'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' in response.body
+
+
+@pytest.mark.asyncio
+async def test_unhandled_route_exception_does_not_escape_to_uvicorn_traceback(monkeypatch):
+    from app.main import app
+    from app.core.auth import create_token
+    monkeypatch.setattr(user_service, 'get_profile', AsyncMock(side_effect=RuntimeError('private-provider-url-sentinel')))
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app, raise_app_exceptions=True), base_url='http://test') as client:
+        response = await client.get('/api/v1/user/profile', headers={'Authorization': 'Bearer ' + create_token(1, 'test')})
+        assert response.status_code == 500
+        assert 'private-provider-url-sentinel' not in response.text
+        assert response.headers['x-request-id'] in response.text

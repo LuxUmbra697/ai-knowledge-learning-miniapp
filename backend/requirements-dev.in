@@ -1,0 +1,8 @@
+-r requirements.in
+pytest==8.4.2
+pytest-asyncio==0.26.0
+pytest-socket==0.8.1
+ruff==0.16.7
+paramiko==5.0.0
+PyMySQL==1.2.0
+numpy==2.5.3
