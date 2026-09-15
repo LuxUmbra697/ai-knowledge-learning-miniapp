@@ -83,6 +83,20 @@ def test_json_limit_rejects_before_parsing_and_includes_security_headers():
     assert client.post('/api/v1/sample', json={'ok': True}).json() == {'ok': True}
 
 
+def test_oss_artwork_csp_allows_only_the_owned_image_origin(tmp_path):
+    (tmp_path / 'index.html').write_text('<html>studio</html>', encoding='utf-8')
+    app = FastAPI()
+    app.add_middleware(SecurityHeadersMiddleware)
+    app.mount('/', H5StaticFiles(directory=str(tmp_path)))
+    policy = TestClient(app).get('/').headers['content-security-policy']
+    directives = {parts[0]: parts[1:] for item in policy.split(';') if (parts := item.split())}
+    origin = 'https://ai-knowledge-learn.oss-cn-guangzhou.aliyuncs.com'
+    assert origin in directives['img-src']
+    assert not any(value in directives['img-src'] for value in ['*', 'https:', 'https://*.aliyuncs.com'])
+    assert directives['script-src'] == ["'self'"]
+    assert directives['connect-src'] == ["'self'", 'blob:']
+
+
 @pytest.mark.asyncio
 async def test_readiness_checks_database_and_worker(monkeypatch):
     app = FastAPI()

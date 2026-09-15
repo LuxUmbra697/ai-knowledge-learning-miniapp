@@ -1,3 +1,4 @@
+import 'core-js/actual/object/has-own'
 import * as dagre from '@dagrejs/dagre'
 import { checkedMap, type StudyMap } from './learningMap'
 

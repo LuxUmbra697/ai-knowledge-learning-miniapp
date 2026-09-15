@@ -1,11 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useDidHide, useDidShow } from '@tarojs/taro'
 import { useStudio } from '../StudioProvider'
-
-const frames = {
-  pink: [require('../../assets/companion-pink-0.png'), require('../../assets/companion-pink-1.png'), require('../../assets/companion-pink-2.png')],
-  orange: [require('../../assets/companion-orange-0.png'), require('../../assets/companion-orange-1.png'), require('../../assets/companion-orange-2.png')],
-}
+import { companionFrames as frames } from '../../services/assets'
 const poses = { read: 0, wave: 1, celebrate: 2 }
 
 export function useCompanion(active = true) {

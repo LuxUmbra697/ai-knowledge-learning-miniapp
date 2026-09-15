@@ -5,6 +5,7 @@ import { StudioShell, Notice, Empty, navigate } from '../../components/StudioShe
 import { Icon } from '../../components/Icon'
 import { useShareEntry } from '../../services/useShareEntry'
 import { QuestionCountsEditor } from '../../components/QuestionCountsEditor'
+import { assetUrl } from '../../services/assets'
 import { defaultCounts, countQuestions, validCounts } from '../../services/quizBlueprint'
 import { restorableTopic, TopicPractice } from '../../services/quizSession'
 import { getToken, getCachedUser, getUserProfile, getQuizHistory, getKnowledgeDocuments, generateQuizAsync, getLearningTask, ApiError, waitForLogin, getLearningSummary, LearningSummary, UserProfile, QuizHistoryItem } from '../../services/api'
@@ -73,7 +74,7 @@ export default function HomePage() {
   }
   return <StudioShell active='home' title='学习手帐' subtitle={`${profile?.nickname || getCachedUser()?.nickname || '同学'}，今天想读些什么？`}>
     {error && <Notice message={error} retry={load} />}
-    <View className='study-window'><Image className='study-panorama' src={require('../../assets/library-garden.jpg')} mode='aspectFit' /></View>
+    <View className='study-window'><Image className='study-panorama' src={assetUrl('library-garden.jpg')} mode='aspectFit' /></View>
     <View className='today-review section-heading'><View><Text className='section-title'>今日复习</Text><Text className='muted'>{learning ? `${learning.due_count} 道到期 · 今日已复习 ${learning.today_reviews} 道` : '正在读取复习计划'}</Text></View><Button className='secondary-button' onClick={() => Taro.navigateTo({ url: '/learning/review/index' })}><Icon name='review' size={17} />复习与掌握</Button></View>
     <View className='document-actions'><Button className='text-button' onClick={() => Taro.navigateTo({ url: '/learning/path/index' })}><Icon name='review' size={17} />学习路径与计划</Button></View>
     <View className='welcome-band'><Text className='welcome-title'>我的知识书架</Text><Button className='primary-button' onClick={() => navigate('/pages/knowledge/index')}><Icon name='upload' size={18} />添加学习材料</Button></View>

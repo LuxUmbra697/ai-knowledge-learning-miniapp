@@ -1,5 +1,5 @@
 {
-  "recorded_at": "2026-09-15T15:18:08.448Z",
+  "recorded_at": "2026-09-15T16:33:31.092Z",
   "environment": "Chromium + real local API + isolated MySQL",
   "provider_calls": 0,
   "widths": [
@@ -17,5 +17,5 @@
     "no_horizontal_overflow",
     "no_page_errors"
   ],
-  "native_runtime": "Not yet verified; separate build evidence"
+  "native_runtime": "Not assessed by this H5 test; see separate native evidence in oss-delivery.json"
 }

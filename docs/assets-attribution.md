@@ -44,9 +44,20 @@ leaf page and small plant at left, pencil cup, mostly plain pale green/white cen
 matte gouache, objects entirely within the shallow band; no characters, text, logos, glow or UI.
 
 Both selected outputs were resized without cropping and JPEG-compressed with the pinned `sharp`
-dependency (quality 78 and 80). UI uses local Taro `Image` assets rather than remote media or
-miniapp-incompatible local CSS URLs. Actual runtime captures are stored separately under
-`docs/screenshots/h5/`; no weapp runtime screenshot is claimed from these assets.
+dependency (quality 78 and 80). Shared Taro `Image` components load public artwork from OSS;
+local originals remain for attribution and reproducibility, not runtime bundling. Actual H5 and
+DevTools captures live separately under `docs/screenshots/h5/` and `docs/screenshots/weapp/`.
+
+## Public Asset Delivery
+
+`frontend/src/services/assets.ts` maps relative asset names to
+`https://ai-knowledge-learn.oss-cn-guangzhou.aliyuncs.com/assets/`. The owner uploaded the files;
+33 objects were checked against local content hashes on 2026-09-16. Only public illustrations/icons
+use this origin. Private documents and generated study images keep authenticated API/COS delivery.
+No OSS credential is needed in the frontend. H5 CSP permits this exact image origin, not arbitrary
+remote scripts. Forks must arrange their own public hosting and update the helper and CSP together.
+Offline or unavailable OSS may prevent illustrations/icons from loading; text controls remain
+labeled. Replacing an object at the same URL can be cached by clients; use a new filename for changes.
 
 ## Interface Icons
 

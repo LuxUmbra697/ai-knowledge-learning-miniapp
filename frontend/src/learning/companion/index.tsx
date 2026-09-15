@@ -9,11 +9,7 @@ import { CharacterId, CompanionDetail, CompanionMemory, companionDraft, getCompa
 import { PollControl, pollUntil } from '../../services/polling'
 import { taskPhase } from '../../services/taskDisplay'
 import { syncCompanionRoute } from '../../services/companionRoute'
-
-const frames = {
-  pink: [require('../../assets/companion-pink-0.png'), require('../../assets/companion-pink-1.png'), require('../../assets/companion-pink-2.png')],
-  orange: [require('../../assets/companion-orange-0.png'), require('../../assets/companion-orange-1.png'), require('../../assets/companion-orange-2.png')],
-}
+import { companionFrames as frames } from '../../services/assets'
 const moods = { calm: '安静相伴', happy: '眉眼弯弯', shy: '有一点害羞', warm: '认真听你说', thoughtful: '想一想' }
 const kinds = ['称呼', '学习偏好', '相处方式'], kindIds = ['name', 'study', 'support'] as const
 const key = () => `companion_${Date.now()}_${Math.random().toString(36).slice(2)}`

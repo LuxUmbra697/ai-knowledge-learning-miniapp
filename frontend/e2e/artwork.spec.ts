@@ -7,6 +7,7 @@ test('painted scenes load with correct media types and keep forms and documents 
   await mkdir('../docs/screenshots/h5', { recursive: true })
   await page.goto('pages/login/index')
   const scene = page.locator('.academy-background img')
+  await expect(scene).toHaveAttribute('src', 'https://ai-knowledge-learn.oss-cn-guangzhou.aliyuncs.com/assets/academy-gate.jpg')
   await expect(scene).toBeVisible()
   await expect.poll(() => scene.evaluate(e => (e as HTMLImageElement).naturalWidth)).toBe(1280)
   const asset = await request.get(await scene.getAttribute('src') as string)
@@ -56,6 +57,6 @@ test('painted scenes load with correct media types and keep forms and documents 
     environment: 'Chromium + real local API + isolated MySQL', provider_calls: 0,
     widths: [320, 390, 1440], checks: ['jpeg_mime', 'actual_decoded_dimensions', 'opaque_login_form',
       'night_theme', 'uncropped_shelf', 'upload_visible', 'no_horizontal_overflow', 'no_page_errors'],
-    native_runtime: 'Not yet verified; separate build evidence',
+    native_runtime: 'Not assessed by this H5 test; see separate native evidence in oss-delivery.json',
   }, null, 2) + '\n')
 })

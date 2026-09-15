@@ -6,6 +6,7 @@ import { PollControl, pollUntil } from '../../services/polling'
 import { chooseDocument } from '../../services/chooseDocument'
 import { StudioShell, Notice, Empty, navigate } from '../../components/StudioShell'
 import { Icon } from '../../components/Icon'
+import { assetUrl } from '../../services/assets'
 import { restorableQuiz } from '../../services/quizSession'
 import { QuestionCountsEditor } from '../../components/QuestionCountsEditor'
 import { defaultCounts, countQuestions, validCounts, questionTypes } from '../../services/quizBlueprint'
@@ -102,7 +103,7 @@ export default function KnowledgePage() {
   }
   return <StudioShell active='knowledge' title='我的知识书架' subtitle='让自己的学习材料，成为每次探索的起点。'>
     {practiceDoc && <View className='modal-backdrop'><View className='practice-config-dialog'><View className='section-heading'><Text className='section-title'>配置知识练习</Text><Button className='icon-button' aria-label='关闭练习配置' disabled={!!busy} onClick={() => setPracticeDoc(null)}><Icon name='close' /></Button></View><Text className='row-title'>{practiceDoc.file_name}</Text><QuestionCountsEditor value={counts} onChange={setCounts} disabled={!!busy} illustrated={illustrated} onIllustratedChange={setIllustrated} />{!validCounts(counts) && <Notice message='题型数量合计须为 1 至 20。' />}{error && <Notice message={error} />}<Button className='primary-button' disabled={!!busy || !validCounts(counts)} onClick={() => practice(practiceDoc)}>{busy || '生成这组练习'}</Button></View></View>}
-    <View className='shelf-band'><Image className='shelf-panorama' src={require('../../assets/notebook-shelf.jpg')} mode='aspectFit' aria-hidden /></View>
+    <View className='shelf-band'><Image className='shelf-panorama' src={assetUrl('notebook-shelf.jpg')} mode='aspectFit' aria-hidden /></View>
     <View className='upload-band'><Button className='primary-button' disabled={!!busy} onClick={upload}><Icon name='upload' size={18} />{busy || '添加学习材料'}</Button><Text className='field-hint'>PDF / DOCX / TXT / Markdown · 最大 10MB · 暂不支持扫描件 OCR</Text></View>
     {error && <Notice message={error} retry={load} />}
     {notice && <Text className='field-hint'>{notice}</Text>}

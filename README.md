@@ -20,6 +20,7 @@
 - **自己的错题与梳理图**：新建/选择错题本，主动收藏；复盘生成内容梳理、证据网络和关系图，图与原文可以对照。
 - **有各自故事的学习伙伴**：樱野小满和秋庭澄各有独立主性格、次性格、背景及四章故事。可拖动、点击、收起；长按有 30% 概率邀请聊天。记忆按账号和角色分开，需确认，可删除或完整重置。
 - **安静一点，也鲜活一点**：五套主题、原创手绘场景、可关闭动效。H5 与微信小程序共用 Taro 业务代码，平台交互分别适配。
+- **画面轻，代码包也轻**：背景、角色和图标走 OSS，小程序组件按需注入；官方上传包约 620 KiB，不把大图塞进主包。
 - **两端一份学习档案**：账号密码与微信登录可选；陌生微信先选择注册、绑定或取消。扫码确认后才登录/换绑，找回密码支持绑定微信或一次性恢复码。微信正式扫码仍需小程序发布，见 [账号与微信](docs/accounts.md)。
 
 | 按类型配题 | 引用与学习辅导 | 复盘关系图 |
@@ -55,6 +56,10 @@
 | --- | --- | --- |
 | ![小程序账号登录](docs/screenshots/weapp/04-account-login.png) | ![小程序账号安全](docs/screenshots/weapp/05-account-security.png) | ![手机账号安全](docs/screenshots/h5/63-account-security-390.png) |
 
+| OSS 场景与登录 | 原生 Canvas 学习图谱 |
+| --- | --- |
+| ![微信开发工具实际加载 OSS 场景与登录入口](docs/screenshots/weapp/06-oss-login.png) | ![微信原生图谱，使用已完成的真实练习](docs/screenshots/weapp/07-study-map.png) |
+
 账号注册、恢复码找回、旧会话失效均经开发工具实际操作。开发版官方码与真实微信确认已联调；不代表真机摄像头扫码或正式版已通过。
 
 ## 访问状态
@@ -64,7 +69,7 @@
 | 源码 | [ai-knowledge-learning-miniapp](https://github.com/LuxUmbra697/ai-knowledge-learning-miniapp)，开发分支 `codex/learning-studio-upgrade` |
 | 在线 H5 | [打开星知学园](https://lux-umbra.xyz/ai-learn/)；公网注册、上传、真实模型问答、五题型练习与复盘已验证 |
 | API 前缀 | `https://lux-umbra.xyz/ai-learn/api/v1`；ready、鉴权和 JSON 404 已验证 |
-| 微信小程序 | 官方 WXSS 编译及开发工具页面/角色切换通过；合法域名校验、真机、体验版、审核及正式发布未验收 |
+| 微信小程序 | 开发版本 `2026.9.16.1` 已由官方 CLI 上传；OSS 图片、页面和角色切换经开发工具验证；合法域名校验、真机、体验版、审核及正式发布未验收 |
 
 ## 为什么这样实现
 
@@ -183,9 +188,9 @@ npm --prefix frontend run test:e2e
 
 | 实测项目 | 结果与条件 |
 | --- | --- |
-| 后端回归 | 锁定环境：445 项离线、83 项隔离 MySQL 通过；26 项前端单元通过 |
+| 后端回归 | 锁定环境：446 项离线、83 项隔离 MySQL 通过；30 项前端单元通过 |
 | H5 回归 | Chromium：29 项通过、4 项额外付费场景跳过；包含实际 API/数据库、账号恢复与会话撤销、已保存的供应商结果、重试入口、角色切换与迟到响应回归 |
-| 双端构建 | 连续构建互不覆盖；H5 入口 gzip 122,379 B，weapp 主包 1,082,586 B；官方编译器通过 9 个 WXSS 文件，非真机性能指标 |
+| 双端构建 | 连续构建互不覆盖；H5 入口 gzip 122,398 B，weapp 构建主包 562,201 B；官方上传主包 542,006 B、总包 634,465 B，包内媒体 0 B；9 个 WXSS、20 个 JS 兼容性检查通过 |
 | 生成重试 | 本地真实模型：8 道五题型练习，4 次模型尝试后完成，题干无重复，作答前答案密封；401、额度不足与第 11 次调用拒绝由确定性测试覆盖 |
 | 公网实测 | 真实讲义索引、4 个引用片段、5 种题型、服务端判分、三类梳理图与指定错题本；无新增旧站路由回归 |
 | RAG | 104 条合成样例；dense MRR 0.950，混合 0.929，词项重排 0.929；三者 Recall@4 均 1.0。**未测出混合优于 dense** |
@@ -258,6 +263,8 @@ branch `codex/learning-studio-upgrade`.
 Live H5: [Open AI Learning Studio](https://lux-umbra.xyz/ai-learn/), API: `/ai-learn/api/v1`.
 Public registration, document indexing, paid grounded Q&A, five question types and review passed.
 Both builds, official WXSS compilation and native IDE page/character-switch checks pass.
+Development version `2026.9.16.1` was uploaded with the official CLI. Public artwork and icons are
+served from OSS, with no packaged media and on-demand component injection.
 Legal-domain validation, physical devices, experience upload, review and official publication remain unverified.
 
 The diagram above reflects the implementation: Taro 4.1.11/React 18, FastAPI, MySQL, Chroma,
@@ -321,7 +328,7 @@ evaluation, BKT fitting, frontend unit/type checks and actual-browser tests. Bro
 local stack. Default CI does not read real dotenv, touch production or spend provider credits.
 Explicit paid smoke commands are documented in [testing](docs/testing.md).
 
-Fresh locked environment: 445 offline, 83 MySQL and 26 frontend unit tests passed.
+Fresh locked environment: 446 offline, 83 MySQL and 30 frontend unit tests passed.
 H5 regression: 29 passed, four additional paid cases skipped; saved real-provider outputs were reused.
 Native account registration, recovery and session revocation passed in DevTools. Official development
 QR, real WeChat code exchange, explicit native confirmation and H5 login passed together; optical
@@ -329,8 +336,9 @@ navigation was automated, so camera scanning on physical devices remains unverif
 Quiz batches share at most ten model attempts. Duplicate questions are repaired inside the affected
 batch; failed tasks expose explicit, owner-scoped idempotent regeneration. A real local eight-question,
 five-type run completed after four model attempts, including timeout and validation recovery.
-Both builds pass; entry gzip 122,379 bytes, weapp main 1,082,586 bytes, nine official WXSS
-compilations passed. These are build measurements, not device/concurrency benchmarks.
+Both builds pass; entry gzip 122,398 bytes, weapp build main 562,201 bytes. Official upload:
+542,006-byte main package, 634,465 bytes total. Nine WXSS compilations and twenty ES2019 checks
+passed. These are build measurements, not device/concurrency benchmarks.
 
 The 104-case synthetic RAG benchmark reports MRR 0.950 dense vs. 0.929 hybrid/lexical-reranked,
 all Recall@4 1.0. **No hybrid improvement is claimed.** The BKT experiment splits 800 synthetic

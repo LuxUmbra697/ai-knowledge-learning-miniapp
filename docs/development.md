@@ -93,6 +93,11 @@ python scripts/run_local.py --with-models --with-search --serve-h5 --port 18081
 仓库固定 AppID `wx7abde39fb8222887`，后端使用匹配的 AppSecret；密钥不进入前端。
 生产构建使用正式 HTTPS API 前缀。Fork 到其他 AppID 必须同步修改项目配置和构建断言。
 
+公开背景、看板娘与图标统一由 `src/services/assets.ts` 指向 OSS，不再打进代码包。
+保留源码素材即可，不要重新添加 `require(...assets...)`。后台合法域名配置需核对实际使用的 API
+以及图片下载能力所用的 OSS 域名；`Image` 显示和 `getImageInfo/downloadFile` 不应混为同一项验收。
+上传前使用生产构建并执行 `check-build.mjs --both`，检查压缩、按需注入、媒体总量和 JS 语法。
+
 ```sh
 npm --prefix frontend run dev:weapp
 ```
@@ -130,7 +135,7 @@ API 重启后通过 MySQL 租约恢复任务；外部调用结果不确定时任
 | H5 页面正常但 API 502 | API 18081 是否 ready，预览是否仍在运行 |
 | 深链接刷新 404 | H5 basename、静态 publicPath 和网关剥离前缀应一致 |
 | 小程序导入后空白 | 检查 dist/weapp/app.json，重新构建，确认导入目录 |
-| 字体/图片或大图表加载慢 | 使用本地压缩资源；Mermaid 仅 H5 异步加载，小程序走原生 Canvas |
+| 字体/图片或大图表加载慢 | 核对 OSS 可达性、图片域名与 CSP；Mermaid 仅 H5 异步加载，小程序走原生 Canvas |
 
 更新依赖应修改 `.in` 和 package.json，重新锁定、双端构建及回归；不要直接升级整个 Taro 栈。
 Python 锁定器 `python scripts/lock_dependencies.py` 使用 uv，固定 Python 3.13 和跨平台哈希；

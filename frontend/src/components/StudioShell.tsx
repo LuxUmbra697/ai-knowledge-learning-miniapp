@@ -5,6 +5,7 @@ import { themes, useStudio } from './StudioProvider'
 import { Icon } from './Icon'
 import Companion from './companion/Companion'
 import { useCompanion } from './companion/useCompanion'
+import { assetUrl } from '../services/assets'
 
 export const navigation = [
   { key: 'home', label: '学习首页', icon: 'home', path: '/pages/index/index' },
@@ -33,7 +34,7 @@ export function StudioShell({ children, active, title, subtitle, guest = false, 
     else settings.update({ companionFolded: !settings.companionFolded })
   }
   return <View className={`studio theme-${settings.theme} ${guest ? 'studio-guest' : ''} ${compact ? 'studio-compact' : ''} ${settings.reducedMotion ? 'reduced-motion' : ''} ${floating && !guest ? 'has-companion' : ''}`}>
-    {guest && <Image className='academy-background' src={require('../assets/academy-gate.jpg')} mode='aspectFill' aria-hidden />}
+    {guest && <Image className='academy-background' src={assetUrl('academy-gate.jpg')} mode='aspectFill' aria-hidden />}
     <View className='studio-topbar'>
       <View className='studio-brand' onClick={() => navigate('/pages/index/index')}>
         <View className='brand-mark'><Icon name='book' size={22} /></View>

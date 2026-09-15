@@ -48,7 +48,8 @@ class SafeErrorsMiddleware:
 
 
 CSP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
-       "img-src 'self' data: blob: https://*.myqcloud.com; font-src 'self' data:; "
+       "img-src 'self' data: blob: https://*.myqcloud.com "
+       "https://ai-knowledge-learn.oss-cn-guangzhou.aliyuncs.com; font-src 'self' data:; "
        "connect-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'")
 
 

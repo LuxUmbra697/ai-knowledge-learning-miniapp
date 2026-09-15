@@ -1,4 +1,5 @@
 import { defineConfig, type UserConfigExport } from '@tarojs/cli'
+import path from 'node:path'
 import devConfig from './dev'
 import prodConfig from './prod'
 
@@ -27,6 +28,7 @@ export default defineConfig<'webpack5'>(async (merge) => {
       enable: false,
     },
     mini: {
+      compile: { include: [path.resolve(__dirname, '../node_modules/@dagrejs')] },
       postcss: {
         pxtransform: {
           enable: true,
