@@ -5,10 +5,9 @@ from __future__ import annotations
 import httpx
 import structlog
 
-from app.core.auth import create_token
 from app.core.config import get_settings
 from app.core.exceptions import AuthenticationError
-from app.models.user import LoginResponse, UserBrief, UserProfile
+from app.models.user import UserProfile
 from app.repositories import user_repository, quiz_repository
 
 logger = structlog.get_logger()
@@ -52,25 +51,11 @@ async def wx_code_to_openid(code: str) -> str:
     return data["openid"]
 
 
-async def handle_login(code: str) -> LoginResponse:
-    """微信登录：code -> openid -> 查/建用户 -> JWT。"""
+async def handle_login(code: str) -> dict:
+    """Exchange only server-verified identities; unknown users choose explicitly."""
+    from app.services.identity_service import begin_wechat
     openid = await wx_code_to_openid(code)
-
-    user = await user_repository.find_user_by_openid(openid)
-    if user is None:
-        user = await user_repository.create_user(openid)
-
-    token = create_token(user_id=user["id"], openid=openid)
-
-    return LoginResponse(
-        token=token,
-        user=UserBrief(
-            id=user["id"],
-            nickname=user["nickname"],
-            avatar_url=user["avatar_url"],
-            total_xp=user["total_xp"],
-        ),
-    )
+    return await begin_wechat(openid)
 
 
 async def get_profile(user_id: int) -> UserProfile:

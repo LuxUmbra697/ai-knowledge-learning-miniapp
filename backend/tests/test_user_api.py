@@ -18,70 +18,30 @@ def auth_header():
 
 @pytest.mark.asyncio
 class TestLoginAPI:
-    async def test_login_success(self):
-        """模拟微信登录成功"""
-        mock_user = {
-            "id": 1,
-            "openid": "mock_openid",
-            "nickname": "学习者",
-            "avatar_url": "",
-            "total_xp": 0,
-        }
+    async def test_unknown_login_returns_explicit_choice(self):
+        from app.api.v1.routes import user
+        with patch.object(user, 'check_login_rate', new_callable=AsyncMock), patch(
+            'app.services.user_service.wx_code_to_openid', new_callable=AsyncMock, return_value='verified-openid'
+        ), patch('app.services.identity_service.begin_wechat', new_callable=AsyncMock,
+                 return_value={'status': 'choice', 'ticket': 'one-time-private-proof'}) as begin:
+            async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as client:
+                response = await client.post('/api/v1/user/login', json={'code': 'fresh-wechat-code'})
+            assert response.status_code == 200
+            assert response.json()['data']['status'] == 'choice'
+            assert 'token' not in response.json()['data']
+            begin.assert_awaited_once_with('verified-openid')
 
-        with patch(
-            "app.services.user_service.wx_code_to_openid",
-            new_callable=AsyncMock,
-            return_value="mock_openid",
-        ), patch(
-            "app.services.user_service.user_repository.find_user_by_openid",
-            new_callable=AsyncMock,
-            return_value=None,
-        ), patch(
-            "app.services.user_service.user_repository.create_user",
-            new_callable=AsyncMock,
-            return_value=mock_user,
-        ):
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
-                resp = await client.post(
-                    "/api/v1/user/login",
-                    json={"code": "mock_wx_code"},
-                )
-            assert resp.status_code == 200
-            body = resp.json()
-            assert body["code"] == 0
-            assert "token" in body["data"]
-            assert body["data"]["user"]["nickname"] == "学习者"
-
-    async def test_login_existing_user(self):
-        """已注册用户登录"""
-        mock_user = {
-            "id": 5,
-            "openid": "existing_openid",
-            "nickname": "LuxUmbra同学",
-            "avatar_url": "https://example.com/avatar.png",
-            "total_xp": 100,
-        }
-
-        with patch(
-            "app.services.user_service.wx_code_to_openid",
-            new_callable=AsyncMock,
-            return_value="existing_openid",
-        ), patch(
-            "app.services.user_service.user_repository.find_user_by_openid",
-            new_callable=AsyncMock,
-            return_value=mock_user,
-        ):
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
-                resp = await client.post(
-                    "/api/v1/user/login",
-                    json={"code": "mock_wx_code"},
-                )
-            assert resp.status_code == 200
-            body = resp.json()
-            assert body["data"]["user"]["id"] == 5
-            assert body["data"]["user"]["total_xp"] == 100
+    async def test_registered_wechat_login_returns_existing_identity(self):
+        from app.api.v1.routes import user
+        expected = {'token': create_token(5, ''), 'user': {'id': 5, 'nickname': '学习者', 'avatar_url': '', 'total_xp': 100}}
+        with patch.object(user, 'check_login_rate', new_callable=AsyncMock), patch(
+            'app.services.user_service.wx_code_to_openid', new_callable=AsyncMock, return_value='verified-existing'
+        ), patch('app.services.identity_service.begin_wechat', new_callable=AsyncMock, return_value=expected):
+            async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as client:
+                response = await client.post('/api/v1/user/login', json={'code': 'fresh-wechat-code'})
+            assert response.status_code == 200
+            assert response.json()['data']['user']['id'] == 5
+            assert response.json()['data']['user']['total_xp'] == 100
 
     async def test_login_empty_code_rejected(self):
         transport = ASGITransport(app=app)

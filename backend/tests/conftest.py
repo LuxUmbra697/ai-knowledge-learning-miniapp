@@ -3,6 +3,14 @@
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def isolated_session_lookup(monkeypatch):
+    """HTTP/unit tests substitute only SQL session lookup; integration uses real revocation rows."""
+    from unittest.mock import AsyncMock
+    from app.services import identity_service
+    monkeypatch.setattr(identity_service, 'session_version', AsyncMock(return_value=0))
+
+
 @pytest.fixture
 def sample_quiz_request():
     return {

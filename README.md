@@ -20,6 +20,7 @@
 - **自己的错题与梳理图**：新建/选择错题本，主动收藏；复盘生成内容梳理、证据网络和关系图，图与原文可以对照。
 - **有各自故事的学习伙伴**：樱野小满和秋庭澄各有独立主性格、次性格、背景及四章故事。可拖动、点击、收起；长按有 30% 概率邀请聊天。记忆按账号和角色分开，需确认，可删除或完整重置。
 - **安静一点，也鲜活一点**：五套主题、原创手绘场景、可关闭动效。H5 与微信小程序共用 Taro 业务代码，平台交互分别适配。
+- **两端一份学习档案**：账号密码与微信登录可选；陌生微信先选择注册、绑定或取消。扫码确认后才登录/换绑，找回密码支持绑定微信或一次性恢复码。微信正式扫码仍需小程序发布，见 [账号与微信](docs/accounts.md)。
 
 | 按类型配题 | 引用与学习辅导 | 复盘关系图 |
 | --- | --- | --- |
@@ -49,6 +50,12 @@
 | 学习首页 | 知识书架 | 伙伴手札 |
 | --- | --- | --- |
 | ![微信小程序首页](docs/screenshots/weapp/01-home.png) | ![微信小程序知识书架](docs/screenshots/weapp/02-knowledge-library.png) | ![微信小程序伙伴手札](docs/screenshots/weapp/03-companion-room.png) |
+
+| 小程序账号登录 | 小程序账号安全 | 手机 H5 账号安全 |
+| --- | --- | --- |
+| ![小程序账号登录](docs/screenshots/weapp/04-account-login.png) | ![小程序账号安全](docs/screenshots/weapp/05-account-security.png) | ![手机账号安全](docs/screenshots/h5/63-account-security-390.png) |
+
+账号注册、恢复码找回、旧会话失效均经开发工具实际操作。开发版官方码与真实微信确认已联调；不代表真机摄像头扫码或正式版已通过。
 
 ## 访问状态
 
@@ -122,7 +129,7 @@ python scripts/run_local.py --serve-h5 --port 18081
 npm --prefix frontend run preview
 ```
 
-浏览器打开 http://127.0.0.1:18082/ai-learn/，注册独立 H5 账号。
+浏览器打开 http://127.0.0.1:18082/ai-learn/，注册账号；该账号也可用于小程序登录。
 没有 Key 时可验证账号、页面和已有数据；需要 AI 的操作会明确失败，不伪造生成结果。
 
 启用真实模型：仅在 backend/.env 不存在时，从 backend/.env.example 创建它，填入自己的配置。
@@ -134,7 +141,10 @@ python scripts/run_local.py --with-models --with-search --serve-h5 --port 18081
 
 微信开发者工具导入 **frontend/**，miniprogramRoot 已指向 dist/weapp/。
 本仓库固定 AppID `wx7abde39fb8222887`；使用其微信账号权限、匹配的后端 AppSecret 和合法 HTTPS 域名。
-H5 使用独立账号密码，不冒充 OpenID 或自动合并账号。Fork 到另一 AppID 需同步修改配置及构建断言。
+两端均支持账号密码。H5 微信入口通过官方小程序码确认，不冒充 OpenID 或自动合并账号。
+微信新用户可选注册、绑定已有账号或取消；个人中心可设置密码、找回方式与扫码换绑。
+默认 `WECHAT_QR_ENV=release` 要求页面已正式发布；开发版联调设置 `develop`，不代表对公众开放。
+Fork 到另一 AppID 需同步修改配置及构建断言。
 小程序开发地址配置见 [双端启动说明](docs/development.md)。
 
 停止 API/预览使用各自终端的 Ctrl+C；隔离 MySQL 使用 `python scripts/local_mysql.py stop`。
@@ -148,7 +158,7 @@ H5 使用独立账号密码，不冒充 OpenID 或自动合并账号。Fork 到�
 | DASHSCOPE_API_KEY | 文档和问题 Embedding；独立于生图 Key |
 | DASHSCOPE_IMAGE_API_KEY、COS_* | 可选配图；空生图地址推导默认地址，空 COS 域名使用桶域名 |
 | TAVILY_API_KEY、ENABLE_WEB_SEARCH | 明确选择的公开主题检索；私人材料禁止走此路径 |
-| WECHAT_APP_ID/SECRET | 微信 code 交换；不影响独立 H5 登录 |
+| WECHAT_APP_ID/SECRET、WECHAT_QR_ENV | 微信 code 交换与官方小程序码；不影响两端账号密码登录 |
 | MYSQL_*、JWT_SECRET | 真实环境数据库和强随机签名密钥；启动不自动迁移 |
 | REQUIRE_PAID_MODELS、WORKER_* | 生产要求真实文本/Embedding Key，限制每日调用与输入量 |
 
@@ -173,9 +183,9 @@ npm --prefix frontend run test:e2e
 
 | 实测项目 | 结果与条件 |
 | --- | --- |
-| 后端回归 | 锁定环境：440 项离线、71 项隔离 MySQL 通过；26 项前端单元通过 |
-| H5 回归 | Chromium：27 项通过、4 项额外付费场景跳过；包含实际 API/数据库、已保存的供应商结果、重试入口、角色切换与迟到响应回归 |
-| 双端构建 | 连续构建互不覆盖；H5 入口 gzip 122,083 B，weapp 主包 1,065,181 B；官方编译器通过 8 个 WXSS 文件，非真机性能指标 |
+| 后端回归 | 锁定环境：445 项离线、83 项隔离 MySQL 通过；26 项前端单元通过 |
+| H5 回归 | Chromium：29 项通过、4 项额外付费场景跳过；包含实际 API/数据库、账号恢复与会话撤销、已保存的供应商结果、重试入口、角色切换与迟到响应回归 |
+| 双端构建 | 连续构建互不覆盖；H5 入口 gzip 122,379 B，weapp 主包 1,082,586 B；官方编译器通过 9 个 WXSS 文件，非真机性能指标 |
 | 生成重试 | 本地真实模型：8 道五题型练习，4 次模型尝试后完成，题干无重复，作答前答案密封；401、额度不足与第 11 次调用拒绝由确定性测试覆盖 |
 | 公网实测 | 真实讲义索引、4 个引用片段、5 种题型、服务端判分、三类梳理图与指定错题本；无新增旧站路由回归 |
 | RAG | 104 条合成样例；dense MRR 0.950，混合 0.929，词项重排 0.929；三者 Recall@4 均 1.0。**未测出混合优于 dense** |
@@ -226,6 +236,12 @@ Five themes share stable navigation. Two original fictional adult companions, Xi
 have different primary/secondary traits, biographies, four story chapters and owner/character-scoped
 confirmed memories. Drag, tap, collapse, hide or long-press; long press has a 30% chance of offering
 dedicated chat. A gesture alone never buys a model call. Memories can be edited, removed or fully reset.
+
+Both targets support account registration, passwords and recovery. Unknown WeChat users explicitly
+register, link an existing account or cancel. Official mini-program codes enable H5 login and
+binding/rebinding only after native approval; one user ID keeps both targets' learning records together.
+Recovery uses a saved one-time code or verified bound WeChat. Release QR requires a published
+mini-program page; see [account security](docs/accounts.md).
 
 The H5 screenshots above use isolated accounts and synthetic data, not mockups.
 The separately labeled WeChat gallery comes from the actual DevTools runtime; its private
@@ -279,7 +295,7 @@ python scripts/run_local.py --serve-h5 --port 18081
 ```
 
 In a second terminal run `npm --prefix frontend run preview`, open
-http://127.0.0.1:18082/ai-learn/ and register an independent H5 account. The launcher forces this
+http://127.0.0.1:18082/ai-learn/ and register an account usable on both targets. The launcher forces this
 project's isolated database at loopback port 23308, never the cloud database from dotenv.
 Ctrl+C stops foreground processes. `python scripts/local_mysql.py stop` checks ownership and preserves data.
 
@@ -293,8 +309,9 @@ not fake responses. Empty image-base/COS-domain options retain their provider de
 Import **frontend/** in WeChat DevTools; the config selects dist/weapp/ and fixed AppID
 `wx7abde39fb8222887`. Matching account permissions, server-side AppSecret and legal HTTPS domains
 are required. Forking to another AppID requires updating configuration and build assertions.
-H5 credentials do not impersonate OpenIDs and
-accounts are not automatically merged. [Development](docs/development.md) covers startup order,
+Both targets accept passwords. H5 WeChat uses official mini-program QR confirmation, not a forged
+OpenID or automatic account merge. `WECHAT_QR_ENV=release` requires publication; `develop` is restricted
+to authorized development accounts. [Development](docs/development.md) covers startup order,
 platform configuration, stopping and troubleshooting.
 
 ### Verification and Maintenance
@@ -304,12 +321,15 @@ evaluation, BKT fitting, frontend unit/type checks and actual-browser tests. Bro
 local stack. Default CI does not read real dotenv, touch production or spend provider credits.
 Explicit paid smoke commands are documented in [testing](docs/testing.md).
 
-Fresh locked environment: 440 offline, 71 MySQL and 26 frontend unit tests passed.
-H5 regression: 27 passed, four additional paid cases skipped; saved real-provider outputs were reused.
+Fresh locked environment: 445 offline, 83 MySQL and 26 frontend unit tests passed.
+H5 regression: 29 passed, four additional paid cases skipped; saved real-provider outputs were reused.
+Native account registration, recovery and session revocation passed in DevTools. Official development
+QR, real WeChat code exchange, explicit native confirmation and H5 login passed together; optical
+navigation was automated, so camera scanning on physical devices remains unverified.
 Quiz batches share at most ten model attempts. Duplicate questions are repaired inside the affected
 batch; failed tasks expose explicit, owner-scoped idempotent regeneration. A real local eight-question,
 five-type run completed after four model attempts, including timeout and validation recovery.
-Both builds pass; entry gzip 122,053 bytes, weapp main 1,062,836 bytes, eight official WXSS
+Both builds pass; entry gzip 122,379 bytes, weapp main 1,082,586 bytes, nine official WXSS
 compilations passed. These are build measurements, not device/concurrency benchmarks.
 
 The 104-case synthetic RAG benchmark reports MRR 0.950 dense vs. 0.929 hybrid/lexical-reranked,

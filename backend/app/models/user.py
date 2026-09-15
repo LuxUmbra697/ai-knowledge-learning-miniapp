@@ -2,16 +2,18 @@
 
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class LoginRequest(BaseModel):
-    code: str = Field(min_length=1, description="wx.login() 返回的 code")
+    model_config = ConfigDict(extra='forbid')
+    code: str = Field(min_length=1, max_length=256, description="wx.login() 返回的 code")
 
 
 class LoginResponse(BaseModel):
     token: str
     user: "UserBrief"
+    recovery_code: str | None = None
 
 
 class UserBrief(BaseModel):

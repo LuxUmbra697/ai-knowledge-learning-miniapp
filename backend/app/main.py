@@ -7,6 +7,7 @@ import structlog
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 
 from app.api.v1.routes import health, knowledge, quiz, report, user, tasks, learning, companion
 from app.core.config import get_settings, allowed_origins, validate_runtime
@@ -22,6 +23,7 @@ from app.core.exceptions import (
     ReportGenerationError,
 )
 from app.models.common import ApiResponse
+from app.api.v1.routes import identity
 
 logger = structlog.get_logger()
 
@@ -78,12 +80,20 @@ app.include_router(learning.router, prefix="/api/v1")
 app.include_router(quiz.router, prefix="/api/v1")
 app.include_router(report.router, prefix="/api/v1")
 app.include_router(user.router, prefix="/api/v1")
+app.include_router(identity.router, prefix='/api/v1')
 app.include_router(knowledge.router, prefix="/api/v1")
 app.include_router(tasks.router, prefix='/api/v1')
 app.include_router(companion.router, prefix='/api/v1')
 
 
 # 全局异常处理
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(request: Request, exc: RequestValidationError):
+    # Invalid credential payloads must never be reflected back in error bodies.
+    fields = ['.'.join(str(value) for value in error['loc']) for error in exc.errors()]
+    return JSONResponse(status_code=422, content={'code': 422, 'message': '请检查填写格式：' + ', '.join(fields), 'data': None})
+
+
 @app.exception_handler(AuthenticationError)
 async def auth_error_handler(request: Request, exc: AuthenticationError):
     return JSONResponse(

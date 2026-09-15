@@ -42,6 +42,7 @@ export default function ProfilePage() {
   }
   return <StudioShell active='profile' title='我的学习档案' subtitle='收藏每一段认真学习的时光。'>
     {error && <Notice message={error} retry={() => load()} />}
+    <Button className='text-button' onClick={() => Taro.navigateTo({ url: '/learning/security/index' })}><Icon name='user' size={18} />账号安全与微信绑定</Button>
     {process.env.TARO_ENV === 'weapp' && <Button className='text-button wechat-share' openType='share'><Icon name='share' size={18} />邀请朋友来学园</Button>}
     <View className='profile-form'><Text className='field-label'>学园昵称</Text><Input className='studio-input' value={nickname} maxlength={40} onInput={e => setNickname(e.detail.value)} /><View className='document-actions'><Button className='secondary-button' disabled={loading || !nickname.trim()} onClick={save}>保存昵称</Button><Button className='text-button' onClick={() => { clearToken(); navigate('/pages/login/index') }}><Icon name='logout' size={16} />退出登录</Button></View></View>
     <View className='stats-row'><View className='stat'><Text className='muted'>已完成练习</Text><Text className='stat-number'>{profile?.quiz_count ?? 0}</Text></View><View className='stat'><Text className='muted'>答对题数</Text><Text className='stat-number'>{profile?.correct_count ?? 0}</Text></View><View className='stat'><Text className='muted'>学习经验</Text><Text className='stat-number'>{profile?.total_xp ?? 0}</Text></View></View>

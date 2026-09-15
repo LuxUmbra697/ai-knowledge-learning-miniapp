@@ -52,7 +52,7 @@ The production gateway prefix is planned as `/ai-learn/api/v1`; it must strip `/
 
 ## Identity and Data
 
-H5 uses independent account credentials hashed with salted scrypt. WeChat retains server-side code exchange. Tokens contain the server-issued user identity; model tools and request bodies cannot select another user. Account merging is not implemented.
+Both Taro targets share salted-scrypt account credentials and explicit WeChat linking. H5 QR approval uses the same mini-program identity; unknown identities must choose registration/link/cancel. SQL session versions revoke previous tokens after security changes. Model tools and request bodies cannot choose a user identity. Independently existing account data is never implicitly merged. See [account security](accounts.md).
 
 MySQL is authoritative for documents, active revisions, source chunks, question answers, attempts and task state. Chroma results cannot authorize access. Every dense/BM25/reranker path starts with an owned SQL corpus; Chroma also receives a pre-filtered scope. Source bodies are taken from canonical SQL rows, not arbitrary vector metadata. Document tombstones revoke retrieval immediately; physical cleanup is retried separately.
 
@@ -189,8 +189,8 @@ answer and current owned source. A signed URL remains a temporary bearer capabil
 is not instantaneous after issuance. Cleanup uses a tracked list and bounded retries, never a
 bucket-wide delete. See [private illustrations](quiz-illustrations.md).
 
-- Native WeChat automation and device verification are pending the local tool authorization/service-port gate.
-- Cloud schema selection and backup/migration rehearsal remain pending; test databases are independent loopback schemas.
+- Native developer-tool operation and physical-device acceptance are separate; publication and legal-domain checks are not implied by screenshots.
+- Cloud-schema backups and isolated restoration are recorded separately from loopback test databases; explicit additive migrations do not run on startup.
 - Retired-index maintenance and deployed security-header verification still need release validation.
 - Private questions have exact quotation and available-fragment coverage validation, not a measured guarantee of full knowledge-point coverage or semantic entailment.
 - Windows parser subprocess timeouts are tested, but Linux-only memory limits have no equivalent verified Windows hard cap.

@@ -225,6 +225,23 @@ MIGRATIONS = {
                 REFERENCES companion_threads(user_id,character_id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci""",
     ],
+    17: [
+        """CREATE TABLE IF NOT EXISTS account_security (
+            user_id BIGINT UNSIGNED NOT NULL PRIMARY KEY, session_version INT NOT NULL DEFAULT 0,
+            recovery_hash CHAR(64) NULL, updated_at DATETIME NOT NULL,
+            CONSTRAINT fk_security_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB""",
+        """CREATE TABLE IF NOT EXISTS identity_challenges (
+            challenge_id CHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL PRIMARY KEY,
+            secret_hash CHAR(64) NOT NULL, kind VARCHAR(20) NOT NULL,
+            user_id BIGINT UNSIGNED NULL, openid VARCHAR(64) NULL, app_id VARCHAR(64) NOT NULL,
+            parent_id CHAR(32) NULL, state VARCHAR(16) NOT NULL DEFAULT 'pending',
+            session_version INT NOT NULL DEFAULT 0, pair_code CHAR(6) NULL,
+            expires_at DATETIME NOT NULL, created_at DATETIME NOT NULL,
+            KEY idx_identity_expiry(expires_at), KEY idx_identity_user(user_id),
+            CONSTRAINT fk_identity_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin""",
+    ],
 }
 
 

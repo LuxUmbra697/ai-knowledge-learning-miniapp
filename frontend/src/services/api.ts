@@ -66,6 +66,7 @@ export async function request<T = any>(
     timeout?: number
     control?: PollControl
     idempotencyKey?: string
+    preserveSession?: boolean
   } = {},
 ): Promise<T> {
   const { method = 'GET', data, timeout = 120000 } = options
@@ -99,8 +100,8 @@ export async function request<T = any>(
 
   // 401 未认证 — 清除本地凭证
   if (res.statusCode === 401 || body.code === 4010) {
-    clearToken()
-    throw new Error('登录已过期，请重新登录')
+    if (!options.preserveSession) clearToken()
+    throw new ApiError(body.message || res.data?.detail || '登录已过期，请重新登录', 401)
   }
 
   if (body.code !== 0) {
@@ -202,9 +203,10 @@ export function submitAnswer(quizId: string, questionId: string, selectedAnswers
 
 /** 微信登录 */
 export function loginByCode(code: string) {
-  return request<LoginResponse>('/user/login', {
+  return request<LoginResponse | { status: 'choice'; ticket: string }>('/user/login', {
     method: 'POST',
     data: { code },
+    preserveSession: true,
   })
 }
 
@@ -396,6 +398,7 @@ export interface UserBrief {
 }
 
 export interface LoginResponse {
+  recovery_code?: string | null
   token: string
   user: UserBrief
 }

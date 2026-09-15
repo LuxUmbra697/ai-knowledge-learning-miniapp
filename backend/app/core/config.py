@@ -83,6 +83,7 @@ class Settings(BaseSettings):
     # 微信小程序
     wechat_app_id: str = ""
     wechat_app_secret: str = ""
+    wechat_qr_env: Literal['release', 'trial', 'develop'] = 'release'
 
     # MySQL
     mysql_host: str = "localhost"

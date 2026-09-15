@@ -17,7 +17,7 @@ logger = structlog.get_logger()
 ALGORITHM = "HS256"
 
 
-def create_token(user_id: int, openid: str) -> str:
+def create_token(user_id: int, openid: str, session_version: int = 0) -> str:
     """生成 JWT token。"""
     settings = get_settings()
     expire = datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_expire_minutes)
@@ -25,6 +25,7 @@ def create_token(user_id: int, openid: str) -> str:
         "user_id": user_id,
         "openid": openid,
         "exp": expire,
+        "sv": session_version,
     }
     return jwt.encode(payload, settings.jwt_secret, algorithm=ALGORITHM)
 
@@ -35,7 +36,8 @@ def decode_token(token: str) -> dict:
     try:
         payload = jwt.decode(token, settings.jwt_secret, algorithms=[ALGORITHM],
                              options={"require": ["exp", "user_id"]})
-        if type(payload["user_id"]) is not int or payload["user_id"] <= 0:
+        if (type(payload["user_id"]) is not int or payload["user_id"] <= 0
+                or type(payload.get('sv', 0)) is not int or payload.get('sv', 0) < 0):
             raise AuthenticationError("无效的登录凭证")
         return payload
     except jwt.ExpiredSignatureError:
@@ -58,6 +60,9 @@ async def get_current_user(request: Request) -> int:
     if not token:
         raise AuthenticationError()
     payload = decode_token(token)
+    from app.services.identity_service import session_version
+    if payload.get('sv', 0) != await session_version(payload['user_id']):
+        raise AuthenticationError('账号安全信息已更新，请重新登录')
     return payload["user_id"]
 
 
@@ -67,7 +72,6 @@ async def get_optional_user(request: Request) -> Optional[int]:
     if not token:
         return None
     try:
-        payload = decode_token(token)
-        return payload["user_id"]
+        return await get_current_user(request)
     except AuthenticationError:
         return None

@@ -7,7 +7,7 @@ from app.core.auth import get_current_user
 from app.models.common import ApiResponse
 from app.models.user import LoginRequest, UpdateProfileRequest
 from app.services import user_service, history_service
-from app.services.account_service import AccountCredentials, authenticate
+from app.services.account_service import AccountCredentials, authenticate, check_login_rate
 
 router = APIRouter(prefix="/user", tags=["user"])
 
@@ -25,9 +25,10 @@ async def login_account(req: AccountCredentials, request: Request):
 
 
 @router.post("/login", response_model=ApiResponse)
-async def login(req: LoginRequest):
+async def login(req: LoginRequest, request: Request):
+    await check_login_rate(request.client.host if request.client else 'unknown', 'wechat', scope='wechat')
     result = await user_service.handle_login(req.code)
-    return ApiResponse.success(data=result.model_dump())
+    return ApiResponse.success(data=result)
 
 
 @router.get("/profile", response_model=ApiResponse)

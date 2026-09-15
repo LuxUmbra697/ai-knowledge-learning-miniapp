@@ -9,6 +9,16 @@ page, body { margin: 0; background: #fcfbfc; font-family: 'PingFang SC', 'Micros
 .has-companion .page-heading { padding-right: 84px; min-height: 96px; }
 .studio taro-button-core[disabled=true] { opacity: .55; cursor: default; }
 .studio .login-submit { width: 100%; margin-top: 24px; }
+.account-fields { width: 100%; min-width: 0; }
+.account-success { display: flex; flex-direction: column; gap: 8px; border-left: 3px solid var(--accent); padding: 12px; margin-bottom: 16px; }
+.wechat-qr, .recovery-receipt { display: flex; flex-direction: column; align-items: stretch; gap: 16px; max-width: 420px; margin: 12px auto; }
+.wechat-qr-image { width: 240px; height: 240px; max-width: 100%; align-self: center; background: #fff; }
+.qr-pair-code { font-size: 20px; text-align: center; font-weight: 700; }
+.recovery-code { display: block; overflow-wrap: anywhere; word-break: break-all; padding: 16px; border: 1px dashed var(--line); font-family: monospace; }
+.security-summary { display: flex; flex-wrap: wrap; gap: 12px 24px; padding: 12px 0; }
+.security-section { border-top: 1px solid var(--line); padding: 24px 0; max-width: 540px; }
+.security-section > .primary-button { margin-top: 20px; }
+.studio .login-switch > button, .studio .login-switch > taro-button-core { min-width: 0; white-space: normal; font-size: 14px; }
 .studio .login-switch > button, .studio .login-switch > taro-button-core, .studio .pose-selector > button, .studio .pose-selector > taro-button-core { flex: 1; }
 .studio .login-switch > button, .studio .login-switch > taro-button-core { padding: 12px; border-bottom: 2px solid transparent; }
 .studio .login-switch > .active { border-bottom-color: var(--accent); color: var(--accent); }
