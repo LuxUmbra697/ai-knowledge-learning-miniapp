@@ -82,9 +82,9 @@ H5 采用账号登录，不展示依赖未满足的扫码入口；过去的开�
 | 项目 | 当前状态 |
 | --- | --- |
 | 源码 | [ai-knowledge-learning-miniapp](https://github.com/LuxUmbra697/ai-knowledge-learning-miniapp)，默认分支 `main` |
-| 在线 H5 | [星知学园](https://lux-umbra.xyz/ai-learn/)；2026-09-17 入口与健康检查恢复。游客、登录修复及日志策略的新版发布仍在验证中，详见部署记录 |
-| API 前缀 | `https://lux-umbra.xyz/ai-learn/api/v1`；本次公网复验受连接故障阻塞 |
-| 微信小程序 | 修复开发版 `2026.9.16.3` 已通过官方 CLI 上传；15 页、游客、真实微信/账号登录与恢复、隐私拒绝在本地工具验证。新版后端部署、隐私后台配置、真机、体验版、审核及正式发布仍需分别验收 |
+| 在线 H5 | [星知学园](https://lux-umbra.xyz/ai-learn/)；2026-09-17 已部署游客、登录修复及日志策略，公网游客浏览、账号登录、伙伴切换和历史记录复验通过 |
+| API 前缀 | `https://lux-umbra.xyz/ai-learn/api/v1`；ready 正常，未定义 API 返回 JSON 404，不落入网页 |
+| 微信小程序 | 修复开发版 `2026.9.16.3` 已通过官方 CLI 上传，对应后端已部署；15 页、游客、真实微信/账号登录与恢复、隐私拒绝在本地工具验证。隐私后台配置、真机、体验版、审核及正式发布仍需分别验收 |
 
 ## 为什么这样实现
 
@@ -204,7 +204,7 @@ npm --prefix frontend run test:e2e
 
 | 实测项目 | 结果与条件 |
 | --- | --- |
-| 后端回归 | 锁定环境：449 项离线、84 项隔离 MySQL 通过；33 项前端单元通过 |
+| 后端回归 | 锁定环境：458 项离线、84 项隔离 MySQL 通过；33 项前端单元通过 |
 | H5 回归 | Chromium：38 项通过、5 项额外付费场景跳过；实际 API/数据库、游客与返回路径、30 秒超时解锁、账号恢复、任务恢复、五题型、报告和伙伴交互 |
 | 布局回归 | 15 页、5 套主题、320/390/768/1440/1920 px，920 个页面/滚动状态；检查文字对比度、按钮裁切、横向溢出与伙伴挡字；[覆盖范围](docs/testing.md#布局与可读性) |
 | 双端构建 | 连续构建互不覆盖；H5 入口 gzip 123,867 B，weapp 构建主包 571,632 B；官方上传主包 549,198 B、总包 641,803 B，包内媒体 0 B；9 个 WXSS、21 个 JS 兼容性检查通过 |
@@ -279,8 +279,9 @@ for organizing documents and larger study maps. The paired screenshots above sho
 Source: [ai-knowledge-learning-miniapp](https://github.com/LuxUmbra697/ai-knowledge-learning-miniapp),
 default branch `main`.
 Live H5: [Open AI Learning Studio](https://lux-umbra.xyz/ai-learn/), API: `/ai-learn/api/v1`.
-Those public flows passed on an earlier release. Public entry and health checks recovered on
-2026-09-17; the guest/login fixes and reduced-log release are still undergoing separate deployment verification.
+The guest/login fixes and reduced-log release were deployed on 2026-09-17. Actual public-browser checks
+passed for guest browsing, account login, character switching and persistent learning records; existing
+site entry points remained healthy. Unknown API routes return JSON 404, not the SPA page.
 Both builds, official WXSS compilation and native IDE page/character-switch checks pass.
 Development version `2026.9.16.3` was uploaded with the official CLI. All 15 native pages were opened
 and checked, including login choices and input alignment. Public artwork and icons are
@@ -348,7 +349,7 @@ evaluation, BKT fitting, frontend unit/type checks and actual-browser tests. Bro
 local stack. Default CI does not read real dotenv, touch production or spend provider credits.
 Explicit paid smoke commands are documented in [testing](docs/testing.md).
 
-Fresh locked environment: 449 offline, 84 MySQL and 33 frontend unit tests passed.
+Fresh locked environment: 458 offline, 84 MySQL and 33 frontend unit tests passed.
 H5 regression: 38 passed, five additional paid cases skipped; saved real-provider outputs were reused.
 Layout checks cover 15 pages, five themes and 320/390/768/1440/1920 px widths, totaling 920 states: text contrast,
 control clipping, horizontal overflow and companion occlusion. These are browser/IDE measurements,
