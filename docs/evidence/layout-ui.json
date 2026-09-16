@@ -1,32 +1,202 @@
 {
   "recorded_date": "2026-09-16",
-  "source": "Actual Chromium and WeChat DevTools; isolated synthetic learning records and saved provider outputs",
+  "source_revision": "e191bcd7abb840ed9fe057f6ddab5d7ac6866a5b",
+  "source": "Actual Chromium and WeChat DevTools; isolated synthetic learning records and reused provider outputs",
   "h5": {
-    "configured_routes": 14,
-    "themes": ["sakura", "night", "sea", "forest", "scroll"],
-    "viewport_widths": [320, 390, 768, 1440, 1920],
+    "configured_routes": 15,
+    "themes": [
+      "sakura",
+      "night",
+      "sea",
+      "forest",
+      "scroll"
+    ],
+    "matrix": [
+      {
+        "width": 320,
+        "states": 184,
+        "passed": true
+      },
+      {
+        "width": 390,
+        "states": 184,
+        "passed": true
+      },
+      {
+        "width": 768,
+        "states": 184,
+        "passed": true
+      },
+      {
+        "width": 1440,
+        "states": 184,
+        "passed": true
+      },
+      {
+        "width": 1920,
+        "states": 184,
+        "passed": true
+      }
+    ],
     "viewport_height": 900,
-    "states_per_width": 173,
-    "states_total": 865,
-    "checks": ["enabled_text_contrast", "button_text_bounds", "horizontal_overflow", "companion_text_occlusion", "top_and_bottom_scroll", "tabs_and_dialogs"],
-    "contrast_thresholds": {"normal": 4.5, "large": 3},
-    "full_business_regression_passed": 34,
-    "additional_paid_cases_skipped": 4,
-    "unit_tests_passed": 30
+    "states_total": 920,
+    "checks": [
+      "enabled_text_contrast",
+      "button_text_bounds",
+      "horizontal_overflow",
+      "companion_text_occlusion",
+      "top_and_bottom_scroll",
+      "tabs_and_dialogs"
+    ],
+    "contrast_thresholds": {
+      "normal": 4.5,
+      "large": 3
+    },
+    "full_business_regression_passed": 38,
+    "additional_paid_cases_skipped": 5,
+    "unit_tests_passed": 33
   },
   "weapp": {
     "appid": "wx7abde39fb8222887",
-    "actual_pages_opened": 14,
-    "login_choices_checked": 3,
-    "number_inputs_alignment_checked": 6,
+    "tool_version": "2.02.2608060",
+    "sdk": "3.17.2",
+    "actual_pages_opened": 15,
+    "page_results": [
+      {
+        "page": "login",
+        "ready": true,
+        "controls": 4,
+        "bounds": true,
+        "visible_color": true
+      },
+      {
+        "page": "home",
+        "ready": true,
+        "controls": 11,
+        "bounds": true,
+        "visible_color": true
+      },
+      {
+        "page": "knowledge",
+        "ready": true,
+        "controls": 5,
+        "bounds": true,
+        "visible_color": true
+      },
+      {
+        "page": "quiz",
+        "ready": true,
+        "controls": 5,
+        "bounds": true,
+        "visible_color": true
+      },
+      {
+        "page": "report",
+        "ready": true,
+        "controls": 11,
+        "bounds": true,
+        "visible_color": true
+      },
+      {
+        "page": "profile",
+        "ready": true,
+        "controls": 6,
+        "bounds": true,
+        "visible_color": true
+      },
+      {
+        "page": "assistant",
+        "ready": true,
+        "controls": 3,
+        "bounds": true,
+        "visible_color": true
+      },
+      {
+        "page": "document",
+        "ready": true,
+        "controls": 3,
+        "bounds": true,
+        "visible_color": true
+      },
+      {
+        "page": "tasks",
+        "ready": true,
+        "controls": 2,
+        "bounds": true,
+        "visible_color": true
+      },
+      {
+        "page": "review",
+        "ready": true,
+        "controls": 20,
+        "bounds": true,
+        "visible_color": true
+      },
+      {
+        "page": "tutor",
+        "ready": true,
+        "controls": 3,
+        "bounds": true,
+        "visible_color": true
+      },
+      {
+        "page": "path",
+        "ready": true,
+        "controls": 5,
+        "bounds": true,
+        "visible_color": true
+      },
+      {
+        "page": "companion",
+        "ready": true,
+        "controls": 2,
+        "bounds": true,
+        "visible_color": true
+      },
+      {
+        "page": "security",
+        "ready": true,
+        "controls": 8,
+        "bounds": true,
+        "visible_color": true
+      },
+      {
+        "page": "privacy",
+        "ready": true,
+        "controls": 2,
+        "bounds": true,
+        "visible_color": true
+      }
+    ],
+    "guest_home": true,
+    "private_page_cancel_returns_home": true,
+    "public_privacy": true,
+    "native_wechat_button_and_backend_exchange": true,
+    "account_register_recover_revoke": true,
+    "privacy_consent_refusal": "Injected needs-consent state; chooser never opened",
+    "production_domain_validation": false,
     "official_wxss_files_compiled": 9,
-    "javascript_es2019_files": 20,
-    "development_upload": "2026.9.16.2",
-    "official_upload_bytes": 635409,
-    "official_main_bytes": 542950,
-    "packaged_media_bytes": 0
+    "javascript_es2019_files": 21,
+    "packaged_media_bytes": 0,
+    "production_build_and_url_validation_restored": true,
+    "development_upload": "2026.9.16.3",
+    "official_upload_bytes": 641803,
+    "official_main_bytes": 549198
   },
   "new_model_calls": 0,
-  "screenshots": ["docs/screenshots/h5/65-login-mobile.png", "docs/screenshots/h5/66-login-desktop.png", "docs/screenshots/weapp/08-account-login.png", "docs/screenshots/weapp/09-question-counts.png"],
-  "limitations": ["Chromium measurements are not full accessibility certification", "Image-backed headings and diagram internals require separate visual review", "Inactive controls are excluded from WCAG text contrast thresholds but their behavior is tested", "Native DevTools uses its existing disabled domain-validation setting", "No physical-device or official WeChat publication claim"]
+  "screenshots": [
+    "docs/screenshots/h5/65-login-mobile.png",
+    "docs/screenshots/h5/66-login-desktop.png",
+    "docs/screenshots/h5/67-guest-home-mobile.png",
+    "docs/screenshots/weapp/06-oss-login.png",
+    "docs/screenshots/weapp/10-guest-home.png",
+    "docs/screenshots/weapp/11-privacy-consent.png"
+  ],
+  "limitations": [
+    "Production deployment blocked before writes by SSH/HTTPS connectivity",
+    "No physical-device or official publication claim",
+    "Native tests use isolated local API with temporary disabled domain validation",
+    "Browser contrast excludes disabled controls, image-backed headings and diagram internals",
+    "Privacy platform declaration remains the operator responsibility"
+  ]
 }
