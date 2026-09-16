@@ -7,6 +7,7 @@ export default defineAppConfig({
     'pages/profile/index',
     'pages/knowledge/index',
     'pages/login/index',
+    'pages/privacy/index',
   ],
   subPackages: [{ root: 'learning', pages: ['assistant/index', 'document/index', 'tasks/index', 'review/index', 'tutor/index', 'path/index', 'companion/index', 'security/index'] }],
   networkTimeout: {

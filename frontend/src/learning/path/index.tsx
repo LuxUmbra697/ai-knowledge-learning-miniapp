@@ -1,7 +1,8 @@
+import { requireLogin } from '../../services/access'
 import { useMemo, useRef, useState } from 'react'
 import { View, Text, Button, Picker, Slider } from '@tarojs/components'
 import Taro, { useDidShow, useDidHide, useRouter } from '@tarojs/taro'
-import { StudioShell, Notice, Empty, navigate } from '../../components/StudioShell'
+import { StudioShell, Notice, Empty } from '../../components/StudioShell'
 import { Icon } from '../../components/Icon'
 import Diagram from '../../components/study-map/Diagram'
 import { getToken, waitForLogin } from '../../services/api'
@@ -26,7 +27,7 @@ export default function PathPage() {
     control.current?.cancel(); const current = new PollControl(); control.current = current; setLoading(true)
     try {
       await waitForLogin()
-      if (!getToken()) { navigate('/pages/login/index'); return }
+      if (!getToken()) { await requireLogin(undefined, true); return }
       const relations = await getLearningPath(current), recent = await listPlans(current), proposed = await previewPlan(count, timezone, current)
       const id = selectedId || plan?.plan_id || router.params.planId || recent.items[0]?.plan_id
       const saved = !onlyPreview && id ? await getPlan(id, current) : null

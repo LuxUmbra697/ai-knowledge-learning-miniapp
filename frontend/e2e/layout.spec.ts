@@ -64,7 +64,7 @@ test('all login choices retain readable colors before and after switching, in ev
     await expect(page.locator(`.theme-${theme}`)).toBeVisible()
     for (const width of [320, 390, 1440]) {
       await page.setViewportSize({ width, height: 900 })
-      for (const label of ['账号登录', '微信登录', '注册账号']) {
+      for (const label of ['账号登录', '注册账号']) {
         await page.locator('.login-switch').getByText(label, { exact: true }).click()
         const metrics = await inspectLayout(page)
         expect(metrics, `${theme} ${width} ${label}`).toEqual(cleanLayout)
@@ -124,6 +124,7 @@ for (const width of (process.env.LAYOUT_ALL_WIDTHS === '1' ? [320, 390, 768, 144
     }, identity)
     const routes = [
       ['login', 'pages/login/index', '.login-switch'],
+      ['privacy', 'pages/privacy/index', '.privacy-content'],
       ['home', 'pages/index/index', '.history-row'],
       ['knowledge', 'pages/knowledge/index', '.document-row'],
       ['quiz', `pages/quiz/index?quizId=${fixture.quizId}`, '.answer-explanation'],
@@ -138,7 +139,7 @@ for (const width of (process.env.LAYOUT_ALL_WIDTHS === '1' ? [320, 390, 768, 144
       ['companion', 'learning/companion/index', '.room-greeting'],
       ['security', 'learning/security/index', '.security-summary'],
     ]
-    const directory = path.resolve(`../.local/sdlc/layout-audit/${width}`)
+    const directory = path.resolve(`../.local/sdlc/guest-access/layout/${width}`)
     await mkdir(directory, { recursive: true })
     const results: object[] = []
     const inspect = async (name: string) => {

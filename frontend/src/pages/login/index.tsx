@@ -4,7 +4,7 @@ import { useRouter, useDidHide, useDidShow } from '@tarojs/taro'
 import { StudioShell, Notice, navigate } from '../../components/StudioShell'
 import { request, LoginResponse, loginByCode, clearToken } from '../../services/api'
 import { AccountFields, RecoveryReceipt } from '../../components/AccountFields'
-import { WechatQr } from '../../components/WechatQr'
+import { finishLogin, openPage } from '../../services/access'
 import { Credentials, IdentityResult, ScanData, identityRequest, saveLogin, validateCredentials, wechatProof } from '../../services/identity'
 
 export default function LoginPage() {
@@ -15,19 +15,19 @@ export default function LoginPage() {
   const [receipt, setReceipt] = useState(''), [error, setError] = useState(''), [busy, setBusy] = useState(false)
   const [resetDone, setResetDone] = useState(false)
   const [choice, setChoice] = useState(''), [decision, setDecision] = useState<'register' | 'link'>('register')
-  const [withAccount, setWithAccount] = useState(false), [qr, setQr] = useState(false), [qrRecover, setQrRecover] = useState(false)
+  const [withAccount, setWithAccount] = useState(false)
   const [scan, setScan] = useState<ScanData | null>(null), [approved, setApproved] = useState('')
   const lock = useRef(false), active = useRef(true)
   useDidShow(() => { active.current = true })
-  useDidHide(() => { active.current = false; setQr(false); setQrRecover(false) })
+  useDidHide(() => { active.current = false })
   const finish = (result: IdentityResult) => {
     if (!active.current) return
     if ('token' in result) {
       saveLogin(result)
       if (result.recovery_code) setReceipt(result.recovery_code)
-      else navigate('/pages/index/index')
+      else finishLogin()
     } else if (result.status === 'choice' && result.ticket) setChoice(result.ticket)
-    else if (result.status === 'verified' && result.ticket) { setRecoveryTicket(result.ticket); setQrRecover(false) }
+    else if (result.status === 'verified' && result.ticket) setRecoveryTicket(result.ticket)
   }
   const run = async (action: () => Promise<void>) => {
     if (lock.current) return
@@ -44,7 +44,7 @@ export default function LoginPage() {
       clearToken(); setRecovery(''); setRecoveryTicket(''); setValue({ ...value, password: '' }); setConfirm(''); setMode('login')
       setResetDone(true)
     } else {
-      finish(await request<LoginResponse>('/user/account/' + (mode === 'register' ? 'register' : 'login'), { method: 'POST', data: credentials(), preserveSession: true }))
+      finish(await request<LoginResponse>('/user/account/' + (mode === 'register' ? 'register' : 'login'), { method: 'POST', data: credentials(), preserveSession: true, timeout: 30000 }))
     }
   })
   const wxLogin = () => run(async () => {
@@ -72,11 +72,11 @@ export default function LoginPage() {
     {decision === 'register' && <View className='setting-row'><Text>同时设置账号密码</Text><Switch checked={withAccount} onChange={e => setWithAccount(e.detail.value)} /></View>}
     {(decision === 'link' || withAccount) && <AccountFields value={value} onChange={setValue} nickname={decision === 'register'} />}
   </>
-  const switchMode = (next: typeof mode) => { setMode(next); setQr(false); setQrRecover(false); setError('') }
+  const switchMode = (next: typeof mode) => { setMode(next); setError('') }
   return <StudioShell title={scene && process.env.TARO_ENV === 'weapp' ? '微信身份确认' : '欢迎来到星知学园'} subtitle='把好奇变成理解，把练习变成成长。' guest>
     <View className='login-form'>
       {resetDone && <View className='account-success'><Text className='section-title'>密码已重置</Text><Text>原有设备的登录已失效，请使用新密码登录。</Text></View>}
-      {receipt ? <RecoveryReceipt code={receipt} onContinue={() => { setReceipt(''); navigate('/pages/index/index') }} /> : scene && process.env.TARO_ENV === 'weapp' ? <>
+      {receipt ? <RecoveryReceipt code={receipt} onContinue={() => { setReceipt(''); finishLogin() }} /> : scene && process.env.TARO_ENV === 'weapp' ? <>
         {approved ? <><Text>{approved}</Text><Button className='text-button' onClick={() => navigate('/pages/index/index')}>返回学园</Button></> : scan ? <>
           <Text className='qr-pair-code'>确认码 {scan.pair_code}</Text>
           <Text className='field-hint'>仅确认你本人打开的星知学园网页，请核对网页上的确认码。</Text>
@@ -85,14 +85,13 @@ export default function LoginPage() {
           <Button className='text-button' disabled={busy} onClick={() => approve('cancel')}>取消</Button>
         </> : <><Text className='field-hint'>继续后核对网页确认码，再选择是否允许本次操作。</Text><Button className='primary-button' disabled={busy} onClick={scanCode}>验证微信身份</Button><Button className='text-button' onClick={() => navigate('/pages/index/index')}>取消</Button></>}
       </> : choice ? <><Text className='section-title'>这个微信还没有学园账号</Text>{choices}<Button className='primary-button' disabled={busy} onClick={() => decide(decision)}>{decision === 'link' ? '验证并绑定' : '确认注册'}</Button><Button className='text-button' disabled={busy} onClick={() => decide('cancel')}>取消</Button></> : <>
-        <View className='login-switch'><Button disabled={busy} className={mode === 'login' ? 'active' : ''} onClick={() => switchMode('login')}>账号登录</Button><Button disabled={busy} className={mode === 'wechat' ? 'active' : ''} onClick={() => switchMode('wechat')}>微信登录</Button><Button disabled={busy} className={mode === 'register' ? 'active' : ''} onClick={() => switchMode('register')}>注册账号</Button></View>
-        {mode === 'wechat' ? process.env.TARO_ENV === 'weapp' ? <Button className='primary-button login-submit' disabled={busy} onClick={wxLogin}>{busy ? '正在验证' : '微信登录'}</Button> : qr ? <WechatQr purpose='login' onResult={finish} onCancel={() => setQr(false)} /> : <Button className='primary-button login-submit' onClick={() => setQr(true)}>微信扫码登录</Button> : <>
+        <View className='login-switch'><Button disabled={busy} className={mode === 'login' ? 'active' : ''} onClick={() => switchMode('login')}>账号登录</Button>{process.env.TARO_ENV === 'weapp' && <Button disabled={busy} className={mode === 'wechat' ? 'active' : ''} onClick={() => switchMode('wechat')}>微信登录</Button>}<Button disabled={busy} className={mode === 'register' ? 'active' : ''} onClick={() => switchMode('register')}>注册账号</Button></View>
+        {mode === 'wechat' && process.env.TARO_ENV === 'weapp' ? <Button className='primary-button login-submit' disabled={busy} onClick={wxLogin}>{busy ? '正在验证' : '微信登录'}</Button> : <>
           {mode === 'recover' && <Text className='section-title'>找回密码</Text>}
           <AccountFields value={value} onChange={setValue} nickname={mode === 'register'} passwordLabel={mode === 'recover' ? '新密码' : '密码'} />
           {mode === 'recover' && <>
             <Text className='field-label'>确认新密码</Text><Input className='studio-input' password placeholder='再次输入新密码' value={confirm} maxlength={128} onInput={e => setConfirm(e.detail.value)} />
-            {!recoveryTicket ? <><Text className='field-label'>账号恢复码</Text><Input className='studio-input' password placeholder='注册或账号安全中保存的恢复码' value={recovery} maxlength={100} onInput={e => setRecovery(e.detail.value)} /><Button className='text-button' disabled={busy} onClick={() => process.env.TARO_ENV === 'weapp' ? run(async () => { const { wechat_code } = await wechatProof(); finish(await identityRequest('wechat/recover', { code: wechat_code })) }) : setQrRecover(true)}>改用已绑定微信验证</Button></> : <Text className='field-hint'>微信身份已验证，请在 5 分钟内设置新密码。</Text>}
-            {qrRecover && <WechatQr purpose='recovery' onResult={finish} onCancel={() => setQrRecover(false)} />}
+            {!recoveryTicket ? <><Text className='field-label'>账号恢复码</Text><Input className='studio-input' password placeholder='注册或账号安全中保存的恢复码' value={recovery} maxlength={100} onInput={e => setRecovery(e.detail.value)} />{process.env.TARO_ENV === 'weapp' && <Button className='text-button' disabled={busy} onClick={() => run(async () => { const { wechat_code } = await wechatProof(); finish(await identityRequest('wechat/recover', { code: wechat_code })) })}>改用已绑定微信验证</Button>}</> : <Text className='field-hint'>微信身份已验证，请在 5 分钟内设置新密码。</Text>}
           </>}
           <Button className='primary-button login-submit' disabled={busy} onClick={submit}>{busy ? '正在提交' : mode === 'register' ? '开启我的学习旅程' : mode === 'recover' ? '重置密码' : '进入学园'}</Button>
         </>}
@@ -100,6 +99,7 @@ export default function LoginPage() {
       </>}
       {error && <Notice message={error} />}
       <Text className='field-hint' style={{ marginTop: '16px' }}>学习材料和答题记录仅对当前账号可见。</Text>
+      <View className='login-footer'><Button className='text-button' disabled={busy} onClick={() => navigate('/pages/index/index')}>先逛逛学园</Button><Button className='text-button' onClick={() => openPage('/pages/privacy/index')}>隐私说明</Button></View>
     </View>
   </StudioShell>
 }

@@ -1,3 +1,4 @@
+import { requireLogin } from '../../services/access'
 import { useEffect, useRef, useState } from 'react'
 import { Button, View, Text, Textarea, Image, Input, Picker, ScrollView } from '@tarojs/components'
 import Taro, { useDidShow, useDidHide, useRouter } from '@tarojs/taro'
@@ -57,7 +58,7 @@ function CompanionRoom({ identity, onSelect }: { identity: CharacterId; onSelect
   const load = async () => {
     control.current?.cancel(); const current = new PollControl(); control.current = current
     try {
-      await waitForLogin(); if (!getToken()) { navigate('/pages/login/index'); return }
+      await waitForLogin(); if (!getToken()) { await requireLogin(undefined, true); return }
       const next = await getCompanion(identity, current)
       if (!live.current || current.cancelled) return
       setDetail(next); setError('')

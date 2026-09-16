@@ -1,11 +1,12 @@
 import { PropsWithChildren, useState } from 'react'
 import { View, Text, Button, Switch, Image } from '@tarojs/components'
-import Taro from '@tarojs/taro'
 import { themes, useStudio } from './StudioProvider'
 import { Icon } from './Icon'
 import Companion from './companion/Companion'
 import { useCompanion } from './companion/useCompanion'
 import { assetUrl } from '../services/assets'
+import { navigate, openPage } from '../services/access'
+export { navigate } from '../services/access'
 
 export const navigation = [
   { key: 'home', label: '学习首页', icon: 'home', path: '/pages/index/index' },
@@ -13,7 +14,6 @@ export const navigation = [
   { key: 'assistant', label: '学习助手', icon: 'chat', path: '/learning/assistant/index' },
   { key: 'profile', label: '学习档案', icon: 'user', path: '/pages/profile/index' },
 ]
-export function navigate(path: string) { Taro.reLaunch({ url: path }) }
 
 export function StudioShell({ children, active, title, subtitle, guest = false, focus = false, compact = false }: PropsWithChildren<{
   active?: string; title: string; subtitle?: string; guest?: boolean; focus?: boolean; compact?: boolean
@@ -58,7 +58,7 @@ export function StudioShell({ children, active, title, subtitle, guest = false, 
       <View className='studio-main'>
         <View className='page-heading'><Text className='page-title'>{title}</Text>{subtitle && <Text className='page-subtitle'>{subtitle}</Text>}</View>
         {!guest && !appearance && reserved && shown && <View className={`companion-reserved pose-${portrait.pose} ${portrait.enabled ? 'companion-animated' : ''}`}>
-          <View className='actions'><Button className='text-button' onClick={() => Taro.navigateTo({ url: `/learning/companion/index?character=${settings.companionForm}` })}><Icon name='chat' size={16} />伙伴对话</Button>{focus && <Button className='text-button' onClick={() => { setDetached(true); settings.update({ companionFolded: false }) }}>自由移动</Button>}</View>
+          <View className='actions'><Button className='text-button' onClick={() => openPage(`/learning/companion/index?character=${settings.companionForm}`)}><Icon name='chat' size={16} />伙伴对话</Button>{focus && <Button className='text-button' onClick={() => { setDetached(true); settings.update({ companionFolded: false }) }}>自由移动</Button>}</View>
           <Image className='companion-portrait' src={portrait.source} mode='aspectFit' onClick={portrait.nextPose} />
         </View>}
         {children}
@@ -72,10 +72,11 @@ export function StudioShell({ children, active, title, subtitle, guest = false, 
         <View className='theme-swatch' style={{ background: theme.paper, borderColor: theme.accent }}><View style={{ background: theme.accent }} /></View><View><Text>{theme.name}</Text><Text className='muted'>{theme.motif}</Text></View>{settings.theme === theme.id && <Icon name='check' />}
       </Button>)}</View>
       <View className='setting-row'><Text>学习伙伴</Text><Switch checked={settings.companion} onChange={e => settings.update({ companion: e.detail.value })} /></View>
-      {!guest && <Button className='secondary-button' onClick={() => { setAppearance(false); Taro.navigateTo({ url: `/learning/companion/index?character=${settings.companionForm}` }) }}><Icon name='chat' size={18} />伙伴对话</Button>}
+      {!guest && <Button className='secondary-button' onClick={() => { setAppearance(false); openPage(`/learning/companion/index?character=${settings.companionForm}`) }}><Icon name='chat' size={18} />伙伴对话</Button>}
       <View className='setting-row'><Text>伙伴形态</Text><View className='actions'><Button className={`form-swatch pink ${settings.companionForm === 'pink' ? 'selected' : ''}`} aria-label='粉樱学妹' onClick={() => settings.update({ companionForm: 'pink' })} /><Button className={`form-swatch orange ${settings.companionForm === 'orange' ? 'selected' : ''}`} aria-label='橘晴学妹' onClick={() => settings.update({ companionForm: 'orange' })} /></View></View>
       <View className='pose-selector'>{(['auto','read','wave','celebrate'] as const).map((pose, index) => <Button key={pose} className={settings.companionPose === pose ? 'active' : ''} onClick={() => settings.update({ companionPose: pose })}>{['自动','阅读 / 思考','招手','庆祝'][index]}</Button>)}</View>
       <View className='setting-row'><Text>减少动效</Text><Switch checked={settings.reducedMotion} onChange={e => settings.update({ reducedMotion: e.detail.value })} /></View>
+      <Button className='text-button' onClick={() => { setAppearance(false); openPage('/pages/privacy/index') }}>隐私说明</Button>
     </View></View>}
   </View>
 }

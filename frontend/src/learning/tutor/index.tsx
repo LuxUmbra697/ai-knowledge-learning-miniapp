@@ -1,7 +1,8 @@
+import { requireLogin } from '../../services/access'
 import { useRef, useState } from 'react'
 import { View, Text, Textarea, Button, Checkbox, CheckboxGroup, Label } from '@tarojs/components'
 import Taro, { useDidShow, useDidHide, useRouter } from '@tarojs/taro'
-import { StudioShell, Notice, Empty, navigate } from '../../components/StudioShell'
+import { StudioShell, Notice, Empty } from '../../components/StudioShell'
 import { Icon } from '../../components/Icon'
 import { getCachedUser, getKnowledgeDocuments, getLearningTask, cancelLearningTask, KnowledgeDocumentItem, LearningTask, waitForLogin, getToken, updateReviewCard } from '../../services/api'
 import { createTutor, deleteTutor, getTutorContext, getTutorSession, listTutorSessions, sendTutorTurn, confirmTutorPractice, TutorConfig, TutorDraft, TutorEvidence, TutorResponse, TutorSession } from '../../services/tutor'
@@ -65,7 +66,7 @@ export default function TutorPage() {
     control.current?.cancel(); const current = new PollControl(); control.current = current
     try {
       await waitForLogin()
-      if (!getToken()) { navigate('/pages/login/index'); return }
+      if (!getToken()) { await requireLogin(undefined, true); return }
       const docs = await getKnowledgeDocuments()
       const list = await listTutorSessions(current)
       if (!live.current || current.cancelled) return

@@ -19,7 +19,7 @@ export function validateCredentials(value: Credentials) {
   return { ...value, nickname: value.nickname.trim() || '学习者' }
 }
 export async function wechatProof() {
-  const { code } = await Taro.login()
+  const { code } = await Taro.login({ timeout: 10000 })
   if (!code) throw new Error('微信身份验证未完成，请重试')
   return { wechat_code: code }
 }

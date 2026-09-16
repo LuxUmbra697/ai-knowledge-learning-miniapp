@@ -12,6 +12,33 @@ from app.repositories.rag_index_repository import transaction
 
 
 @pytest.mark.asyncio
+async def test_direct_binding_checks_password_ownership_and_idempotent_session_version(users):
+    from app.services.account_service import hash_password
+    password = 'Native-bind-isolated-123'
+    async with transaction() as cur:
+        await cur.execute('INSERT INTO account_credentials VALUES(%s,%s,%s,UTC_TIMESTAMP())',
+                          ('native_' + uuid.uuid4().hex[:15], users[0], hash_password(password)))
+        await cur.execute('SELECT openid FROM users WHERE id=%s', (users[1],))
+        occupied = (await cur.fetchone())['openid']
+    new_openid = 'native_' + uuid.uuid4().hex
+    initial = await identity.session_version(users[0])
+    with pytest.raises(HTTPException) as denied:
+        await identity.direct_bind(users[0], new_openid, password='wrong-password')
+    assert denied.value.status_code == 403
+    with pytest.raises(HTTPException) as conflict:
+        await identity.direct_bind(users[0], occupied, password=password)
+    assert conflict.value.status_code == 409
+    assert await identity.session_version(users[0]) == initial
+    result = await identity.direct_bind(users[0], new_openid, password=password)
+    assert result['user']['id'] == users[0]
+    version = await identity.session_version(users[0])
+    assert version == initial + 1
+    replay = await identity.direct_bind(users[0], new_openid, password=password)
+    assert replay['user']['id'] == users[0]
+    assert await identity.session_version(users[0]) == version
+
+
+@pytest.mark.asyncio
 async def test_unknown_wechat_choice_cancel_does_not_create_user(users):
     openid = 'wx_' + uuid.uuid4().hex
     result = await identity.begin_wechat(openid)

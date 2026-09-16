@@ -44,6 +44,8 @@ export default defineConfig<'webpack5'>(async (merge) => {
       },
     },
     h5: {
+      output: { filename: 'js/[name].[contenthash:12].js', chunkFilename: 'js/[name].[contenthash:12].js' },
+      miniCssExtractPluginOption: { filename: 'css/[name].[contenthash:12].css', chunkFilename: 'css/[name].[contenthash:12].css' },
       webpackChain(chain) {
         chain.merge({ optimization: { splitChunks: { cacheGroups: {
           diagramShared: { test: /[\\/]node_modules[\\/]/, name: 'diagram-shared', chunks: 'async', minChunks: 2, priority: 30, reuseExistingChunk: true },

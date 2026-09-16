@@ -1,5 +1,20 @@
 import { test, expect } from '@playwright/test'
 
+test('an unreachable login times out within 35 seconds and unlocks the form', async ({ page }) => {
+  let release!: () => void
+  const pending = new Promise<void>(resolve => { release = resolve })
+  await page.route('**/user/account/login', async route => { await pending; await route.abort() })
+  try {
+    await page.goto('pages/login/index')
+    await page.locator('input[placeholder="字母、数字或 . _ -"]').fill('timeout_test')
+    await page.locator('input[placeholder="至少 10 个字符"]').fill('Synthetic-Timeout-1976')
+    await page.locator('.login-submit').click()
+    await expect(page.locator('.notice')).toContainText('超时', { timeout: 35000 })
+    await expect(page.locator('.login-submit')).toHaveJSProperty('disabled', false)
+    await expect(page.locator('.login-submit')).toHaveText('进入学园')
+  } finally { release() }
+})
+
 test('register, change password, recover and revoke old sessions through real API and MySQL', async ({ page, request }) => {
   const username = `e2e_identity_${Date.now()}`
   const first = 'Local-Identity-1976', second = 'Updated-Identity-1976', third = 'Recovered-Identity-1976'
@@ -49,13 +64,13 @@ test('register, change password, recover and revoke old sessions through real AP
   await page.screenshot({ path: '../.local/sdlc/account-linking/security-pc.png', fullPage: true })
 })
 
-test('H5 offers WeChat QR and a recoverable provider failure without pretending to log in', async ({ page }) => {
-  await page.route('**/api/v1/user/identity/qr/create', route => route.fulfill({ status: 503, json: { code: 503, message: '微信扫码入口尚未发布，请管理员发布对应小程序版本' } }))
+test('H5 offers only available account authentication without requesting WeChat QR', async ({ page }) => {
+  const requests: string[] = []
+  page.on('request', request => { if (request.url().includes('/identity/qr/')) requests.push(request.url()) })
   await page.goto('pages/login/index')
-  await page.getByText('微信登录', { exact: true }).click()
-  await page.getByText('微信扫码登录', { exact: true }).click()
-  await expect(page.getByText('微信扫码入口尚未发布，请管理员发布对应小程序版本', { exact: true })).toBeVisible()
-  await page.getByText('取消', { exact: true }).click()
+  await expect(page.getByText('微信登录', { exact: true })).toHaveCount(0)
+  await page.getByText('注册账号', { exact: true }).click()
+  await expect(page.getByText('开启我的学习旅程', { exact: true })).toBeVisible()
   await page.getByText('账号登录', { exact: true }).click()
   await expect(page.getByText('进入学园', { exact: true })).toBeVisible()
   for (const width of [320, 390, 1440]) {
@@ -63,4 +78,5 @@ test('H5 offers WeChat QR and a recoverable provider failure without pretending 
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     await page.screenshot({ path: `../.local/sdlc/account-linking/login-${width}.png`, fullPage: true })
   }
+  expect(requests).toEqual([])
 })

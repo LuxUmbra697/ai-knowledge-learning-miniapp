@@ -53,6 +53,11 @@ class QrScan(LoginRequest):
     scene: str = Field(pattern=r'^[a-f0-9]{32}$')
 
 
+class NativeBind(Input):
+    wechat_code: str = Field(min_length=1, max_length=256, repr=False)
+    password: str = Field(min_length=1, max_length=128, repr=False)
+
+
 async def rate(request, key, scope='identity', limits=(60, 12)):
     await check_login_rate(request.client.host if request.client else 'unknown', key, scope=scope, limits=limits)
 
@@ -89,6 +94,13 @@ async def wechat_recover(req: LoginRequest, request: Request):
 @router.get('/security')
 async def security(user_id: int = Depends(get_current_user)):
     return ok(await service.security_profile(user_id))
+
+
+@router.post('/wechat/bind-current')
+async def bind_current(req: NativeBind, request: Request, user_id: int = Depends(get_current_user)):
+    await rate(request, str(user_id), scope='identity-security')
+    openid = await wx_code_to_openid(req.wechat_code)
+    return ok(await service.direct_bind(user_id, openid, password=req.password))
 
 
 @router.post('/credentials')

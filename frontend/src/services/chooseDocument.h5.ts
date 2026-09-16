@@ -1,3 +1,4 @@
+export async function needsDocumentPrivacy() { return false }
 export function chooseDocument(): Promise<{ name: string; path: string; size: number; release: () => void } | null> {
   return new Promise(resolve => {
     const input = document.createElement('input')

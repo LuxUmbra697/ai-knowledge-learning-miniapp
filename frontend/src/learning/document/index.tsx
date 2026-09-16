@@ -1,3 +1,4 @@
+import { requireLogin } from '../../services/access'
 import { useRef, useState } from 'react'
 import { View, Text, Button } from '@tarojs/components'
 import Taro, { useDidShow, useDidHide, useRouter } from '@tarojs/taro'
@@ -11,7 +12,7 @@ export default function DocumentPage() {
   const [error, setError] = useState(''), [loading, setLoading] = useState(true)
   const load = async (next = 1) => {
     await waitForLogin()
-    if (!getToken()) { navigate('/pages/login/index'); return }
+    if (!getToken()) { await requireLogin(undefined, true); return }
     const docId = router.params.docId
     if (!docId) { setError('未指定文档'); setLoading(false); return }
     control.current?.cancel(); const current = new PollControl(); control.current = current
