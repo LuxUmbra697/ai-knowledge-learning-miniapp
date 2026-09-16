@@ -17,6 +17,7 @@ services:
       MYSQL_AUTO_INIT: 'false'
       REQUIRE_PAID_MODELS: 'true'
       WORKER_ENABLED: 'true'
+      LOG_LEVEL: WARNING
       MYSQL_POOL_MINSIZE: '1'
       MYSQL_POOL_MAXSIZE: '3'
       H5_STATIC_DIR: /app/h5
@@ -48,8 +49,10 @@ services:
     logging:
       driver: json-file
       options:
-        max-size: 5m
-        max-file: '3'
+        max-size: 3m
+        max-file: '2'
+        mode: non-blocking
+        max-buffer-size: 64k
 networks:
   gateway:
     external: true

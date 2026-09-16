@@ -7,7 +7,7 @@ from typing import Literal
 from urllib.parse import urlsplit
 
 from pydantic_settings import BaseSettings
-from pydantic import Field, ValidationError
+from pydantic import Field, ValidationError, field_validator
 
 
 class Settings(BaseSettings):
@@ -97,7 +97,12 @@ class Settings(BaseSettings):
     mysql_auto_init: bool = False
 
     # Log
-    log_level: str = "INFO"
+    log_level: Literal['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'] = 'INFO'
+
+    @field_validator('log_level', mode='before')
+    @classmethod
+    def normalize_log_level(cls, value):
+        return value.strip().upper() if isinstance(value, str) else value
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore", "hide_input_in_errors": True}
 
