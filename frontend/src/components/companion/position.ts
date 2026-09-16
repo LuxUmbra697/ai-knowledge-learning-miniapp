@@ -29,6 +29,6 @@ export const protectedContentSelector = [
   '.studio-input', '.studio-textarea', '.mobile-navigation', '.stat', '.page-title', '.page-subtitle',
   '.welcome-title', '.section-title', '.row-title', '.field-hint', '.field-label', '.muted', '.tiny-label',
   '.tag', '.count-row', '.count-total', '.setting-row', '.section-heading', '.trend-day', '.security-summary',
-  '.source-choice', '.original-content', '.question-stem',
+  '.source-choice', '.original-content', '.question-stem', '.privacy-copy',
   '.answer-explanation', '.claim-text', '.notebook-toolbar', '.diagnosis-picker', '.diagram-surface', '.map-toolbar',
 ].join(', ')

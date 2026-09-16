@@ -1,8 +1,9 @@
+import { requireLogin } from '../../services/access'
 import { useRef, useState } from 'react'
 import { View, Text, Button, Picker } from '@tarojs/components'
 import Taro, { useDidShow, useDidHide, useRouter } from '@tarojs/taro'
 import { request } from '../../services/api'
-import { StudioShell, Notice, Empty, navigate } from '../../components/StudioShell'
+import { StudioShell, Notice, Empty } from '../../components/StudioShell'
 import { Icon } from '../../components/Icon'
 import { TextAnswer, GradingFeedback, answerComplete } from '../../components/TextAnswer'
 import { submitWrittenReview } from '../../services/writtenGrade'
@@ -36,7 +37,7 @@ export default function ReviewPage() {
     setLoading(true)
     try {
       await waitForLogin()
-      if (!getToken()) { navigate('/pages/login/index'); return }
+      if (!getToken()) { await requireLogin(undefined, true); return }
       const state = await getLearningSummary(current)
       const available = await listNotebooks(current)
       const book = available.items.find(item => item.notebook_id === selectedBook)

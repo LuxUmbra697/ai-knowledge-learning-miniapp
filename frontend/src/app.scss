@@ -1,5 +1,5 @@
 page, body { margin: 0; background: #fcfbfc; font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; font-size: 14px; letter-spacing: 0; }
-.studio taro-button-core { width: auto; margin: 0; font-family: inherit; }
+.studio button, .studio taro-button-core { width: auto; margin: 0; font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; color: var(--button-ink, var(--ink)); }
 /* Taro reflects disabled="false"; vendor [disabled] must not erase enabled labels. */
 .studio taro-button-core[disabled] { color: var(--button-ink, var(--ink)); }
 .primary-button { --button-ink: var(--paper); }
@@ -29,7 +29,14 @@ page, body { margin: 0; background: #fcfbfc; font-family: 'PingFang SC', 'Micros
 .studio .login-switch > button, .studio .login-switch > taro-button-core { min-width: 0; white-space: normal; font-size: 14px; }
 .studio .login-switch > button, .studio .login-switch > taro-button-core, .studio .pose-selector > button, .studio .pose-selector > taro-button-core { flex: 1; }
 .studio .login-switch > button, .studio .login-switch > taro-button-core { padding: 12px; border-radius: 0; border-bottom: 2px solid transparent; }
+.studio .login-switch > button, .studio .login-switch > taro-button-core { color: var(--ink); }
 .studio .login-switch > .active { border-bottom-color: var(--accent); color: var(--accent); }
+.guest-browse, .login-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.guest-browse { margin: -12px 0 16px; border-bottom: 1px solid var(--line); }
+.login-footer { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 8px; }
+.privacy-content { max-width: 760px; margin: 0 auto; }
+.privacy-section { border-bottom: 1px solid var(--line); padding: 20px 0; }
+.privacy-copy { display: block; margin-top: 12px; line-height: 1.9; overflow-wrap: anywhere; }
 .studio .pose-selector > button, .studio .pose-selector > taro-button-core { min-height: 40px; padding: 4px; font-size: 12px; }
 .studio .mobile-nav-item { flex: 1; }
 .studio .theme-option { width: 100%; }

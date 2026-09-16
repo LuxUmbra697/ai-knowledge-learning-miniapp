@@ -1,3 +1,4 @@
+import { requireLogin } from '../../services/access'
 import { useEffect, useRef, useState } from 'react'
 import { View, Text, Button, Textarea, Checkbox, CheckboxGroup, Label } from '@tarojs/components'
 import Taro, { useDidHide, useDidShow, useRouter } from '@tarojs/taro'
@@ -46,7 +47,7 @@ export default function AssistantPage() {
   }, [answer, appearance.reducedMotion])
   const load = async () => {
     await waitForLogin()
-    if (!getToken()) { navigate('/pages/login/index'); return }
+    if (!getToken()) { await requireLogin(undefined, true); return }
     try {
       const result = await getKnowledgeDocuments()
       if (!live.current) return

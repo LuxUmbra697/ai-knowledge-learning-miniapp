@@ -4,6 +4,8 @@ import assert from 'node:assert/strict'
 const html = await readFile(new URL('../dist/h5/index.html', import.meta.url), 'utf8')
 assert.match(html, /id="app"/)
 assert.match(html, /src="\/ai-learn\/js\//)
+assert.match(html, /\/ai-learn\/js\/app\.[a-f0-9]{12}\.js/, 'H5 entry must be content-addressed')
+assert.match(html, /\/ai-learn\/css\/app\.[a-f0-9]{12}\.css/, 'H5 styles must not reuse stale URLs')
 assert.doesNotMatch(html, /example\.com|localhost/)
 if (process.argv.includes('--both')) {
   const project = JSON.parse(await readFile(new URL('../project.config.json', import.meta.url), 'utf8'))

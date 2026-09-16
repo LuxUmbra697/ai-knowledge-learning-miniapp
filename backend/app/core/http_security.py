@@ -78,7 +78,7 @@ class SecurityHeadersMiddleware:
                         "default-src 'none'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; "
                         "style-src 'unsafe-inline' https://cdn.jsdelivr.net; img-src data: https://fastapi.tiangolo.com; "
                         "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'")
-                    headers['Cache-Control'] = 'no-cache'
+                    headers['Cache-Control'] = 'no-store'
             await send(message)
 
         await self.app(scope, receive, secure_send)

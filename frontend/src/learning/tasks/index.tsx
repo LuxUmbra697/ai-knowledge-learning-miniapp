@@ -1,3 +1,4 @@
+import { requireLogin } from '../../services/access'
 import { useRef, useState } from 'react'
 import { View, Text, Button } from '@tarojs/components'
 import Taro, { useDidHide, useDidShow } from '@tarojs/taro'
@@ -17,7 +18,7 @@ export default function TasksPage() {
   const live = useRef(true), control = useRef<PollControl>()
   const load = async (notify = false) => {
     await waitForLogin()
-    if (!getToken()) { navigate('/pages/login/index'); return }
+    if (!getToken()) { await requireLogin(undefined, true); return }
     control.current?.cancel(); const current = new PollControl(); control.current = current
     if (notify) setRefreshing(true)
     let first = true

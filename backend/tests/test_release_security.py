@@ -66,6 +66,24 @@ def test_static_fallback_never_masks_api_or_missing_assets(tmp_path):
     assert client.get('/api/v1/not-found').headers['cache-control'] == 'no-store'
 
 
+def test_new_index_is_not_hidden_by_equal_size_release_mtime(tmp_path):
+    import os
+    index = tmp_path / 'index.html'
+    index.write_text('<html>old</html>')
+    os.utime(index, (1700000000, 1700000000))
+    app = FastAPI()
+    app.add_middleware(SecurityHeadersMiddleware)
+    app.mount('/', H5StaticFiles(directory=str(tmp_path)))
+    client = TestClient(app)
+    previous = client.get('/pages/index/index')
+    index.write_text('<html>new</html>')
+    os.utime(index, (1700000000, 1700000000))
+    response = client.get('/pages/index/index', headers={'If-None-Match': previous.headers['etag']})
+    assert response.status_code == 200
+    assert response.text == '<html>new</html>'
+    assert response.headers['cache-control'] == 'no-store'
+
+
 def test_json_limit_rejects_before_parsing_and_includes_security_headers():
     app = FastAPI()
     app.add_middleware(JsonBodyLimitsMiddleware)

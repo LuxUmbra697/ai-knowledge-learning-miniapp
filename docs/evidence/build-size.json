@@ -1,5 +1,5 @@
 {
-  "measured_at": "2026-09-15T17:59:51.710Z",
+  "measured_at": "2026-09-16T09:40:39.625Z",
   "node": "v22.19.0",
   "taro": "4.1.11",
   "budgets": {
@@ -8,16 +8,16 @@
   },
   "platforms": {
     "h5": {
-      "files": 81,
-      "bytes": 4711471,
-      "entry_gzip_bytes": 122526
+      "files": 82,
+      "bytes": 4780345,
+      "entry_gzip_bytes": 123867
     },
     "weapp": {
-      "files": 65,
-      "bytes": 664910,
-      "main_bytes": 563127,
+      "files": 68,
+      "bytes": 673578,
+      "main_bytes": 571632,
       "subpackages": {
-        "learning/": 101783
+        "learning/": 101946
       }
     }
   },

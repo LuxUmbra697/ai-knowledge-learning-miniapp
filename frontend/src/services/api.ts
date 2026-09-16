@@ -87,14 +87,17 @@ export async function request<T = any>(
     method,
     data,
     header,
-    timeout,
+    timeout: timeout + 1000,
   })
 
+  // Taro H5 reports its timeout as an abort; track our deadline separately.
+  let timedOut = false
+  const deadline = setTimeout(() => { timedOut = true; task.abort() }, timeout)
   const cleanup = options.control?.onCancel(() => task.abort())
   const res = await task.catch(reason => {
     options.control?.check()
-    throw new ApiError(networkErrorMessage(reason), 0)
-  }).finally(() => cleanup?.())
+    throw new ApiError(timedOut ? '连接超时，请稍后重试' : networkErrorMessage(reason), 0)
+  }).finally(() => { clearTimeout(deadline); cleanup?.() })
   options.control?.check()
   const body = res.data as ApiResponse<T>
 
@@ -206,6 +209,7 @@ export function loginByCode(code: string) {
   return request<LoginResponse | { status: 'choice'; ticket: string }>('/user/login', {
     method: 'POST',
     data: { code },
+    timeout: 30000,
     preserveSession: true,
   })
 }

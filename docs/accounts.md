@@ -2,24 +2,29 @@
 
 ## 使用方式
 
+首页与隐私说明可直接浏览，不请求私人资料、不自动调用微信登录。点击学习功能时，访客可以去登录或继续浏览；登录后回到刚才的功能。返回路径限制为本站已知页面和限定参数。
+
 H5 和小程序共用账号密码注册、登录、找回密码及账号安全页面。
 小程序微信登录由后端交换真实 `wx.login` code。未登记的微信必须选择注册、验证并绑定已有账号或取消；取消不建号。
 注册微信账号时可以同时设置账号名和密码，也可以稍后在个人中心设置。
-从网页扫码注册后，可在账号安全中生成并保存恢复码；不会把未展示的恢复码标记为已设置。
+账号安全中可以生成并保存恢复码；不会把未展示的恢复码标记为已设置。
 
-H5 的微信入口采用小程序扫码确认，不把小程序 AppID 冒充网站开放平台 AppID。
-浏览器展示官方小程序码，微信内核对确认码并明确确认后，浏览器才能兑换登录结果。
-微信扫码注册、绑定、找回和换绑均沿用这条身份通路。已绑定别人的微信会被拒绝，两个已有账号的资料不会自动合并。
+**当前 H5 仅展示账号登录、注册和恢复码找回，不展示微信扫码。** 小程序额外提供微信直接登录、绑定微信找回、在账号安全中验证当前密码后绑定/换绑当前微信。
+小程序 `wx.login` 不依赖小程序已正式发布即可供有权限的开发成员联调。已登记的微信直接登录，陌生微信再选择注册/绑定/取消。
+当前未配置审核通过的网站应用或符合网页授权条件的公众号，小程序 AppID 不能冒充这两种身份。详见官方[网站登录](https://developers.weixin.qq.com/doc/oplatform/developers/dev/auth/web.html)与[H5 网页授权](https://developers.weixin.qq.com/doc/oplatform/developers/dev/auth/h5.html)。
+以前的小程序码确认协议保留为兼容代码，不再作为 H5 当前可用功能宣传。已绑定别人的微信会被拒绝，两个已有账号的资料不会自动合并。
 
 ## 找回与换绑
 
 - 注册账号或更新密码时显示一次高随机性恢复码。服务端只保存其 SHA-256 摘要；使用成功后立即失效。
-- 找回密码可使用已保存的恢复码，或新近验证过的已绑定微信。没有绑定微信且没有恢复码的旧账号不能仅凭昵称重置。
-- 账号安全页面可以验证当前密码/已绑定微信，然后更新密码、生成新恢复码或扫码换绑。
+- H5 找回使用已保存的恢复码，小程序还可验证已绑定微信。没有绑定微信且没有恢复码的旧账号不能仅凭昵称重置。
+- 小程序的直接绑定接口 `/user/identity/wechat/bind-current` 同时要求有效会话、当前密码和真实微信 code；用户 ID 只从服务端会话取得。相同绑定重复执行不会重复增加会话版本。
 - 密码重置与微信绑定变更增加服务端会话版本，旧 token 会被拒绝；资料归属的用户 ID 不变。
 - 没有邮件发送配置，不提供虚假的“邮件已发送”状态；没有实现邮件找回或不经校验的账号合并。
 
-## 事务与边界
+## 保留的扫码协议与事务边界
+
+以下是兼容协议，不是当前 H5 页面入口。启用前需另行满足微信发布条件并验收。
 
 ```mermaid
 sequenceDiagram
@@ -59,8 +64,8 @@ sequenceDiagram
 ## English
 
 Both targets share account credentials and recovery. WeChat identities are exchanged server-side;
-unknown identities require explicit registration/link/cancel. H5 uses an official mini-program scene
-code and explicit in-mini-program approval, not website OAuth with a mismatched AppID.
+unknown identities require explicit registration/link/cancel. Home and privacy are public; protected actions ask before navigation to login. H5 currently offers account authentication and recovery codes only. The mini-program additionally supports direct WeChat login, recovery and password-verified binding changes.
+Legacy mini-program QR confirmation remains compatibility code, not an advertised H5 feature. Audited website/official-account OAuth is not configured; a mini-program AppID is not substituted for either.
 
 Recovery uses a previously saved one-time high-entropy recovery code or freshly verified bound
 WeChat identity. Password reset and identity changes invalidate previous sessions through a SQL

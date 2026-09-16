@@ -1,10 +1,11 @@
+import { requireLogin } from '../../services/access'
 import { useState, useRef } from 'react'
 import { View, Text, Button, Image } from '@tarojs/components'
 import Taro, { useDidShow, useDidHide } from '@tarojs/taro'
 import { getKnowledgeDocuments, getKnowledgeDocumentStatus, uploadKnowledgeDocument, deleteKnowledgeDocument, generateQuizAsync, getLearningTask, getCachedUser, waitForLogin, getToken, KnowledgeDocumentItem, reindexDocument, ApiError } from '../../services/api'
 import { PollControl, pollUntil } from '../../services/polling'
-import { chooseDocument } from '../../services/chooseDocument'
-import { StudioShell, Notice, Empty, navigate } from '../../components/StudioShell'
+import { chooseDocument, needsDocumentPrivacy } from '../../services/chooseDocument'
+import { StudioShell, Notice, Empty } from '../../components/StudioShell'
 import { Icon } from '../../components/Icon'
 import { assetUrl } from '../../services/assets'
 import { restorableQuiz } from '../../services/quizSession'
@@ -16,6 +17,7 @@ export default function KnowledgePage() {
   const [documents, setDocuments] = useState<KnowledgeDocumentItem[]>([])
   const [busy, setBusy] = useState(''), [error, setError] = useState(''), [loading, setLoading] = useState(true)
   const [notice, setNotice] = useState('')
+  const [privacyNeeded, setPrivacyNeeded] = useState(false)
   const [illustrated, setIllustrated] = useState(false)
   const [practiceDoc, setPracticeDoc] = useState<KnowledgeDocumentItem | null>(null), [counts, setCounts] = useState(defaultCounts)
   const live = useRef(true), lock = useRef(false), polls = useRef(new Map<string, PollControl>())
@@ -32,7 +34,7 @@ export default function KnowledgePage() {
   }
   const load = async () => {
     await waitForLogin()
-    if (!getToken()) { navigate('/pages/login/index'); return }
+    if (!getToken()) { await requireLogin(undefined, true); return }
     try {
       const result = await getKnowledgeDocuments()
       if (!live.current) return
@@ -43,11 +45,12 @@ export default function KnowledgePage() {
   }
   useDidShow(() => { live.current = true; load() })
   useDidHide(() => { live.current = false; polls.current.forEach(control => control.cancel()); polls.current.clear() })
-  const upload = async () => {
+  const upload = async (authorized = false) => {
     if (lock.current) return
     lock.current = true
     let release: (() => void) | undefined
     try {
+      if (!authorized && await needsDocumentPrivacy()) { setPrivacyNeeded(true); return }
       const file = await chooseDocument()
       if (!file) return
       release = file.release
@@ -102,9 +105,15 @@ export default function KnowledgePage() {
     finally { lock.current = false; if (live.current) setBusy('') }
   }
   return <StudioShell active='knowledge' title='我的知识书架' subtitle='让自己的学习材料，成为每次探索的起点。'>
+    {process.env.TARO_ENV === 'weapp' && privacyNeeded && <View className='modal-backdrop'><View className='appearance-dialog privacy-prompt'>
+      <Text className='section-title'>添加材料前，请确认</Text>
+      <Text className='privacy-copy'>仅读取你主动选择的学习文件，用于解析、知识问答和生成练习。取消不会影响首页浏览。</Text>
+      <Button className='text-button' onClick={() => Taro.openPrivacyContract({ fail: () => { setPrivacyNeeded(false); setError('平台隐私指引暂不可用，请稍后重试') } })}>查看微信平台隐私指引</Button>
+      <View className='actions'><Button className='secondary-button' onClick={() => setPrivacyNeeded(false)}>暂不上传</Button><Button id='agree-document-privacy' className='primary-button' openType='agreePrivacyAuthorization' onAgreePrivacyAuthorization={() => { setPrivacyNeeded(false); void upload(true) }}>同意并选择文件</Button></View>
+    </View></View>}
     {practiceDoc && <View className='modal-backdrop'><View className='practice-config-dialog'><View className='section-heading'><Text className='section-title'>配置知识练习</Text><Button className='icon-button' aria-label='关闭练习配置' disabled={!!busy} onClick={() => setPracticeDoc(null)}><Icon name='close' /></Button></View><Text className='row-title'>{practiceDoc.file_name}</Text><QuestionCountsEditor value={counts} onChange={setCounts} disabled={!!busy} illustrated={illustrated} onIllustratedChange={setIllustrated} />{!validCounts(counts) && <Notice message='题型数量合计须为 1 至 20。' />}{error && <Notice message={error} />}<Button className='primary-button' disabled={!!busy || !validCounts(counts)} onClick={() => practice(practiceDoc)}>{busy || '生成这组练习'}</Button></View></View>}
     <View className='shelf-band'><Image className='shelf-panorama' src={assetUrl('notebook-shelf.jpg')} mode='aspectFit' aria-hidden /></View>
-    <View className='upload-band'><Button className='primary-button' disabled={!!busy} onClick={upload}><Icon name='upload' size={18} />{busy || '添加学习材料'}</Button><Text className='field-hint'>PDF / DOCX / TXT / Markdown · 最大 10MB · 暂不支持扫描件 OCR</Text></View>
+    <View className='upload-band'><Button className='primary-button' disabled={!!busy} onClick={() => upload()}><Icon name='upload' size={18} />{busy || '添加学习材料'}</Button><Text className='field-hint'>PDF / DOCX / TXT / Markdown · 最大 10MB · 暂不支持扫描件 OCR</Text></View>
     {error && <Notice message={error} retry={load} />}
     {notice && <Text className='field-hint'>{notice}</Text>}
     <View className='section-heading'><Text className='section-title'>全部文档</Text><Button className='icon-button' aria-label='刷新文档' onClick={load}><Icon name='refresh' /></Button></View>

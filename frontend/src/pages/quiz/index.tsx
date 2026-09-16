@@ -1,3 +1,4 @@
+import { requireLogin } from '../../services/access'
 import { useRef, useState } from 'react'
 import { View, Text, Button } from '@tarojs/components'
 import Taro, { useRouter, useDidShow, useDidHide } from '@tarojs/taro'
@@ -37,7 +38,7 @@ export default function QuizPage() {
     try {
       await waitForLogin()
       if (current.cancelled || !live.current) return
-      if (!getToken()) { navigate('/pages/login/index'); return }
+      if (!getToken()) { await requireLogin(undefined, true); return }
       setError('')
       let targetId = routeQuizId
       if (taskId) {

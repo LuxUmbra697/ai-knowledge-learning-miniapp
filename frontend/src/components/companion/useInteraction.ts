@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import Taro, { useDidHide } from '@tarojs/taro'
 import { useStudio } from '../StudioProvider'
 import { Gesture } from './gesture'
+import { openPage } from '../../services/access'
 
 export function useInteraction(react: () => void, active = true) {
   const { companionForm } = useStudio()
@@ -11,7 +12,7 @@ export function useInteraction(react: () => void, active = true) {
   const [reaction, setReaction] = useState('idle')
   const reactionTimer = useRef<ReturnType<typeof setTimeout>>()
   const name = companionForm === 'orange' ? '秋庭澄' : '樱野小满'
-  const openChat = () => Taro.navigateTo({ url: `/learning/companion/index?character=${companionForm}` })
+  const openChat = () => openPage(`/learning/companion/index?character=${companionForm}`)
   const openActions = async (onHide: () => void) => {
     setMenu(false)
     try {
