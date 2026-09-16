@@ -80,3 +80,12 @@ def test_production_container_keeps_limits_identity_and_explicit_paid_mode():
     assert 'ARG PYPI_INDEX_URL=https://pypi.org/simple' in dockerfile
     assert '--trusted-host' not in dockerfile and 'http://' not in dockerfile.split('HEALTHCHECK')[0]
     assert '"--workers", "1"' in dockerfile
+
+
+def test_production_logs_are_bounded_without_disabling_error_evidence():
+    service = yaml.safe_load((ROOT / 'deploy/compose.yaml').read_text(encoding='utf8'))['services']['studio']
+    assert service['environment']['LOG_LEVEL'] == 'WARNING'
+    assert service['logging']['driver'] == 'json-file'
+    assert service['logging']['options'] == {
+        'max-size': '3m', 'max-file': '2', 'mode': 'non-blocking', 'max-buffer-size': '64k'}
+    assert '"--no-access-log"' in (ROOT / 'deploy/Dockerfile').read_text(encoding='utf8')

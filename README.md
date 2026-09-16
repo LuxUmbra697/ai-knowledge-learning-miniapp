@@ -82,7 +82,7 @@ H5 采用账号登录，不展示依赖未满足的扫码入口；过去的开�
 | 项目 | 当前状态 |
 | --- | --- |
 | 源码 | [ai-knowledge-learning-miniapp](https://github.com/LuxUmbra697/ai-knowledge-learning-miniapp)，默认分支 `main` |
-| 在线 H5 | [星知学园](https://lux-umbra.xyz/ai-learn/)；历史版本完成过核心公网联调。2026-09-16 本次连接被重置，新版部署尚未完成，不视为当前可用性证明 |
+| 在线 H5 | [星知学园](https://lux-umbra.xyz/ai-learn/)；2026-09-17 入口与健康检查恢复。游客、登录修复及日志策略的新版发布仍在验证中，详见部署记录 |
 | API 前缀 | `https://lux-umbra.xyz/ai-learn/api/v1`；本次公网复验受连接故障阻塞 |
 | 微信小程序 | 修复开发版 `2026.9.16.3` 已通过官方 CLI 上传；15 页、游客、真实微信/账号登录与恢复、隐私拒绝在本地工具验证。新版后端部署、隐私后台配置、真机、体验版、审核及正式发布仍需分别验收 |
 
@@ -279,8 +279,8 @@ for organizing documents and larger study maps. The paired screenshots above sho
 Source: [ai-knowledge-learning-miniapp](https://github.com/LuxUmbra697/ai-knowledge-learning-miniapp),
 default branch `main`.
 Live H5: [Open AI Learning Studio](https://lux-umbra.xyz/ai-learn/), API: `/ai-learn/api/v1`.
-Those public flows passed on an earlier release. On 2026-09-16, production connections were reset;
-deployment of this guest/login fix is pending and current public availability is not confirmed.
+Those public flows passed on an earlier release. Public entry and health checks recovered on
+2026-09-17; the guest/login fixes and reduced-log release are still undergoing separate deployment verification.
 Both builds, official WXSS compilation and native IDE page/character-switch checks pass.
 Development version `2026.9.16.3` was uploaded with the official CLI. All 15 native pages were opened
 and checked, including login choices and input alignment. Public artwork and icons are

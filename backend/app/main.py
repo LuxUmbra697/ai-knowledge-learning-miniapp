@@ -12,6 +12,7 @@ from fastapi.exceptions import RequestValidationError
 from app.api.v1.routes import health, knowledge, quiz, report, user, tasks, learning, companion
 from app.core.config import get_settings, allowed_origins, validate_runtime
 from app.core.db import close_mysql_pool, connect_mysql
+from app.core.logging import configure_logging
 from app.core.upload_limits import UploadLimitsMiddleware
 from app.core.http_security import SecurityHeadersMiddleware, JsonBodyLimitsMiddleware, SafeErrorsMiddleware, safe_error_response
 from app.core.static_site import H5StaticFiles
@@ -32,6 +33,7 @@ logger = structlog.get_logger()
 async def lifespan(app: FastAPI):
     settings = get_settings()
     validate_runtime(settings)
+    configure_logging(settings.log_level)
     logger.info("app_starting", host=settings.app_host, port=settings.app_port)
     await connect_mysql()
     worker = None
