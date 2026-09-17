@@ -48,10 +48,6 @@
 
 ### 微信小程序
 
-以下来自微信开发者工具实际运行，AppID 为 `wx7abde39fb8222887`，不是 H5 套壳截图。
-截图使用本地隔离数据；模拟器连接本地 API 时临时关闭域名校验，上传构建恢复正式 HTTPS 地址。
-这些图片证明页面运行，不代表合法域名、真机或正式发布已经验收。
-
 | 学习首页 | 知识书架 | 伙伴手札 |
 | --- | --- | --- |
 | ![微信小程序首页](docs/screenshots/weapp/01-home.png) | ![微信小程序知识书架](docs/screenshots/weapp/02-knowledge-library.png) | ![微信小程序伙伴手札](docs/screenshots/weapp/03-companion-room.png) |
@@ -71,11 +67,6 @@
 | 首次游客浏览 | 上传前的隐私确认 | 作答与学习图谱 |
 | --- | --- | --- |
 | ![小程序游客首页](docs/screenshots/weapp/10-guest-home.png) | ![小程序文件隐私提示](docs/screenshots/weapp/11-privacy-consent.png) | ![小程序作答复盘](docs/screenshots/weapp/13-report.png) |
-
-本次新增截图均为隔离账号；隐私弹层测试注入“尚未授权”的平台状态并验证取消，不读取私人消息文件。
-
-账号注册、恢复码找回、旧会话失效均经开发工具实际操作。真实微信按钮已完成 code 交换、后端登录与首页数据读取。
-H5 采用账号登录，不展示依赖未满足的扫码入口；过去的开发版二维码联调不等于正式版扫码验收。
 
 ## 访问状态
 
